@@ -43,6 +43,12 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
 import javax.swing.border.BevelBorder;
+import javax.swing.JCheckBox;
+import javax.swing.JTextField;
+import java.awt.event.ItemListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
 public class PlotPanel extends JPanel {
 
@@ -68,6 +74,12 @@ public class PlotPanel extends JPanel {
     private float xrangeMax = -1;
     private float yrangeMin = -1;
     private float yrangeMax = -1;
+    
+    //Parametres visuals
+    private static float incXPrimPIXELS = 100;
+    private static float incXSecPIXELS = 25;
+    private static float incYPrimPIXELS = 100;
+    private static float incYSecPIXELS = 25;
     
     private String xlabel = "2theta";
     private String ylabel = "Intensity";
@@ -96,13 +108,28 @@ public class PlotPanel extends JPanel {
     float div_startValX, div_startValY;
     private static int div_PrimPixSize = 8;
     private static int div_SecPixSize = 4;
-    boolean autoAxis = false;
+    boolean fixAxes = false;
+    boolean autoDiv = true;
     boolean YLabelVertical = false;
     
     boolean showLegend = true;
     
     private static VavaLogger log = D1Dplot_global.log;
+    private JTextField txtXdiv;
+    private JTextField txtYdiv;
+    private JCheckBox chckbxFixedAxis;
+    private JCheckBox chckbxAutodiv;
+    private JTextField txtXmin;
+    private JTextField txtXmax;
+    private JTextField txtYmin;
+    private JTextField txtYmax;
+    private JButton btnApply;
+    private JButton btnApplydiv;
+    private JTextField txtNdivx;
 
+    
+    private boolean continuousRepaint = false;
+    
     /**
      * Create the panel.
      */
@@ -113,10 +140,75 @@ public class PlotPanel extends JPanel {
         JPanel buttons_panel = new JPanel();
         buttons_panel.setBorder(new BevelBorder(BevelBorder.RAISED, null, null, null, null));
         add(buttons_panel, "cell 0 0,grow");
-        buttons_panel.setLayout(new MigLayout("insets 2", "[]", "[]"));
+        buttons_panel.setLayout(new MigLayout("", "[][grow][grow][grow][grow][]", "[25px][]"));
         
-        JButton btnNewButton = new JButton("New button");
-        buttons_panel.add(btnNewButton, "cell 0 0");
+        chckbxFixedAxis = new JCheckBox("Fix Axes");
+        chckbxFixedAxis.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxFixedAxis_itemStateChanged(e);
+            }
+        });
+        buttons_panel.add(chckbxFixedAxis, "cell 0 0");
+        
+        chckbxAutodiv = new JCheckBox("AutoDiv");
+        chckbxAutodiv.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxAutodiv_itemStateChanged(e);
+            }
+        });
+        chckbxAutodiv.setSelected(true);
+        buttons_panel.add(chckbxAutodiv, "cell 1 0");
+        
+        txtXdiv = new JTextField();
+        txtXdiv.setText("xdiv");
+        buttons_panel.add(txtXdiv, "cell 2 0,growx");
+        txtXdiv.setColumns(10);
+        
+        txtNdivx = new JTextField();
+        txtNdivx.setText("NdivX");
+        buttons_panel.add(txtNdivx, "cell 3 0,growx");
+        txtNdivx.setColumns(10);
+        
+        txtYdiv = new JTextField();
+        txtYdiv.setText("ydiv");
+        buttons_panel.add(txtYdiv, "cell 4 0,growx");
+        txtYdiv.setColumns(10);
+        
+        btnApplydiv = new JButton("applyDiv");
+        btnApplydiv.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_btnApplydiv_actionPerformed(e);
+            }
+        });
+        buttons_panel.add(btnApplydiv, "cell 5 0");
+        
+        txtXmin = new JTextField();
+        txtXmin.setText("Xmin");
+        buttons_panel.add(txtXmin, "cell 0 1,growx");
+        txtXmin.setColumns(10);
+        
+        txtXmax = new JTextField();
+        txtXmax.setText("xmax");
+        buttons_panel.add(txtXmax, "cell 1 1,growx");
+        txtXmax.setColumns(10);
+        
+        txtYmin = new JTextField();
+        txtYmin.setText("ymin");
+        buttons_panel.add(txtYmin, "cell 2 1,growx");
+        txtYmin.setColumns(10);
+        
+        txtYmax = new JTextField();
+        txtYmax.setText("ymax");
+        buttons_panel.add(txtYmax, "cell 4 1,growx");
+        txtYmax.setColumns(10);
+        
+        btnApply = new JButton("apply");
+        btnApply.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent arg0) {
+                do_btnApply_actionPerformed(arg0);
+            }
+        });
+        buttons_panel.add(btnApply, "cell 5 1");
         
         graphPanel = new Plot1d();
         graphPanel.setBackground(Color.WHITE);
@@ -266,6 +358,8 @@ public class PlotPanel extends JPanel {
             this.zoomRect = null; //reiniciem rectangle
             this.setMouseBox(true);
         }
+        continuousRepaint=true;
+        this.repaint();
 
     }
 
@@ -299,6 +393,8 @@ public class PlotPanel extends JPanel {
             this.setXrangeMax(xrmax);
             this.calcScaleFitX();
         }
+        continuousRepaint=false;
+
     }
     
 
@@ -306,6 +402,7 @@ public class PlotPanel extends JPanel {
         Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
         boolean zoomIn = (e.getWheelRotation() < 0);
         this.zoomY(zoomIn, p);
+        this.repaint();
     }
     
     public boolean arePatterns(){
@@ -399,10 +496,7 @@ public class PlotPanel extends JPanel {
         //cada 100 pixels una linia principal i cada 25 una secundaria
         //mirem l'amplada/alçada del graph area i dividim per tenir-ho en pixels        
 //        Rectangle2D.Float graphr = this.getRectangleGraphArea();
-        float incXPrimPIXELS = 100;
-        float incXSecPIXELS = 25;
-        float incYPrimPIXELS = 100;
-        float incYSecPIXELS = 25;
+
         
         //ara cal veure a quan es correspon en les unitats de cada eix
         float xppix = this.getXunitsPerPixel();
@@ -414,9 +508,32 @@ public class PlotPanel extends JPanel {
         this.setDiv_incXSec(incXSecPIXELS*xppix);
         this.setDiv_incYPrim(incYPrimPIXELS*yppix);
         this.setDiv_incYSec(incYSecPIXELS*yppix);
- 
+        
+        this.txtXdiv.setText(String.valueOf(this.getDiv_incXSec()));
+        this.txtYdiv.setText(String.valueOf(this.getDiv_incYSec()));
+        
         log.writeNameNumPairs("config", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
 
+    }
+    
+    //valor inicial, valor d'increment per les separacions principals (tindran número), n divisions secundaries entre principals
+    private void customDivLinesX(float iniVal, float incrPrincipals, float nDivisionsSecund){
+        
+//        this.setXrangeMin(iniVal);
+        
+        float currentIni = this.getXrangeMin();
+        
+        this.setXrangeMin((int)this.getxMin());
+        this.setDiv_startValX(this.getXrangeMin());
+        this.setXrangeMin(currentIni);
+//        this.calcScaleFitX();
+        
+        this.setDiv_incXPrim(incrPrincipals);
+        this.setDiv_incXSec(incrPrincipals/nDivisionsSecund);
+        
+        this.txtXdiv.setText(String.valueOf(this.getDiv_incXSec()));
+        
+        log.writeNameNumPairs("config", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
     }
     
     //ens diu si s'han calculat els limits (o s'han assignat) per les linies de divisio
@@ -811,7 +928,7 @@ public class PlotPanel extends JPanel {
             
             // **** linies divisio eixos
             if (!checkIfDiv())return;
-            if (autoAxis) autoDivLines(); //es pot fer mes eficient sense fer-ho cada cop
+            if (fixAxes) autoDivLines(); //es pot fer mes eficient sense fer-ho cada cop
             //TODO
             //---eix X
             //Per tots els punts les coordenades Y seran les mateixes
@@ -836,6 +953,9 @@ public class PlotPanel extends JPanel {
                 float yLabel = yfinPrim + AxisLabelsPadding + sh;
                 g1.drawString(s, xLabel, yLabel);
                 xval = xval + div_incXPrim;
+
+                if(xval> (int)(1+getxMax()))break; //provem de posar-ho aqui perque no dibuixi mes enllà
+
             }
             
             //ara les secundaries
@@ -851,6 +971,8 @@ public class PlotPanel extends JPanel {
                 Line2D.Float l = new Line2D.Float(xvalPix,yiniSec,xvalPix,yfinSec);
                 g1.draw(l);
                 xval = xval + div_incXSec;
+                
+                if(xval> (int)(1+getxMax()))break; //provem de posar-ho aqui perque no dibuixi mes enllà
             }
             
             //---eix Y
@@ -1010,7 +1132,7 @@ public class PlotPanel extends JPanel {
                 
                 panelW = this.getWidth();
                 panelH = this.getHeight();
-
+                
                 //primer caculem els limits
                 calcMaxMinXY();
                 if (getScalefitY()<0){
@@ -1047,7 +1169,8 @@ public class PlotPanel extends JPanel {
                 g1.dispose();
                 g2.dispose();
                 
-                this.repaint();
+                log.debug(Boolean.toString(continuousRepaint));
+                if(continuousRepaint)this.repaint();
             }
             log.fine("paintComponent exited");
         }
@@ -1113,4 +1236,24 @@ public class PlotPanel extends JPanel {
     }
     
     
+    protected void do_chckbxAutodiv_itemStateChanged(ItemEvent e) {
+        this.autoDiv=chckbxAutodiv.isSelected();
+    }
+    protected void do_chckbxFixedAxis_itemStateChanged(ItemEvent e) {
+        this.fixAxes=chckbxFixedAxis.isSelected();
+    }
+    
+    protected void do_btnApply_actionPerformed(ActionEvent arg0) {
+        this.setXrangeMin(Float.parseFloat(txtXmin.getText()));
+        this.setXrangeMax(Float.parseFloat(txtXmax.getText()));
+        this.setYrangeMin(Float.parseFloat(txtYmin.getText()));
+        this.setYrangeMax(Float.parseFloat(txtYmax.getText()));
+        this.calcScaleFitX();
+        this.calcScaleFitY();
+        this.repaint();
+    }
+    protected void do_btnApplydiv_actionPerformed(ActionEvent e) {
+        this.customDivLinesX(Float.parseFloat(txtXmin.getText()), Float.parseFloat(txtXdiv.getText()), Float.parseFloat(txtNdivx.getText()));
+        this.repaint();
+    }
 }

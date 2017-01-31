@@ -17,22 +17,16 @@ package vava33.d1dplot;
  */
 
 import java.awt.EventQueue;
-import java.awt.Frame;
-
 import javax.swing.JFrame;
 import javax.swing.UIManager;
 
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
-import javax.swing.GroupLayout;
-import javax.swing.GroupLayout.Alignment;
-
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JSplitPane;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
 import javax.swing.JTable;
 
 import com.vava33.jutils.LogJTextArea;
@@ -46,7 +40,6 @@ import vava33.d1dplot.auxi.Pattern1D;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.io.File;
-import java.util.ArrayList;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.JLabel;
