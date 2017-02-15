@@ -12,31 +12,47 @@ package vava33.d1dplot.auxi;
 
 public class DataPoint {
 
-    private float x;
-    private float y;
-    private float sdy;
+    private double x;
+    private double y;
+    private double sdy;
+    private double yBkg;
     
-    public DataPoint(float px, float py, float pysd){
+    public DataPoint(double px, double py, double pysd){
         this.setX(px);
         this.setY(py);
         this.setSdy(pysd);
+        this.setyBkg(0);
     }
-    public float getX() {
+    
+    public DataPoint(double px, double py, double pysd, double ybkg){
+        this.setX(px);
+        this.setY(py);
+        this.setSdy(pysd);
+        this.setyBkg(ybkg);
+    }
+    
+    public double getX() {
         return x;
     }
-    public void setX(float x) {
+    public void setX(double x) {
         this.x = x;
     }
-    public float getY() {
+    public double getY() {
         return y;
     }
-    public void setY(float y) {
+    public void setY(double y) {
         this.y = y;
     }
-    public float getSdy() {
+    public double getSdy() {
         return sdy;
     }
-    public void setSdy(float sdy) {
+    public void setSdy(double sdy) {
         this.sdy = sdy;
+    }
+    public double getyBkg() {
+        return yBkg;
+    }
+    public void setyBkg(double yBkg) {
+        this.yBkg = yBkg;
     }
 }
