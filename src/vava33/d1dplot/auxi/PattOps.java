@@ -10,13 +10,27 @@ package vava33.d1dplot.auxi;
  * 
  */
 
+import java.awt.BasicStroke;
+import java.awt.event.ActionEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 import javax.swing.table.DefaultTableModel;
 
+import org.apache.commons.math3.analysis.UnivariateFunction;
+import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
+import org.apache.commons.math3.analysis.interpolation.UnivariateInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
+import org.apache.commons.math3.fitting.PolynomialCurveFitter;
+import org.apache.commons.math3.fitting.WeightedObservedPoints;
+import org.apache.commons.math3.util.FastMath;
+
 import vava33.d1dplot.D1Dplot_global;
+import vava33.d1dplot.auxi.DataSerie.serieType;
 
 import com.vava33.jutils.VavaLogger;
+
+
 
 public final class PattOps {
     
@@ -24,8 +38,8 @@ public final class PattOps {
     private static VavaLogger log = D1Dplot_global.getVavaLogger(PattOps.class.getName());
     
     
-    private static DataSerie firstPass(DataSerie ds){  //no depen de N
-        DataSerie ds0 = new DataSerie(ds);
+    private static DataSerie bkg_Bruchner_firstPass(DataSerie ds){  //no depen de N
+        DataSerie ds0 = new DataSerie(ds,serieType.bkg,false);
         double[] vals = ds.calcYmeanYDesvYmaxYmin(); 
         double Imean = vals[0];
         double Imin = vals[3];
@@ -47,14 +61,14 @@ public final class PattOps {
     }
     //normal=true invers==normal=false
     //si multi = true, treure info de defaulttablemodel
-    public static DataSerie bruchner(DataSerie ds, int niter, int nveins, boolean edgenormal,boolean multi,DefaultTableModel m) {
+    public static DataSerie bkg_Bruchner(DataSerie ds, int niter, int nveins, boolean edgenormal,boolean multi,DefaultTableModel m) {
         
         //primer fem el pas preliminar (es guarda a PATT[1])
-        DataSerie ds0 = firstPass(ds);
-        DataSerie ds1 = new DataSerie(ds0);
+        DataSerie ds0 = bkg_Bruchner_firstPass(ds);
+        DataSerie ds1 = new DataSerie(ds0,serieType.bkg,false);
 
         for(int p=0;p<niter;p++){
-            ds1 = new DataSerie(ds0);
+            ds1 = new DataSerie(ds0,serieType.bkg,false);
             
             for(int i=0; i<ds0.getNpoints(); i++){
                 //remplaçarem cada punt i del diagrama per un de fons, que es la mitja dels +-N veins
@@ -85,7 +99,7 @@ public final class PattOps {
                         continue;
 
                     }
-                    //AQUI FALTA IMPLEMENTAR LA COMPLEMENTARIA INVERTIDA TAMBÉ
+                    //AQUI FALTA IMPLEMENTAR LA COMPLEMENTARIA INVERTIDA TAMB�
                     if(j>=ds0.getNpoints()-1){
                         //agafem intensitat de l'ultim punt
                         sumI=sumI+ds0.getPoint(ds0.getNpoints()-1).getY();
@@ -99,7 +113,7 @@ public final class PattOps {
                     sumI=sumI+ds0.getPoint(j).getY();
                 }
 
-               //CANVI 130313: Comparem Ynew amb diagrama original (Patt[0]) i ens quedem amb la intensitat més petita
+               //CANVI 130313: Comparem Ynew amb diagrama original (Patt[0]) i ens quedem amb la intensitat m�s petita
                 double Ynew=sumI/(2*nveins);
                 if(Ynew<ds0.getPoint(i).getY()){
                     //agafem el nou
@@ -116,6 +130,297 @@ public final class PattOps {
         
         //estem al final, retornem la serie final
         return ds1;
+    }
+    
+    public static DataSerie findBkgPoints(DataSerie ds,int npoints){
+        //dividirem la dataserie en troços (npoints) i a cada lloc buscarem el punt amb la I mes petita que estigui per sota del promig
+        int npzona = (int)(ds.getNpoints()/npoints);
+        log.debug("npuntsZona="+npzona);
+        DataSerie dpPuntsFons = new DataSerie(ds,serieType.bkgEstimP,false);
+        int startP = 0;
+        while ((startP+npzona)<ds.getNpoints()){
+            double[] meanYzonaYdesv = ds.calcYmeanYDesvYmaxYmin(startP, startP+npzona);
+            DataPoint dp = ds.getMinYDataPoint(startP, startP+npzona);
+            if (dp.getY()>(meanYzonaYdesv[0]+2*meanYzonaYdesv[1]))continue; //el saltem
+            if (dp!=null){
+                dpPuntsFons.addPoint(dp);
+            }
+            startP = startP+npzona+1;
+        }
+        return dpPuntsFons;
+    }
+    
+    //SPLINE INTERP
+    public static DataSerie bkg_FitSpline(DataSerie ds,DataSerie puntsFons) {
+       
+           double[] x = new double[puntsFons.getNpoints()];
+           double[] y = new double[puntsFons.getNpoints()];
+           
+           for (int i=0;i<puntsFons.getNpoints();i++){
+               x[i]=puntsFons.getPoint(i).getX();
+               y[i]=puntsFons.getPoint(i).getY();
+           }
+           
+           UnivariateInterpolator in = new SplineInterpolator();
+           UnivariateFunction f = in.interpolate(x, y);
+
+           DataSerie fons = new DataSerie(ds,serieType.bkg,false);
+           
+
+           double ini2t = puntsFons.getPoint(0).getX();
+           DataPoint close = ds.getClosestDP(new DataPoint(ini2t,puntsFons.getPoint(0).getY(),0), 0.1, 50);
+           int index = ds.getIndexOfDP(close);
+           double curr2t = ds.getPoint(index).getX();
+           while (curr2t<puntsFons.getPoint(puntsFons.getNpoints()-1).getX()){
+               fons.addPoint(new DataPoint(curr2t,f.value(curr2t),0));
+               index = index +1;
+               curr2t = ds.getPoint(index).getX();
+           }
+
+           return fons;
+       }
+    
+    
+    public static DataSerie bkg_FitPoly(DataSerie ds,DataSerie puntsFons,int degree) {
+        // Collect data.
+           // Instantiate a n-degree polynomial fitter.
+           final PolynomialCurveFitter fitter = PolynomialCurveFitter.create(degree);
+
+           final WeightedObservedPoints obs2 = new WeightedObservedPoints();
+           
+           for (int i=0;i<puntsFons.getNpoints();i++){
+               obs2.add(puntsFons.getPoint(i).getX(),puntsFons.getPoint(i).getY());
+           }
+           final double[] coeff = fitter.fit(obs2.toList());
+
+           log.writeFloats("config", coeff);
+           
+           final PolynomialFunction f = new PolynomialFunction(coeff);
+
+           DataSerie fons = new DataSerie(ds,serieType.bkg,false);
+           
+           //pintem el fons polinomicalculat
+//           XYSeries poly[] = new XYSeries[1];
+           double ini2t = puntsFons.getPoint(0).getX();
+           DataPoint close = ds.getClosestDP(new DataPoint(ini2t,puntsFons.getPoint(0).getY(),0), 0.1, 50);
+           int index = ds.getIndexOfDP(close);
+           double curr2t = ds.getPoint(index).getX();
+           while (curr2t<puntsFons.getPoint(puntsFons.getNpoints()-1).getX()){
+               fons.addPoint(new DataPoint(curr2t,f.value(curr2t),0));
+               index = index +1;
+               curr2t = ds.getPoint(index).getX();
+           }
+
+           return fons;
+       }
+    
+    //NOT USED ANYMORE
+    public static DataSerie subtractDataSeriesSamePoints(DataSerie dp1, DataSerie dp2, float factor){
+        if (dp1.getNpoints()!=dp2.getNpoints()){
+            log.debug("different number of points");
+            return null;
+        }
+        if (dp1.getPoint(0).getX()!=dp2.getPoint(0).getX()){
+            log.debug("different first point");
+            return null;
+        }
+        DataSerie result = new DataSerie(dp1,dp1.getTipusSerie(),false);
+        for (int i=0; i<dp1.getNpoints();i++){
+            result.addPoint(new DataPoint(dp1.getPoint(i).getX(),dp1.getPoint(i).getY()-factor*dp2.getPoint(i).getY(),dp1.getPoint(i).getSdy()-factor*dp2.getPoint(i).getSdy()));
+        }
+        return result;
+    }
+    
+    //it returns the coincident zone only
+    public static DataSerie subtractDataSeriesCoincidentPoints(DataSerie ds1, DataSerie ds2, float factor){
+        int tol =30;
+        
+        DataSerie result = new DataSerie(ds1,ds1.getTipusSerie(),false);
+        double t2i = FastMath.max(ds1.getPoint(0).getX(), ds2.getPoint(0).getX());
+        double t2f = FastMath.min(ds1.getPoint(ds1.getNpoints()-1).getX(), ds2.getPoint(ds1.getNpoints()-1).getX());
+        
+        DataPoint dp1ini = ds1.getClosestDP_xonly(t2i, tol);
+        DataPoint dp1fin = ds1.getClosestDP_xonly(t2f, tol);
+        
+        int iinidp1 = ds1.getIndexOfDP(dp1ini);
+        int ifindp1 = ds1.getIndexOfDP(dp1fin);
+        
+        DataPoint dp2ini = ds2.getClosestDP_xonly(t2i, tol);
+        DataPoint dp2fin = ds2.getClosestDP_xonly(t2f, tol);
+        
+        int iinidp2 = ds2.getIndexOfDP(dp2ini);
+        int ifindp2 = ds2.getIndexOfDP(dp2fin);
+        
+        int rangedp1 = ifindp1 - iinidp1;
+        int rangedp2 = ifindp2 - iinidp2;
+        
+        if (rangedp1!=rangedp2){
+            log.debug("different nr of points in the coincident range");
+            return null;
+        }
+        
+        for (int i=0;i<rangedp1;i++){ //TODO HAURIA DE SER <=  (Comprovar-ho)
+            result.addPoint(new DataPoint(ds1.getPoint(iinidp1+i).getX(),ds1.getPoint(iinidp1+i).getY()-factor*ds2.getPoint(iinidp2+i).getY(),ds1.getPoint(iinidp1+i).getSdy()-factor*ds2.getPoint(iinidp2+i).getSdy()));
+        }
+        
+        return result;
+    }
+    
+    //ADDITION OF DATASERIES (with coincident points)
+    public static DataSerie addDataSeriesCoincidentPoints(DataSerie[] dss){
+     
+      DataSerie result = new DataSerie(dss[0],dss[0].getTipusSerie(),false);
+      
+      int tol = 30;
+      //aqui fer un for per totes les dataseries
+      
+      double[] t2is = new double[dss.length];
+      double[] t2fs = new double[dss.length];
+      for (int i=0; i<dss.length;i++){
+          t2is[i]=dss[i].getPoint(0).getX();
+          t2fs[i]=dss[i].getPoint(dss[i].getNpoints()-1).getX();
+      }
+      double t2i = findMax(t2is);
+      double t2f = findMin(t2fs);
+      
+      DataPoint[] dpini = new DataPoint[dss.length];
+      DataPoint[] dpfin = new DataPoint[dss.length];
+      int[] iinidp = new int[dss.length];
+      int[] ifindp = new int[dss.length];
+      int[] rangedp = new int[dss.length];
+      
+      for (int i=0; i<dss.length;i++){
+          dpini[i] = dss[i].getClosestDP_xonly(t2i, tol);
+          dpfin[i] = dss[i].getClosestDP_xonly(t2f, tol);
+          iinidp[i] = dss[i].getIndexOfDP(dpini[i]);
+          ifindp[i] = dss[i].getIndexOfDP(dpfin[i]);
+          rangedp[i] = ifindp[i] - iinidp[i];
+      }
+
+      //check ranges
+      int totRange = 0;
+      for (int i=0;i<dss.length;i++){
+          totRange = totRange + rangedp[i];
+      }
+      if (totRange/dss.length != rangedp[0]){
+          log.info("inconsitency on nr of points in the coincident range");
+          return null;
+      }
+
+      
+      for (int i=0;i<rangedp[0];i++){
+          
+          double inten = 0;
+          double sdinten = 0;
+          for (int j=0; j<dss.length;j++){
+              inten = inten + dss[j].getPoint(iinidp[j]+i).getY();
+              sdinten = sdinten + dss[j].getPoint(iinidp[j]+i).getSdy();
+          }
+                    result.addPoint(new DataPoint(dss[0].getPoint(iinidp[0]+i).getX(),inten,sdinten));
+      }
+      
+      return result;
+  }
+    
+    //SUBTRACT DATA SERIES DIFF NUM OF POINTS BUT COINCIDENT POINTS (it will only return the coincident range)
+      
+    //SUBTRACT DATA SERIES NO COINCIDENT POINTS (it will return the coincident range with rebinning)
+    
+    //Convert DStoConvert to the same step and coinciding points with DSorigin
+    //Start/end points (range) may be different if there is no data
+    public static DataSerie rebinDS(DataSerie DSorigin, DataSerie DStoConvert){
+        
+        DataSerie out = new DataSerie(DSorigin,DSorigin.getTipusSerie(),false); //ja l'afegirem al pattern despres si cal
+        
+//        double t2i = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(1).getX(), 1.0).getX();
+//        double t2f = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(DStoConvert.getNpoints()-2).getX(), 1.0).getX();
+        
+        DataPoint ini = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(1).getX(), 50.0);
+        DataPoint fin = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(DStoConvert.getNpoints()-2).getX(), 50.0);
+//        double t2i = ini.getX();
+//        double t2f = fin.getX();
+        int iini = DSorigin.getIndexOfDP(ini);
+        int ifin = DSorigin.getIndexOfDP(fin);
+        
+        log.writeNameNumPairs("config", true, "iini,ifin", iini,ifin);
+        
+        for (int i=iini; i<=ifin; i++){
+            DataPoint dp = DSorigin.getPoint(i);
+            DataPoint[] surr = DStoConvert.getSurroundingDPs(dp.getX());
+            if (surr==null)continue;
+            //interpolem
+            double yinter = DStoConvert.interpolateY(dp.getX(), surr[0], surr[1]);
+            double sdyinter = DStoConvert.interpolateSDY(dp.getX(), surr[0], surr[1]);
+            out.addPoint(new DataPoint(dp.getX(),yinter,sdyinter));
+        }
+        
+        return out;
+        
+    }
+    
+    
+    public static boolean haveSameNrOfPointsDS(DataSerie dp1, DataSerie dp2){
+        if (dp1.getNpoints()!=dp2.getNpoints()){
+            log.debug("different number of points");
+            return false;
+        }
+        return true;
+    }
+    
+    //coincident points in 2theta, not necessarily the same range
+    public static boolean haveCoincidentPointsDS(DataSerie dp1, DataSerie dp2){
+        //ha de coincidir l'stepsize i un minim de 100 punts?
+        
+        double tol = 0.0001;
+        int minequals = 100;
+        
+        double t2i = FastMath.max(dp1.getPoint(0).getX(), dp2.getPoint(0).getX());
+//        double t2f = FastMath.min(dp1.getT2f(), dp2.getT2f());
+        double step1 = dp1.calcStep();
+        double step2 = dp2.calcStep();
+        
+        if (FastMath.abs(step1-step2)>0.01){
+            return false;
+        }
+        
+        int iniIndex = dp1.getIndexOfDP(dp1.getClosestDP_xonly(t2i, tol));
+        if (iniIndex == -1){
+            log.debug("datapoint with t2i not found");
+            return false;
+        }
+        int ncoincidents = 0;
+        for (int i=iniIndex; i<dp1.getNpoints(); i++){
+            DataPoint p1 = dp1.getPoint(i);
+            DataPoint p2 = dp2.getClosestDP_xonly(p1.getX(), tol);
+            if (p2!=null){
+                if (FastMath.abs(p1.getX()-p2.getX())<(tol/2)){ //NO SE SI CAL TORNAR A COMPROVAR-HO
+                    ncoincidents = ncoincidents +1;
+                }
+            }
+            if (ncoincidents >=minequals){
+                return true;
+            }
+        }
+        return false;
+        
+    }
+    
+    public static double findMax(double... vals) {
+        double max = -99999999;
+
+        for (double d : vals) {
+            if (d > max) max = d;
+        }
+        return max;
+    }
+
+    public static double findMin(double... vals) {
+        double min = 99999999;
+
+        for (double d : vals) {
+            if (d < min) min = d;
+        }
+        return min;
     }
     
 }
