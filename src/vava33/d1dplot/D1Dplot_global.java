@@ -19,6 +19,7 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Scanner;
 
+import vava33.d1dplot.auxi.DataSerie;
 import vava33.d1dplot.auxi.Pattern1D;
 
 import com.vava33.jutils.FileUtils;
@@ -29,7 +30,7 @@ public final class D1Dplot_global {
     public static final int satur32 = Short.MAX_VALUE;
     public static final int satur65 = (Short.MAX_VALUE * 2) + 1;
 
-    public static final String welcomeMSG = "d1Dplot v1702 (170203) by OV";
+    public static final String welcomeMSG = "d1Dplot v1702 (170217) by O.Vallcorba";
     public static final String separator = System.getProperty("file.separator");
     public static final String userDir = System.getProperty("user.dir");
     public static final String configFilePath = System.getProperty("user.dir") + separator + "d1dconfig.cfg";
@@ -39,6 +40,7 @@ public final class D1Dplot_global {
     //symbols and characters
     public static final String theta = "\u03B8";
     public static final String angstrom= "\u212B";
+    public static final String beta= "\u03B2";
     public static final SimpleDateFormat fHora = new SimpleDateFormat("yyyy-MM-dd");
 
     public static VavaLogger log;
@@ -48,8 +50,8 @@ public final class D1Dplot_global {
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     //global 
-    public static boolean logging = true;
-    public static String loglevel = "config"; //info, config, etc...
+    public static boolean logging = false;
+    public static String loglevel = "info"; //info, config, etc...
     public static String workdir = System.getProperty("user.dir");
     private static Integer def_Width=768;
     private static Integer def_Height=1024;
@@ -73,11 +75,16 @@ public final class D1Dplot_global {
     private static Integer div_PrimPixSize;
     private static Integer div_SecPixSize;
     private static Boolean verticalYlabel;
+//    private static String xlabel = "2"+D1Dplot_global.theta+" (º)";
+//    private static String ylabel = "Intensity";
     
-    //pattern1D
+    //pattern1D and dataserie
     private static Integer hkloff;
     private static Integer hklticksize;
     private static Boolean prfFullprofColors;
+    
+    private static Float def_markerSize;
+    private static Float def_lineWidth;
 
     //==========================================================================
     
@@ -219,10 +226,12 @@ public final class D1Dplot_global {
         div_PrimPixSize = null;
         div_SecPixSize = null;
         verticalYlabel = null;
-        
+
         //pattern1d
         hkloff = null;
         hklticksize = null;
+        def_markerSize = null;
+        def_lineWidth = null;
     }
     
     //els que no s'hagin establert per opcions (fitxer) es posaran per defecte aquí
@@ -330,7 +339,7 @@ public final class D1Dplot_global {
         }else{
             PlotPanel.setVerticalYlabel(verticalYlabel.booleanValue());
         }
-
+        
         //PATTERN1D
         if (hkloff == null){
             hkloff = Pattern1D.getHkloff();
@@ -347,7 +356,16 @@ public final class D1Dplot_global {
         }else{
             Pattern1D.setPrfFullprofColors(prfFullprofColors.booleanValue());
         }
-        
+        if (def_markerSize == null){
+            def_markerSize = DataSerie.getDef_markerSize();
+        }else{
+            DataSerie.setDef_markerSize(def_markerSize.floatValue());
+        }
+        if (def_lineWidth == null){
+            def_lineWidth = DataSerie.getDef_lineWidth();
+        }else{
+            DataSerie.setDef_lineWidth(def_lineWidth.floatValue());
+        }
     }
     
     
@@ -514,6 +532,16 @@ public final class D1Dplot_global {
                     Boolean bvalue = parseBoolean(logstr);
                     if(bvalue!=null)prfFullprofColors = bvalue.booleanValue();
                 }
+                if (FileUtils.containsIgnoreCase(line, "markersize")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Float fvalue = parseFloat(value);
+                    if(fvalue!=null)def_markerSize = fvalue.floatValue();
+                }
+                if (FileUtils.containsIgnoreCase(line, "linewidth")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Float fvalue = parseFloat(value);
+                    if(fvalue!=null)def_lineWidth = fvalue.floatValue();
+                }
                 
             }
             //per si ha canviat el loglevel/logging
@@ -578,6 +606,8 @@ public final class D1Dplot_global {
             
             output.println(String.format("%s = %d", "hklOffset",hkloff));
             output.println(String.format("%s = %d", "hklTickSize",hklticksize));
+            output.println(String.format("%s = %.2f", "def_linewidth",def_lineWidth));
+            output.println(String.format("%s = %.2f", "def_markerSize",def_markerSize));
             output.println("prfFullprofColors = "+Boolean.toString(prfFullprofColors));
             output.close();
 
@@ -630,6 +660,8 @@ public final class D1Dplot_global {
       log.printmsg(loglevel,"verticalYlabel = "+Boolean.toString(verticalYlabel));
       log.printmsg(loglevel,String.format("%s = %d", "hklOffset",hkloff));
       log.printmsg(loglevel,String.format("%s = %d", "hklTickSize",hklticksize));
+      log.printmsg(loglevel,String.format("%s = %.2f", "def_linewidth",def_lineWidth));
+      log.printmsg(loglevel,String.format("%s = %.2f", "def_markerSize",def_markerSize));
       log.printmsg(loglevel,"prfFullprofColors = "+Boolean.toString(prfFullprofColors));
       log.printmsg(loglevel,"*****************************************************************************");
 
