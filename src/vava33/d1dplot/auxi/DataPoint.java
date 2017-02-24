@@ -55,4 +55,16 @@ public class DataPoint {
     public void setyBkg(double yBkg) {
         this.yBkg = yBkg;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        DataPoint dp = (DataPoint)obj;
+        if ((dp.getX()==this.getX())&&(dp.getY()==this.getY())&&(dp.getSdy()==this.getSdy())){
+            return true;
+        }else{
+            return false;
+        }
+        
+    }
+    
 }

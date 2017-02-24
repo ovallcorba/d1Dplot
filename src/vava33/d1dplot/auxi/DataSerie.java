@@ -18,19 +18,23 @@ import java.util.Iterator;
 
 
 
+
+import org.apache.commons.math3.util.FastMath;
+
 import vava33.d1dplot.D1Dplot_global;
 
-import com.vava33.jutils.FastMath;
 import com.vava33.jutils.VavaLogger;
 
 public class DataSerie {
-
+    private static float def_markerSize=3;
+    private static float def_lineWidth=1;
+    
     public enum serieType {
-        dat, obs, cal, hkl, diff, bkg
+        dat, obs, cal, hkl, diff, bkg, bkgEstimP, gr
     }
     
     public enum xunits {
-        tth("2Theta"), dsp("d-spacing"), dspInv("1/dsp"), Q("Q"); //Q is 4pi(sinT)/lambda
+        tth("2Theta"), dsp("d-spacing"), dspInv("1/dsp"), Q("Q"), G("G(r)"); //Q is 4pi(sinT)/lambda
         private String name;
         private xunits(String s){
             this.name=s;
@@ -48,8 +52,8 @@ public class DataSerie {
     private ArrayList<DataPoint> peaks;
     
     private double wavelength = -1;
-    private float markerSize = 3;
-    private float lineWidth = 1;
+    private float markerSize;
+    private float lineWidth;
     private boolean showErrBars = false;
     private boolean plotThis;
     private float scale = 1.0f;
@@ -61,7 +65,8 @@ public class DataSerie {
     private xunits xUnits;
     private serieType tipusSerie;
     private static VavaLogger log = D1Dplot_global.getVavaLogger(DataSerie.class.getName());
-
+    private String serieName;
+    
     //prf exclusive
     private ArrayList<DataHKL> serieHKL;
     
@@ -81,12 +86,21 @@ public class DataSerie {
         this.setYOff(0.0f);
         this.setxUnits(xunits.tth);
         this.setTipusSerie(serieType.dat);
+        this.setColor(Color.BLACK);
+        this.setMarkerSize(def_markerSize);
+        this.setLineWidth(def_lineWidth);
+        this.setSerieName("");
     }
     
-    //copia tots els parametres excepte les dades
-    public DataSerie(DataSerie inds){
+    public DataSerie(serieType stype){
         this();
-        this.setPatt1D(inds.getPatt1D());
+        this.setTipusSerie(stype);
+    }
+
+    
+    //copia tots els parametres excepte les dades
+    public DataSerie(DataSerie inds, serieType stype,boolean addToPatt){
+        this();
         this.setT2i(inds.getT2i());
         this.setT2f(inds.getT2f());
         this.setStep(inds.getStep());
@@ -95,17 +109,24 @@ public class DataSerie {
         this.setZerrOff(inds.getZerrOff());
         this.setYOff(inds.getYOff());
         this.setxUnits(inds.getxUnits());
-        this.setTipusSerie(inds.getTipusSerie());
+        this.setColor(inds.getColor());
+        this.setTipusSerie(stype);
+        if (addToPatt)this.setPatt1D(inds.getPatt1D());
     }
     
     public DataSerie(ArrayList<DataPoint> punts, Pattern1D patt, double t2i, double t2f, double step, double wavel){
         this();
         this.setSeriePoints(punts);
+//        this.setSerieHKL(new ArrayList<DataHKL>());
+//        this.setPlotThis(true);
         this.setPatt1D(patt);
         this.setT2i(t2i);
         this.setT2f(t2f);
         this.setStep(step);
         this.setWavelength(wavel);
+//        this.setScale(1);
+//        this.setZerrOff(0.0f);
+//        this.setxUnits(xunits.tth);
     }
     
     public DataSerie(ArrayList<DataHKL> punts, Pattern1D patt, double wavel){
@@ -121,8 +142,21 @@ public class DataSerie {
         DataPoint ndp = new DataPoint(dp.getX()+this.zerrOff,dp.getY()*this.scale+this.getYOff(),dp.getSdy()*this.scale,dp.getyBkg()*this.scale);
         if (Pattern1D.isPlotwithbkg()){
             ndp.setY(ndp.getY()+(ndp.getyBkg()*this.scale));
+//            log.debug("applying ybkg");
         }
+//        if (this.getTipusSerie()==serieType.diff){
+//            ndp.setY(ndp.getY()+this.getPatt1D().getDiffoffset());
+//        }
         return ndp; 
+    }
+    
+    //get the point ITSELF, not a new one without corrections
+//    public DataPoint getRAWPoint(int arrayPosition){
+//        return this.seriePoints.get(arrayPosition);
+//    }
+    
+    public int getIndexOfDP(DataPoint dp){
+        return this.seriePoints.indexOf(dp);
     }
     
     public DataPoint getPeak(int arrayPosition){
@@ -130,7 +164,11 @@ public class DataSerie {
         DataPoint ndp = new DataPoint(dp.getX()+this.zerrOff,dp.getY()*this.scale+this.getYOff(),dp.getSdy()*this.scale,dp.getyBkg()*this.scale);
         if (Pattern1D.isPlotwithbkg()){
             ndp.setY(ndp.getY()+(ndp.getyBkg()*this.scale));
+//            log.debug("applying ybkg");
         }
+//        if (this.getTipusSerie()==serieType.diff){
+//            ndp.setY(ndp.getY()+this.getPatt1D().getDiffoffset());
+//        }
         return ndp; 
     }
     
@@ -147,6 +185,22 @@ public class DataSerie {
         this.serieHKL.add(dhkl);
     }
     
+    public void removePoint(DataPoint dp){
+        log.debug("index of the point to remove="+this.seriePoints.indexOf(dp));
+        boolean removed = this.seriePoints.remove(dp);
+        log.debug(Boolean.toString(removed));
+    }
+    
+    public void removePeak(DataPoint dp){
+        log.debug("index of the peak to remove="+this.peaks.indexOf(dp));
+        boolean removed = this.peaks.remove(dp);
+        log.debug(Boolean.toString(removed));
+    }
+
+    public void removeHKLPoint(DataHKL dhkl){
+        this.serieHKL.remove(dhkl);
+    }
+    
     //pels dos casos
     public int getNpoints(){
         if (getTipusSerie()==serieType.hkl){
@@ -159,8 +213,12 @@ public class DataSerie {
     public int getNpeaks(){
         return peaks.size();
     }
+    //ATENCIO NO CORREGEIX SCALA
+//    private ArrayList<DataPoint> getSeriePoints() {
+//        return seriePoints;
+//    }
 
-    private void setSeriePoints(ArrayList<DataPoint> seriePoints) {
+    public void setSeriePoints(ArrayList<DataPoint> seriePoints) {
         this.seriePoints = seriePoints;
     }
 
@@ -265,6 +323,9 @@ public class DataSerie {
             if (Patt1D.getOriginal_wavelength()<0){
                 Patt1D.setOriginal_wavelength(wavelength);
             }
+            if (patt1d.indexOfSerie(this)<0){ //ONLY IF IT IS NOT IN THE LIST!!!
+                patt1d.AddDataSerie(this);
+            }
         }
     }
     
@@ -321,6 +382,8 @@ public class DataSerie {
                 newDS.addPoint(new DataPoint(Math.toDegrees(t2new),dp.getY(),dp.getSdy()));
             }
         }
+//        this.getPatt1D().AddDataSerie(newDS);
+        newDS.setWavelength(newWL);
         return newDS;
     }
 
@@ -391,6 +454,9 @@ public class DataSerie {
 //                        zer = (float) (4*FastMath.PI*FastMath.sin(FastMath.toRadians(this.getZerrOff()/2.))/this.getWavelength());
 //                        newDS.setZerrOff(zer);
                         break;
+                    default:
+                        log.info("unit conversion not supported");
+                        break;
                 }
                 break;
             case dsp:
@@ -439,6 +505,9 @@ public class DataSerie {
 //                        zer = (float) ((1/this.getZerrOff()) * FastMath.PI*2);;
 //                        newDS.setZerrOff(zer);
                         break;
+                    default:
+                        log.info("unit conversion not supported");
+                        break;
                 }
                 break;
             case dspInv:
@@ -486,6 +555,9 @@ public class DataSerie {
                         newDS.setScale(this.getScale());
 //                        zer = (float) ((1/(1/this.getZerrOff())) * FastMath.PI*2);;
 //                        newDS.setZerrOff(zer);
+                        break;
+                    default:
+                        log.info("unit conversion not supported");
                         break;
                 }
                 break;
@@ -536,7 +608,13 @@ public class DataSerie {
                         //Q to Q
                         log.info("Q to Q");
                         break;
+                    default:
+                        log.info("unit conversion not supported");
+                        break;
                 }
+                break;
+            default:
+                log.info("unit conversion not supported");
                 break;
         }
 
@@ -565,8 +643,31 @@ public class DataSerie {
 
     public void setTipusSerie(serieType tipusSerie) {
         this.tipusSerie = tipusSerie;
+        switch(tipusSerie){
+            case bkg:
+                this.setColor(Color.PINK);
+                this.setLineWidth(getDef_lineWidth()+1);
+                break;
+            case bkgEstimP:
+                this.setColor(Color.PINK);
+                this.setMarkerSize(getDef_markerSize()+2.0f);
+                this.setLineWidth(0.0f);
+                break;
+            default:
+                break;
+        }
     }
 
+    public void clearDataPoints(){
+        serieHKL.clear();
+        seriePoints.clear();
+        peaks.clear();
+    }
+    
+    public void clearPeaks(){
+        peaks.clear();
+    }
+    
     public double getYOff() {
         return YOff;
     }
@@ -588,28 +689,50 @@ public class DataSerie {
     }
     
     public double[] calcYmeanYDesvYmaxYmin(){
+        int puntIni = 0;
+        int puntFin = this.getNpoints()-1;
+        return calcYmeanYDesvYmaxYmin(puntIni,puntFin);
+    }
+    
+    public DataPoint getMinYDataPoint(int puntIni, int puntFin){
+        double ymin = Double.MAX_VALUE;
+        DataPoint dpMin = null;
+        for (int i=puntIni;i<=puntFin;i++){
+            DataPoint dp = this.getPoint(i);
+            if (dp.getY()<ymin){
+                ymin=dp.getY();
+                dpMin = dp;
+            }
+        }
+        return dpMin;
+    }
+    
+    //punt Fin està inclos
+    public double[] calcYmeanYDesvYmaxYmin(int puntIni, int puntFin){
         double[] ymean_ydesv_ymax_ymin = new double[4];
         ymean_ydesv_ymax_ymin[2] = Double.MIN_VALUE;
         ymean_ydesv_ymax_ymin[3] = Double.MAX_VALUE;
+        int npoints = FastMath.abs(puntFin - puntIni + 1);
         double sumY = 0;
-        for (int i=0;i<this.getNpoints();i++){
+        for (int i=puntIni;i<=puntFin;i++){
             DataPoint dp = this.getPoint(i);
             sumY = sumY + dp.getY();
             if (dp.getY()<ymean_ydesv_ymax_ymin[3])ymean_ydesv_ymax_ymin[3]=dp.getY();
             if (dp.getY()>ymean_ydesv_ymax_ymin[2])ymean_ydesv_ymax_ymin[2]=dp.getY();
         }
-        ymean_ydesv_ymax_ymin[0] = sumY/this.getNpoints();
+        ymean_ydesv_ymax_ymin[0] = sumY/npoints;
         //ara desviacio
         sumY=0;
-        for (int i=0;i<this.getNpoints();i++){
+        for (int i=puntIni;i<=puntFin;i++){
             DataPoint dp = this.getPoint(i);
             sumY = sumY + (dp.getY()-ymean_ydesv_ymax_ymin[0])*(dp.getY()-ymean_ydesv_ymax_ymin[0]);
         }
-        ymean_ydesv_ymax_ymin[1] = FastMath.sqrt(sumY/(this.getNpoints()-1));
+        ymean_ydesv_ymax_ymin[1] = FastMath.sqrt(sumY/(npoints-1));
         return ymean_ydesv_ymax_ymin;
     }
     
     //delsig defineix el llindar (factor delsig*sigmaPattern)
+    //SIMPLE AGAFA EL PUNT MES ALT
     public void findPeaks(float delsig){      
         peaks.clear();
         double desv = this.calcYmeanYDesvYmaxYmin()[1];
@@ -627,6 +750,7 @@ public class DataSerie {
     }
     
     //delsig defineix el llindar (factor delsig*sigmaPattern), faig ponderacio...
+    //FA PONDERACIO, S'ACOSTA MES AL MILLOR
     public void findPeaksBetter(float delsig){      
         peaks.clear();
         double desv = this.calcYmeanYDesvYmaxYmin()[1];
@@ -648,14 +772,28 @@ public class DataSerie {
         }
     }
     
-    public void findPeaksEvenBetter(float delsig){
+    //retorna el fons-llindar si s'ha fet servir el fons
+    public DataSerie findPeaksEvenBetter(float delsig,boolean usebkg){
         //interpolar mirar quin està mes avall dels dos del costat i interpolar el valor de y elevat a la recta centre-inferior. alsehores buscar el mig de x
         peaks.clear();
-        double desv = this.calcYmeanYDesvYmaxYmin()[1];
+        double desv = 1;
+        DataSerie bkg = null;
+        if (usebkg){
+            bkg = PattOps.bkg_Bruchner(this, 20, 50, true, false, null);
+        }else{
+            desv = this.calcYmeanYDesvYmaxYmin()[1];            
+        }
+        if (bkg==null)usebkg=false;
+
         //limits menys 1
         for (int i=1;i<this.getNpoints()-1;i++){
             double ycent = this.getPoint(i).getY();
-            if (ycent < desv*delsig)continue;
+            if (usebkg){
+                if (ycent < bkg.getPoint(i).getY()*delsig)continue;
+            }else{
+                if (ycent < desv*delsig)continue;    
+            }
+            
             double yleft = this.getPoint(i-1).getY();
             double yright = this.getPoint(i+1).getY();
             double xcent = this.getPoint(i).getX();
@@ -685,5 +823,153 @@ public class DataSerie {
                 peaks.add(new DataPoint(xpeak,ycent,this.getPoint(i).getSdy()));
             }
         }
+        return bkg;
     }
+    
+    public void addPeak(double xpeak){
+        double inten = 0;
+        double sdinten = 0;
+        //busquem els dos pics més propers (del voltant) i agafem la intensitat més alta
+        for (int i=1;i<this.getNpoints()-1;i++){
+            if ((this.getPoint(i).getX()<=xpeak) && (this.getPoint(i+1).getX()>=xpeak)){
+                //el punt clicat està entre aquests dos
+                inten = FastMath.max(this.getPoint(i).getY(), this.getPoint(i+1).getY());
+                break;
+            }
+        }
+        peaks.add(new DataPoint(xpeak,inten,sdinten));
+    }
+
+    public static float getDef_markerSize() {
+        return def_markerSize;
+    }
+
+    public static void setDef_markerSize(float def_markerSize) {
+        DataSerie.def_markerSize = def_markerSize;
+    }
+
+    public static float getDef_lineWidth() {
+        return def_lineWidth;
+    }
+
+    public static void setDef_lineWidth(float def_lineWidth) {
+        DataSerie.def_lineWidth = def_lineWidth;
+    }
+
+    //returns the closest DP to the one entered (usually by clicking)
+    public DataPoint getClosestDP(DataPoint click, double tolX, double tolY){
+        if (tolX<0)tolX=1.0;
+        if (tolY<0)tolY=5000;
+        DataPoint closest = null;
+        double minDiffX = Double.MAX_VALUE/2.5;
+        double minDiffY = Double.MAX_VALUE/2.5;
+        for (int i=0; i<this.getNpoints();i++){
+            DataPoint dp = this.getPoint(i);
+            double diffX = FastMath.abs(dp.getX()-click.getX());
+            double diffY = FastMath.abs(dp.getY()-click.getY());
+            if ((diffX<tolX)&&(diffY<tolY)){
+                if ((diffX+diffY)<(minDiffX+minDiffY)){
+                    minDiffX=diffX;
+                    minDiffY=diffY;
+                    closest = dp;
+                    log.fine("index of the closest in loop (i)= "+i);
+                    log.fine("index of the closest in loop (indexof dp)= "+seriePoints.indexOf(dp));
+                }
+            }
+        }
+        log.debug("index of the closest="+this.seriePoints.indexOf(closest));
+        return closest;
+    }
+    
+    //returns the closest DP to the one entered (usually by clicking)
+    public DataPoint getClosestDP_xonly(double xvalue, double tolX){
+        if (tolX<0)tolX=1.0;
+        DataPoint closest = null;
+        double minDiffX = Double.MAX_VALUE/2.5;
+        for (int i=0; i<this.getNpoints();i++){
+            DataPoint dp = this.getPoint(i);
+            double diffX = FastMath.abs(dp.getX()-xvalue);
+            if (diffX<tolX){
+                if (diffX<minDiffX){
+                    minDiffX=diffX;
+                    closest = dp;
+                    log.fine("index of the closest X in loop (i)= "+i);
+                    log.fine("index of the closest X in loop (indexof dp)= "+seriePoints.indexOf(dp));
+                }
+            }
+        }
+        log.debug("index of the closest X ="+this.seriePoints.indexOf(closest));
+        return closest;
+    }
+    
+    public DataPoint[] getSurroundingDPs(double xvalue){
+        
+        for (int i=0;i<this.getNpoints()-1;i++){
+            if ((this.getPoint(i).getX()<=xvalue) && (this.getPoint(i+1).getX()>=xvalue)){
+                DataPoint[] dps = {this.getPoint(i), this.getPoint(i+1)};
+                return dps;
+            }
+        }
+        return null;
+    }
+    
+    //return Y
+    public double interpolateY(double xval, DataPoint dp1, DataPoint dp2){
+        double yleft = dp1.getY();
+        double yright = dp2.getY();
+        double xleft = dp1.getX();
+        double xright = dp2.getX();
+        
+        double pen = (yright-yleft)/(xright-xleft);
+        double ord = pen*(xleft)*-1+yleft;
+        return pen*xval + ord;
+    }
+    //return SDY
+    public double interpolateSDY(double xval, DataPoint dp1, DataPoint dp2){
+        double yleft = dp1.getSdy();
+        double yright = dp2.getSdy();
+        double xleft = dp1.getX();
+        double xright = dp2.getX();
+        
+        double pen = (yright-yleft)/(xright-xleft);
+        double ord = pen*(xleft)*-1+yleft;
+        return pen*xval + ord;
+    }
+    
+    //returns the closest DP to the one entered (usually by clicking)
+    public DataPoint getClosestPeak(DataPoint click, double tolX){
+        if (tolX<0)tolX=1.0;
+        DataPoint closest = null;
+        double minDiffX = Double.MAX_VALUE;
+        for (int i=0; i<this.getNpeaks();i++){
+            DataPoint dp = this.getPeak(i);
+            double diffX = FastMath.abs(dp.getX()-click.getX());
+            if (diffX<tolX){
+                log.debug("Xpeak("+i+")="+dp.getX()+" diff="+diffX);
+                if (diffX<minDiffX){
+                    minDiffX=diffX;
+                    closest = dp;
+                    log.fine("index of the closest in loop (i)= "+i);
+                    log.fine("index of the closest in loop (indexof dp)= "+peaks.indexOf(dp));
+                }
+            }
+        }
+        log.debug("index of the closest="+this.seriePoints.indexOf(closest));
+        return closest;
+    }
+
+    /**
+     * @return the serieName
+     */
+    public String getSerieName() {
+        return serieName;
+    }
+
+    /**
+     * @param serieName the serieName to set
+     */
+    public void setSerieName(String serieName) {
+        this.serieName = serieName;
+    }
+    
 }

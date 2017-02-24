@@ -13,6 +13,7 @@ package vava33.d1dplot.auxi;
 import java.awt.Color;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import vava33.d1dplot.D1Dplot_global;
 
@@ -37,13 +38,50 @@ public class Pattern1D {
         commentLines = new ArrayList<String>();
         setSeries(new ArrayList<DataSerie>());
         this.setOriginal_wavelength(-1f);
+
+    }
+
+    
+    private DataSerie containsBkgSerie(){
+        Iterator<DataSerie> itrDS = this.getSeriesIterator();
+        while (itrDS.hasNext()){
+            DataSerie ds = itrDS.next();
+            if (ds.getTipusSerie()==DataSerie.serieType.bkg){
+                return ds;
+            }
+        }
+        return null;
+    }
+    private DataSerie containsBkgEstimP(){
+        Iterator<DataSerie> itrDS = this.getSeriesIterator();
+        while (itrDS.hasNext()){
+            DataSerie ds = itrDS.next();
+            if (ds.getTipusSerie()==DataSerie.serieType.bkgEstimP){
+                return ds;
+            }
+        }
+        return null;
     }
     
     
     public void AddDataSerie(DataSerie ds){
-        ds.setPatt1D(this);
-        globalNseries = globalNseries + 1;
         DataSerie.serieType st = ds.getTipusSerie();
+        
+        //si el tipus de serie es bkgEstimP o bkg, hem de mirar si el pattern ja en te alguna igual (en aquest cas, substituïrlo, no afegir de nou)
+        if (st==DataSerie.serieType.bkg){
+            DataSerie dsbkg = containsBkgSerie();
+            if (dsbkg!=null){
+                removeDataSerie(dsbkg);
+            }
+        }
+        if (st==DataSerie.serieType.bkgEstimP){
+            DataSerie dsbkg = containsBkgEstimP();
+            if (dsbkg!=null){
+                removeDataSerie(dsbkg);
+            }
+        }
+        
+        globalNseries = globalNseries + 1;
         switch(st){
             case dat:
                 ds.setColor(getNextColor());
@@ -82,13 +120,23 @@ public class Pattern1D {
                 ds.setMarkerSize(0.0f);
                 break;
             case bkg:
-                ds.setColor(getNextColor()); //TODO:ja veurem
+                ds.setColor(Color.PINK);
+                ds.setLineWidth(DataSerie.getDef_lineWidth()+1);
+                break;
+            case bkgEstimP:
+                ds.setColor(Color.PINK);
+                ds.setMarkerSize(DataSerie.getDef_markerSize()+2.0f);
+                ds.setLineWidth(0.0f);
+                break;
+            case gr:
+                ds.setColor(getNextColor());
                 break;
             default:
                 ds.setColor(getNextColor());
                 break;
         }
         this.getSeries().add(ds);
+        ds.setPatt1D(this); //important que estigui aqui baix
     }
     
     public void removeDataSerie(DataSerie ds){
@@ -105,7 +153,36 @@ public class Pattern1D {
         return this.series.size();
     }
     
-    private Color getNextColor(){
+    public void removeAllSeries(){
+        this.series.clear();
+    }
+
+    public void removeBkgSerie(){
+        Iterator<DataSerie> itrDS = this.getSeriesIterator();
+        DataSerie toRemove = null;
+        while (itrDS.hasNext()){
+            DataSerie ds = itrDS.next();
+            if (ds.getTipusSerie()==DataSerie.serieType.bkg){
+                toRemove = ds;
+            }
+        }
+        if (toRemove!=null)this.removeDataSerie(toRemove);
+    }
+
+    public void removeBkgEstimPSerie(){
+        Iterator<DataSerie> itrDS = this.getSeriesIterator();
+        DataSerie toRemove = null;
+        while (itrDS.hasNext()){
+            DataSerie ds = itrDS.next();
+            if (ds.getTipusSerie()==DataSerie.serieType.bkgEstimP){
+                toRemove = ds;
+            }
+        }
+        if (toRemove!=null)this.removeDataSerie(toRemove);
+    }
+
+    
+    public static Color getNextColor(){
         //aqui segons el "TEMA" s'assignarà el color
         if (D1Dplot_global.isLightTheme()){
             int ncol = (globalNseries-1)%D1Dplot_global.lightColors.length;
@@ -124,7 +201,6 @@ public class Pattern1D {
         this.file = file;
     }
 
-
     public ArrayList<String> getCommentLines() {
         return commentLines;
     }
@@ -133,10 +209,26 @@ public class Pattern1D {
         this.commentLines = commentLines;
     }
 
-    public ArrayList<DataSerie> getSeries() {
+    private ArrayList<DataSerie> getSeries() {
         return series;
     }
 
+    public DataSerie getSerie(int index){
+        return series.get(index);
+    }
+    
+    public Iterator<DataSerie> getSeriesIterator(){
+        return series.iterator();
+    }
+    
+    public int getNseries(){
+        return series.size();
+    }
+    
+    public int indexOfSerie(DataSerie ds){
+        return series.indexOf(ds);
+    }
+    
     public void setSeries(ArrayList<DataSerie> series) {
         this.series = series;
     }
@@ -156,8 +248,8 @@ public class Pattern1D {
     public void setOriginal_wavelength(double original_wavelength) {
         this.original_wavelength = original_wavelength;
     }
-  
-
+    
+    
     public static int getHklticksize() {
         return hklticksize;
     }
