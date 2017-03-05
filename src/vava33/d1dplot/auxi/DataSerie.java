@@ -77,9 +77,9 @@ public class DataSerie {
         this.setSeriePeaks(new ArrayList<DataPoint>());
         this.setPlotThis(true);
         this.setPatt1D(null);
-        this.setT2i(-1f);
-        this.setT2f(-1f);
-        this.setStep(-1f);
+        this.setT2i(-999);
+        this.setT2f(-999);
+        this.setStep(-999);
         this.setWavelength(-1);
         this.setScale(1);
         this.setZerrOff(0.0f);
@@ -103,29 +103,25 @@ public class DataSerie {
         this.setT2i(inds.getT2i());
         this.setT2f(inds.getT2f());
         this.setStep(inds.getStep());
-        this.setWavelength(inds.getStep());
+        this.setWavelength(inds.getWavelength());
         this.setScale(inds.getScale());
         this.setZerrOff(inds.getZerrOff());
         this.setYOff(inds.getYOff());
         this.setxUnits(inds.getxUnits());
         this.setColor(inds.getColor());
         this.setTipusSerie(stype);
+        this.setSerieName(inds.getSerieName());
         if (addToPatt)this.setPatt1D(inds.getPatt1D());
     }
     
     public DataSerie(ArrayList<DataPoint> punts, Pattern1D patt, double t2i, double t2f, double step, double wavel){
         this();
         this.setSeriePoints(punts);
-//        this.setSerieHKL(new ArrayList<DataHKL>());
-//        this.setPlotThis(true);
         this.setPatt1D(patt);
         this.setT2i(t2i);
         this.setT2f(t2f);
         this.setStep(step);
         this.setWavelength(wavel);
-//        this.setScale(1);
-//        this.setZerrOff(0.0f);
-//        this.setxUnits(xunits.tth);
     }
     
     public DataSerie(ArrayList<DataHKL> punts, Pattern1D patt, double wavel){
@@ -137,22 +133,12 @@ public class DataSerie {
 
     public DataPoint getPoint(int arrayPosition){
         DataPoint dp = this.seriePoints.get(arrayPosition);
-        //TODO: CONSIDERAR UNITATS DSP,Q,1/D,2THETA
         DataPoint ndp = new DataPoint(dp.getX()+this.zerrOff,dp.getY()*this.scale+this.getYOff(),dp.getSdy()*this.scale,dp.getyBkg()*this.scale);
         if (Pattern1D.isPlotwithbkg()){
             ndp.setY(ndp.getY()+(ndp.getyBkg()*this.scale));
-//            logdebug("applying ybkg");
         }
-//        if (this.getTipusSerie()==serieType.diff){
-//            ndp.setY(ndp.getY()+this.getPatt1D().getDiffoffset());
-//        }
         return ndp; 
     }
-    
-    //get the point ITSELF, not a new one without corrections
-//    public DataPoint getRAWPoint(int arrayPosition){
-//        return this.seriePoints.get(arrayPosition);
-//    }
     
     public int getIndexOfDP(DataPoint dp){
         return this.seriePoints.indexOf(dp);
@@ -173,11 +159,7 @@ public class DataSerie {
         DataPoint ndp = new DataPoint(dp.getX()+this.zerrOff,dp.getY()*this.scale+this.getYOff(),dp.getSdy()*this.scale,dp.getyBkg()*this.scale);
         if (Pattern1D.isPlotwithbkg()){
             ndp.setY(ndp.getY()+(ndp.getyBkg()*this.scale));
-//            logdebug("applying ybkg");
         }
-//        if (this.getTipusSerie()==serieType.diff){
-//            ndp.setY(ndp.getY()+this.getPatt1D().getDiffoffset());
-//        }
         return ndp; 
     }
     
@@ -225,10 +207,6 @@ public class DataSerie {
     public int getNpeaks(){
         return peaks.size();
     }
-    //ATENCIO NO CORREGEIX SCALA
-//    private ArrayList<DataPoint> getSeriePoints() {
-//        return seriePoints;
-//    }
 
     public void setSeriePoints(ArrayList<DataPoint> seriePoints) {
         this.seriePoints = seriePoints;
@@ -383,7 +361,7 @@ public class DataSerie {
     
     //NO APLICA ZERO NI ESCALA (els posa als valors per defecte) treballa amb l'arrayList directament (es deia getNewSerieWL)
     public DataSerie convertToNewWL(double newWL){
-        DataSerie newDS = new DataSerie();
+        DataSerie newDS = new DataSerie(this,this.getTipusSerie(),false);
         Iterator<DataPoint> itdp = this.seriePoints.iterator();
         while (itdp.hasNext()){
             DataPoint dp = itdp.next();
@@ -394,7 +372,6 @@ public class DataSerie {
                 newDS.addPoint(new DataPoint(Math.toDegrees(t2new),dp.getY(),dp.getSdy()));
             }
         }
-//        this.getPatt1D().AddDataSerie(newDS);
         newDS.setWavelength(newWL);
         return newDS;
     }
@@ -410,9 +387,9 @@ public class DataSerie {
     //es podria dir tranquilament getNewSerieXunits, pero com que genera una nova dataserie...
     //HAURA DE CONVERTIR EL ZERO I MANTENIR L'ESCALA i WAVLENGTH
     //TODO: T2F T2I step!?
-    //TODO DE MOMENT DESACTIVO EL ZERO PERQUE NO ESTA BEN CALCULAT (no es conversió sinó que es desplaçament absout!)
+    //      DE MOMENT DESACTIVO EL ZERO PERQUE NO ESTA BEN CALCULAT (no es conversió sinó que es desplaçament absout!)
     public DataSerie convertToXunits(xunits destXunits){
-        DataSerie newDS = new DataSerie();
+        DataSerie newDS = new DataSerie(this,this.getTipusSerie(),false);
         Iterator<DataPoint> itdp = this.seriePoints.iterator();
         
         logdebug(String.format("convert from %s to %s",this.getxUnits(), destXunits));
@@ -988,5 +965,4 @@ public class DataSerie {
         if(D1Dplot_global.isDebug())log.debug(s);
     }
     
-
 }

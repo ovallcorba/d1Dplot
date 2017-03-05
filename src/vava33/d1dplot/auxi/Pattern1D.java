@@ -34,13 +34,10 @@ public class Pattern1D {
     
     //create empty pattern
     public Pattern1D(){
-//        points = new ArrayList<DataPoint>();
         commentLines = new ArrayList<String>();
         setSeries(new ArrayList<DataSerie>());
         this.setOriginal_wavelength(-1f);
-
     }
-    
     
     private DataSerie containsBkgSerie(){
         Iterator<DataSerie> itrDS = this.getSeriesIterator();
@@ -93,7 +90,6 @@ public class Pattern1D {
                     ds.setColor(Color.BLACK);
                 }
                 ds.setLineWidth(0);
-//                ds.setMarkerSize(markerSize);TODO posar markersizedefault a d1dplotglobal iaugmentar a partir d'aquest valor
                 break;
             case cal:
                 if (isPrfFullprofColors()){
@@ -157,7 +153,7 @@ public class Pattern1D {
         globalNseries = globalNseries - this.series.size();
         this.series.clear();
     }
-
+    
     public void removeBkgSerie(){
         Iterator<DataSerie> itrDS = this.getSeriesIterator();
         DataSerie toRemove = null;
@@ -180,6 +176,17 @@ public class Pattern1D {
             }
         }
         if (toRemove!=null)this.removeDataSerie(toRemove);
+    }
+    
+    public DataSerie getBkgEstimPSerie(){
+        Iterator<DataSerie> itrDS = this.getSeriesIterator();
+        while (itrDS.hasNext()){
+            DataSerie ds = itrDS.next();
+            if (ds.getTipusSerie()==DataSerie.serieType.bkgEstimP){
+                return ds;
+            }
+        }
+        return null;
     }
 
     
@@ -210,7 +217,7 @@ public class Pattern1D {
         this.commentLines = commentLines;
     }
 
-    private ArrayList<DataSerie> getSeries() {
+    public ArrayList<DataSerie> getSeries() {
         return series;
     }
 
@@ -249,8 +256,7 @@ public class Pattern1D {
     public void setOriginal_wavelength(double original_wavelength) {
         this.original_wavelength = original_wavelength;
     }
-    
-    
+
     public static int getHklticksize() {
         return hklticksize;
     }
@@ -282,5 +288,4 @@ public class Pattern1D {
     public static void setPrfFullprofColors(boolean prfFullprofColors) {
         Pattern1D.prfFullprofColors = prfFullprofColors;
     }
-    
 }
