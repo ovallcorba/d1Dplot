@@ -33,9 +33,11 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 
 
+
 import org.apache.commons.math3.util.FastMath;
 
 import vava33.d1dplot.D1Dplot_global;
+import vava33.d1dplot.D1Dplot_main;
 import vava33.d1dplot.Dicvol_dialog;
 import vava33.d1dplot.auxi.DataSerie.serieType;
 import vava33.d1dplot.auxi.DataSerie.xunits;
@@ -131,8 +133,7 @@ public final class DataFileUtils {
     }
     
     // OBERTURA DELS DIFERENTS FORMATS DE DADES2D
-    public static Pattern1D readPatternFile(File d1file) {
-        Pattern1D patt1D = null;
+    public static boolean readPatternFile(File d1file, Pattern1D patt1D) {
         // comprovem extensio
         log.debug(d1file.toString());
         String ext = FileUtils.getExtension(d1file).trim();
@@ -152,52 +153,55 @@ public final class DataFileUtils {
                             JOptionPane.PLAIN_MESSAGE, null, possibilities,
                             possibilities[0]);
             if (s == null) {
-                return null;
+                return false;
             }
             format = s;
         }
-
+        boolean ok = false;
         switch (format) {
             case DAT:
                 if (detectDATFreeFormat(d1file)){
-                    patt1D = readDATFreeFormat(d1file);
+                    ok = readDATFreeFormat(d1file,patt1D);
                 }else{
-                    patt1D = readDAT_ALBA(d1file);
+                    ok = readDAT_ALBA(d1file,patt1D);
                 }
                 break;
 //            case DFF:
 //                patt1D = readDATFreeFormat(d1file);
 //                break;
             case XYE:
-                patt1D = readXYE(d1file);
+                ok = readXYE(d1file,patt1D);
                 break;
             case XY:
-                patt1D = readXYE(d1file);
+                ok = readXYE(d1file,patt1D);
                 break;
             case ASC:
-                patt1D = readASC(d1file);
+                ok = readASC(d1file,patt1D);
                 break;
             case XRDML:
-                patt1D = readXRDML(d1file);
+                ok = readXRDML(d1file,patt1D);
                 break;
             case PRF:
-                patt1D = readPRF(d1file);
+                ok = readPRF(d1file,patt1D);
                 break;
             case GR:
-                patt1D = readGR(d1file);
+                ok = readGR(d1file,patt1D);
                 break;
             default:
                 break;
 
         }
-        
-        if (patt1D != null) {
+        if (!ok){
+            log.debug("Error reading pattern "+d1file.getAbsolutePath());
+            return false;
+        }
+        if (patt1D.getFile() == null) {
             patt1D.setFile(d1file);
         }
         
         //TODO: POSAR UN CHECK que comprovi que hi hagi t2i, t2f, step, patt1d, etc... vamos, que tot estigui correcte
         
-        return patt1D;
+        return true;
     }
     
     public static File writePatternFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite) {
@@ -297,7 +301,7 @@ public final class DataFileUtils {
         return fout;
     }
     
-    public static File writePeaksFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite) {
+    public static File writePeaksFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite,D1Dplot_main m) {
         SupportedWritePeaksFormats[] possibilities = SupportedWritePeaksFormats
                 .values();
         SupportedWritePeaksFormats s = (SupportedWritePeaksFormats) JOptionPane
@@ -312,7 +316,7 @@ public final class DataFileUtils {
         switch (s) {
             case DIC:
                 d1File = FileUtils.canviExtensio(d1File, "dic");
-                written = writePeaksDIC(patt1D,serie,d1File,overwrite);
+                written = writePeaksDIC(patt1D,serie,d1File,overwrite,m);
                 break;
             case TXT:
                 written = writePeaksTXT(patt1D,serie,d1File,overwrite);
@@ -346,7 +350,7 @@ public final class DataFileUtils {
             
             out.close();
         } catch (Exception ex) {
-            ex.printStackTrace();
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
             written = false;
         }
         return written;
@@ -355,14 +359,14 @@ public final class DataFileUtils {
     
     
     static Dicvol_dialog dvdiag;
-    public static boolean writePeaksDIC(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    public static boolean writePeaksDIC(Pattern1D patt1D, int serie, File outf, boolean overwrite, D1Dplot_main main){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         DataSerie ds = patt1D.getSerie(serie); //Affected Serie
         
         //preguntem els parametres
         if (dvdiag==null){
-            dvdiag = new Dicvol_dialog(ds);
+            dvdiag = new Dicvol_dialog(ds,main);
             dvdiag.setVisible(true);
         }else{
             dvdiag.updateDS(ds);
@@ -431,7 +435,7 @@ public final class DataFileUtils {
             
             out.close();
         } catch (Exception ex) {
-            ex.printStackTrace();
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
             written = false;
         }
         return written;
@@ -445,18 +449,18 @@ public final class DataFileUtils {
         return false;
     }
     
-    private static Pattern1D readXYE(File f){
-        return readDAT_ALBA(f);
+    private static boolean readXYE(File f, Pattern1D patt1D){
+        return readDAT_ALBA(f,patt1D);
     }
     
-    private static Pattern1D readASC(File f){
-        return readDAT_ALBA(f);
+    private static boolean readASC(File f, Pattern1D patt1D){
+        return readDAT_ALBA(f,patt1D);
 
     }
     
     //only 1 serie
-    public static Pattern1D readDAT_ALBA(File datFile) {
-        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
+    public static boolean readDAT_ALBA(File datFile, Pattern1D patt1D) {
+//        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
         boolean firstLine = true;
         boolean readed = true;
 //        ArrayList<DataPoint> dps = new ArrayList<DataPoint>();
@@ -487,7 +491,7 @@ public final class DataFileUtils {
                 try{
                     sdev = Double.parseDouble(values[2]);
                 }catch(Exception ex){
-                    //ex.printStackTrace();
+                    log.debug("error parsing sdev");
                 }
 
 //                patt1D.getPoints().add(new DataPoint(t2,inten,sdev));
@@ -507,19 +511,19 @@ public final class DataFileUtils {
             sf.close();
 
         }catch(Exception e){
-            e.printStackTrace();
+            if (D1Dplot_global.isDebug())e.printStackTrace();
             readed = false;
         }
         if (readed){
 //            patt1D.setFile(datFile); ho passo al general perque es fa amb tots
-            return patt1D;
+            return true;
         }else{
-            return null;
+            return false;
         }
     }
     
-    public static Pattern1D readGR(File datFile) {
-        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
+    public static boolean readGR(File datFile, Pattern1D patt1D) {
+//        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
         boolean firstLine = true;
         boolean readed = true;
         DataSerie ds = new DataSerie();
@@ -542,7 +546,7 @@ public final class DataFileUtils {
                             patt1D.setOriginal_wavelength(Double.parseDouble(values[2]));
                             ds.setWavelength(Double.parseDouble(values[2]));
                         }catch(Exception e){
-                            e.printStackTrace();
+                            log.debug("error parsing wave");
                         }
                     }
                     if (line.contains("rstep")){
@@ -550,7 +554,7 @@ public final class DataFileUtils {
                         try{
                             ds.setStep(Double.parseDouble(values[2]));
                         }catch(Exception e){
-                            e.printStackTrace();
+                            log.debug("error parsing rstep");
                         }
                     }
                     continue;
@@ -584,22 +588,22 @@ public final class DataFileUtils {
             sf.close();
 
         }catch(Exception e){
-            e.printStackTrace();
+            if (D1Dplot_global.isDebug())e.printStackTrace();
             readed = false;
         }
         if (readed){
 //            patt1D.setFile(datFile); ho passo al general perque es fa amb tots
-            return patt1D;
+            return true;
         }else{
-            return null;
+            return false;
         }
     }
     
     //TODO: es podria optimitzar omplint un datapoint i afegint-lo a la serie a cada cicle
-    private static Pattern1D readXRDML(File f){
+    private static boolean readXRDML(File f, Pattern1D patt1D){
         boolean pos = false;
         boolean startend = false; //if we have start/end or ListPositions
-        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
+//        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
 //        ArrayList<DataPoint> dps = new ArrayList<DataPoint>();
         DataSerie ds = new DataSerie();
         ArrayList<Double> intensities = new ArrayList<Double>();
@@ -666,7 +670,7 @@ public final class DataFileUtils {
             
             //here we should have t2ang and intensities full and same size, populate dps
             int size = FastMath.min(t2ang.size(), intensities.size());
-            if (size == 0)return null;
+            if (size == 0)return false;
             for (int i=0; i<size;i++){
                 ds.addPoint(new DataPoint(t2ang.get(i),intensities.get(i),0.0f));
 //                dps.add(new DataPoint(t2ang.get(i),intensities.get(i),0.0f));
@@ -675,15 +679,15 @@ public final class DataFileUtils {
             patt1D.AddDataSerie(ds);
             
         }catch(Exception ex){
-            ex.printStackTrace();
-            return null;
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
+            return false;
         }
-        return patt1D;
+        return true;
     }
     
-    private static Pattern1D readDATFreeFormat(File f){
+    private static boolean readDATFreeFormat(File f, Pattern1D patt1D){
         boolean firstLine = true;
-        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
+//        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
 //        ArrayList<DataPoint> dps = new ArrayList<DataPoint>();
         DataSerie ds = new DataSerie();
         ArrayList<Double> intensities = new ArrayList<Double>();
@@ -714,10 +718,10 @@ public final class DataFileUtils {
                         ds.setStep(Double.parseDouble(values[1]));
                         ds.setT2f(Double.parseDouble(values[2]));
                     }catch(Exception readex){
-                        readex.printStackTrace();
+                        if (D1Dplot_global.isDebug())readex.printStackTrace();
                         log.info("Error reading 1st line of Free Format file (t2i step t2f)");
                         sf.close();
-                        return null;
+                        return false;
                     }
                     firstLine=false;
                     continue;
@@ -742,7 +746,7 @@ public final class DataFileUtils {
             
             //here we should have t2ang and intensities full and same size, populate dps
             int size = FastMath.min(t2ang.size(), intensities.size());
-            if (size == 0)return null;
+            if (size == 0)return false;
             for (int i=0; i<size;i++){
                 ds.addPoint(new DataPoint(t2ang.get(i),intensities.get(i),0.0f));
             }
@@ -750,10 +754,10 @@ public final class DataFileUtils {
             patt1D.AddDataSerie(ds);
             
         }catch(Exception ex){
-            ex.printStackTrace();
-            return null;
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
+            return false;
         }
-        return patt1D;
+        return true;
     }
     
 
@@ -807,12 +811,12 @@ public final class DataFileUtils {
     }
     
 
-    private static Pattern1D readPRF(File f){
+    private static boolean readPRF(File f, Pattern1D patt1D){
         boolean startData = false;
         boolean starthkl = false;
         double previous2t = -100.0;
         int linecount = 0;
-        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
+//        Pattern1D patt1D = new Pattern1D(); //create an empty pattern1D
         DataSerie dsObs = new DataSerie();
 //        DataSerie dsBkg = new DataSerie();
         DataSerie dsCal = new DataSerie();
@@ -902,10 +906,10 @@ public final class DataFileUtils {
             patt1D.AddDataSerie(dsHKL);
             
         }catch(Exception ex){
-            ex.printStackTrace();
-            return null;
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
+            return false;
         }
-        return patt1D;
+        return true;
         
         
         
@@ -1282,26 +1286,6 @@ public final class DataFileUtils {
             written = false;
         }
         return written;
-    }
-    
-    
-    
-    private static double getWaveFromXRDML(File f){
-        double wave = -1;
-        try{
-            Scanner sf = new Scanner(f);
-            while (sf.hasNextLine()){
-                String line = sf.nextLine();
-                if (line.contains("<kAlpha1")){
-                    String temp = line.split(">")[1];
-                    temp = temp.split("<")[0];
-                    wave = Double.parseDouble(temp);
-                }
-            }
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-        return wave;   
     }
     
     
