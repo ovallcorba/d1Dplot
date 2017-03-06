@@ -47,6 +47,7 @@ import java.awt.event.ItemEvent;
 
 public class Subtract_dialog extends JDialog {
 
+    private static final long serialVersionUID = 8174469328033594668L;
     private PlotPanel plotpanel;
     private D1Dplot_main main;
     private static VavaLogger log = D1Dplot_global.getVavaLogger(Subtract_dialog.class.getName());
@@ -57,8 +58,6 @@ public class Subtract_dialog extends JDialog {
     private JComboBox combo_serie1;
     private JComboBox combo_patt2;
     private JComboBox combo_serie2;
-
-    private DataSerie subResult;
     
     /**
      * Create the dialog.
@@ -239,30 +238,25 @@ public class Subtract_dialog extends JDialog {
         DataSerie ds2 = plotpanel.getPatterns().get(np2).getSerie(ns2);
         
         if (ds1.getNpoints()!=ds2.getNpoints()){
-            log.info("different number of points");
-//            return;
+            loginfo("different number of points");
         }
         if (ds1.getPoint(0).getX()!=ds2.getPoint(0).getX()){
-            log.info("different first point");
-//            return;
+            loginfo("different first point");
         }
         float factor = 1.0f;
         try{
             factor = Float.parseFloat(txtFactor.getText());
         }catch(Exception ex){
             ex.printStackTrace();
-            log.info("error reading factor, using 1.0");
+            loginfo("error reading factor, using 1.0");
         }
-        
-//        DataSerie result = PattOps.subtractDataSeriesSamePoints(ds1, ds2, factor);
-//        DataSerie ds2reb = null;
         
         DataSerie result = null;
         if (!PattOps.haveCoincidentPointsDS(ds1, ds2)){
             boolean cont = FileUtils.YesNoDialog(this, "No coincident points, rebinning required. Continue?");
             if (!cont)return;
             DataSerie ds2reb = PattOps.rebinDS(ds1, ds2);
-            log.debug("rebinning performed");
+            loginfo("rebinning performed on serie "+ds2.getSerieName());
             //debug
             ds2reb.setPatt1D(ds2.getPatt1D());
             main.updateData();
@@ -272,21 +266,24 @@ public class Subtract_dialog extends JDialog {
             result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2, factor);
         }
         if (result==null){
-            log.info("error in subtraction");
+            loginfo("error in subtraction");
             return;
         }
-        result.setSerieName("subtraction result (factor="+FileUtils.dfX_2.format(factor)+")");
-//        result.setPatt1D(ds1.getPatt1D());
+        result.setSerieName(String.format("Sub of: P%dS%d - %.2f*P%dS%d", np1,ns1,factor,np2,ns2));
         Pattern1D patt = new Pattern1D();
         patt.getCommentLines().addAll(ds1.getPatt1D().getCommentLines());
-//        patt.getCommentLines().addAll(ds2.getPatt1D().getCommentLines());
         String s = String.format("Subtracted pattern: %s - %.2f*%s",ds1.getSerieName(),factor,ds2.getSerieName());
         patt.getCommentLines().add(s);
         patt.setOriginal_wavelength(ds1.getPatt1D().getOriginal_wavelength());
         patt.AddDataSerie(result);
         plotpanel.getPatterns().add(patt);
         main.updateData();
-//        plotpanel.getPatterns().add(patt);
-//        plotpanel.repaint();
+    }
+    
+    private void loginfo(String s){
+        if (D1Dplot_global.logging){
+            log.info(s);
+        }
+        if(main!=null)main.getTAOut().stat(s); //ho passem pel txtArea
     }
 }

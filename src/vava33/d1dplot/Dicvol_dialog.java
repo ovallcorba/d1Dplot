@@ -37,6 +37,7 @@ import java.awt.event.ActionEvent;
 
 public class Dicvol_dialog extends JDialog {
 
+    private static final long serialVersionUID = -2477751973589281718L;
     private final JPanel contentPanel = new JPanel();
     private static VavaLogger log = D1Dplot_global.getVavaLogger(Dicvol_dialog.class.getName());
     private JTextField txtNpeaks;
@@ -86,6 +87,7 @@ public class Dicvol_dialog extends JDialog {
     private int npeaks = 20;
     
     private DataSerie ds;
+    private D1Dplot_main main;
     
     private boolean everythingOK = true;
     private JCheckBox chckbxCubic;
@@ -101,8 +103,9 @@ public class Dicvol_dialog extends JDialog {
     /**
      * Create the dialog.
      */
-    public Dicvol_dialog(DataSerie ds) {
+    public Dicvol_dialog(DataSerie ds, D1Dplot_main m) {
         this.ds=ds;
+        this.main=m;
         this.setModal(true);
         setTitle("Save DICVOL file");
         setBounds(100, 100, 700, 419);
@@ -405,80 +408,80 @@ public class Dicvol_dialog extends JDialog {
         try{
             this.setAmax(Float.parseFloat(txtAmax.getText()));
         }catch(Exception ex){
-            log.info("error reading amax");
+            loginfo("error reading amax");
             everythingOK=false;
         }
         try{
             this.setBmax(Float.parseFloat(txtBmax.getText()));
         }catch(Exception ex){
-            log.info("error reading bmax");
+            loginfo("error reading bmax");
             everythingOK=false;
         }
         try{
             this.setCmax(Float.parseFloat(txtCmax.getText()));
         }catch(Exception ex){
-            log.info("error reading cmax");
+            loginfo("error reading cmax");
             everythingOK=false;
         }
         try{
             this.setBetamin(Float.parseFloat(txtBetamin.getText()));
         }catch(Exception ex){
-            log.info("error reading Beta min");
+            loginfo("error reading Beta min");
             everythingOK=false;
         }
         try{
             this.setBetamax(Float.parseFloat(txtBetamax.getText()));
         }catch(Exception ex){
-            log.info("error reading Beta max");
+            loginfo("error reading Beta max");
             everythingOK=false;
         }
         try{
             this.setVmin(Float.parseFloat(txtVmin.getText()));
         }catch(Exception ex){
-            log.info("error reading vmin");
+            loginfo("error reading vmin");
             everythingOK=false;
         }
         try{
             this.setVmax(Float.parseFloat(txtVmax.getText()));
         }catch(Exception ex){
-            log.info("error reading vmax");
+            loginfo("error reading vmax");
             everythingOK=false;
         }
         try{
             this.setWavel(Float.parseFloat(txtWave.getText()));
         }catch(Exception ex){
-            log.info("error reading wavelength");
+            loginfo("error reading wavelength");
             everythingOK=false;
         }
         
         try{
             this.setMw(Float.parseFloat(txtMw.getText()));
         }catch(Exception ex){
-            log.info("error reading MW");
+            loginfo("error reading MW");
             everythingOK=false;
         }
         try{
             this.setDensity(Float.parseFloat(txtDensity.getText()));
         }catch(Exception ex){
-            log.info("error reading Density");
+            loginfo("error reading Density");
             everythingOK=false;
         }
         try{
             this.setDensityerr(Float.parseFloat(txtDensityerr.getText()));
         }catch(Exception ex){
-            log.info("error reading Density Desv");
+            loginfo("error reading Density Desv");
             everythingOK=false;
         }
         try{
             this.setEps(Float.parseFloat(txtEps.getText()));
         }catch(Exception ex){
-            log.info("error reading Eps");
+            loginfo("error reading Eps");
             everythingOK=false;
         }
         try{
             this.setMinfom(Float.parseFloat(txtFom.getText()));
         }catch(Exception ex){
-            log.info("error reading min FOM");
+            loginfo("error reading min FOM");
             everythingOK=false;
         }
         
@@ -488,13 +491,13 @@ public class Dicvol_dialog extends JDialog {
                 this.setNpeaks(this.ds.getNpeaks());
             }
         }catch(Exception ex){
-            log.info("error reading Npeaks");
+            loginfo("error reading Npeaks");
             everythingOK=false;
         }
         try{
             this.setSpurious(Integer.parseInt(txtSpurious.getText()));
         }catch(Exception ex){
-            log.info("error reading Spurious");
+            loginfo("error reading Spurious");
             everythingOK=false;
         }
         
@@ -746,5 +749,12 @@ public class Dicvol_dialog extends JDialog {
 
     public void setEverythingOK(boolean everythingOK) {
         this.everythingOK = everythingOK;
+    }
+    
+    private void loginfo(String s){
+        if (D1Dplot_global.logging){
+            log.info(s);
+        }
+        if(main!=null)main.getTAOut().stat(s); //ho passem pel txtArea
     }
 }

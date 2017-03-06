@@ -37,7 +37,6 @@ public final class PattOps {
     
     private static VavaLogger log = D1Dplot_global.getVavaLogger(PattOps.class.getName());
     
-    
     private static DataSerie bkg_Bruchner_firstPass(DataSerie ds){  //no depen de N
         DataSerie ds0 = new DataSerie(ds,serieType.bkg,false);
         double[] vals = ds.calcYmeanYDesvYmaxYmin(); 
@@ -152,7 +151,7 @@ public final class PattOps {
     
     //SPLINE INTERP
     public static DataSerie bkg_FitSpline(DataSerie ds,DataSerie puntsFons) {
-       
+            
            double[] x = new double[puntsFons.getNpoints()];
            double[] y = new double[puntsFons.getNpoints()];
            
@@ -200,7 +199,6 @@ public final class PattOps {
            DataSerie fons = new DataSerie(ds,serieType.bkg,false);
            
            //pintem el fons polinomicalculat
-//           XYSeries poly[] = new XYSeries[1];
            double ini2t = puntsFons.getPoint(0).getX();
            DataPoint close = ds.getClosestDP(new DataPoint(ini2t,puntsFons.getPoint(0).getY(),0), 0.1, 50);
            int index = ds.getIndexOfDP(close);
@@ -210,7 +208,6 @@ public final class PattOps {
                index = index +1;
                curr2t = ds.getPoint(index).getX();
            }
-
            return fons;
        }
     
@@ -268,7 +265,7 @@ public final class PattOps {
     
     //ADDITION OF DATASERIES (with coincident points)
     public static DataSerie addDataSeriesCoincidentPoints(DataSerie[] dss){
-     
+      
       DataSerie result = new DataSerie(dss[0],dss[0].getTipusSerie(),false);
       
       int tol = 30;
@@ -318,13 +315,8 @@ public final class PattOps {
           }
                     result.addPoint(new DataPoint(dss[0].getPoint(iinidp[0]+i).getX(),inten,sdinten));
       }
-      
       return result;
   }
-    
-    //SUBTRACT DATA SERIES DIFF NUM OF POINTS BUT COINCIDENT POINTS (it will only return the coincident range)
-      
-    //SUBTRACT DATA SERIES NO COINCIDENT POINTS (it will return the coincident range with rebinning)
     
     //Convert DStoConvert to the same step and coinciding points with DSorigin
     //Start/end points (range) may be different if there is no data
@@ -332,13 +324,8 @@ public final class PattOps {
         
         DataSerie out = new DataSerie(DSorigin,DSorigin.getTipusSerie(),false); //ja l'afegirem al pattern despres si cal
         
-//        double t2i = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(1).getX(), 1.0).getX();
-//        double t2f = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(DStoConvert.getNpoints()-2).getX(), 1.0).getX();
-        
         DataPoint ini = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(1).getX(), 50.0);
         DataPoint fin = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(DStoConvert.getNpoints()-2).getX(), 50.0);
-//        double t2i = ini.getX();
-//        double t2f = fin.getX();
         int iini = DSorigin.getIndexOfDP(ini);
         int ifin = DSorigin.getIndexOfDP(fin);
         
@@ -355,7 +342,6 @@ public final class PattOps {
         }
         
         return out;
-        
     }
     
     
@@ -375,7 +361,6 @@ public final class PattOps {
         int minequals = 100;
         
         double t2i = FastMath.max(dp1.getPoint(0).getX(), dp2.getPoint(0).getX());
-//        double t2f = FastMath.min(dp1.getT2f(), dp2.getT2f());
         double step1 = dp1.calcStep();
         double step2 = dp2.calcStep();
         

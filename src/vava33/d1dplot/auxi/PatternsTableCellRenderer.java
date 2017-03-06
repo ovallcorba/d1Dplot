@@ -22,6 +22,8 @@ import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
 public class PatternsTableCellRenderer extends DefaultTableCellRenderer {
+
+    private static final long serialVersionUID = -2112120096650934116L;
     private static VavaLogger log = D1Dplot_global.getVavaLogger(PatternsTableCellRenderer.class.getName());
 
     @Override

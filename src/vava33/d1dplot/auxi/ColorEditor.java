@@ -14,6 +14,8 @@ import javax.swing.table.TableCellEditor;
 
 public class ColorEditor extends AbstractCellEditor implements TableCellEditor, ActionListener {
 
+    private static final long serialVersionUID = 2040135042893722965L;
+    
         Color currentColor;
         JButton button;
         JColorChooser colorChooser;

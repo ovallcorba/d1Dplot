@@ -16,10 +16,12 @@ import javax.swing.table.DefaultTableModel;
 
 public class PatternsTableModel extends DefaultTableModel {
 
+    private static final long serialVersionUID = -7255602787469780000L;
     public enum columns {
         nP, nS, Filename, Color, Scale, ZerOff, Wavel, XUnits, YOffset, Marker, Line, ErrBars, Show,
     }
     
+    @SuppressWarnings("rawtypes")
     Class[] columnTypes;
     boolean[] columnEditables;
     public int[] columnMinSize;
@@ -56,7 +58,7 @@ public class PatternsTableModel extends DefaultTableModel {
                     break;
                 case Filename:
                     columnTypes[i]=String.class;
-                    columnEditables[i]=false;
+                    columnEditables[i]=true;
                     columnMinSize[i]=60;
                     columnMaxSize[i]=1200;
                     columnPrefSize[i]=80;
@@ -138,6 +140,7 @@ public class PatternsTableModel extends DefaultTableModel {
         
     }
       
+      @SuppressWarnings({ "unchecked", "rawtypes" })
       @Override
       public Class getColumnClass(int columnIndex) {
           return columnTypes[columnIndex];

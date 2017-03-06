@@ -33,13 +33,10 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.io.File;
 
-import javax.swing.JTextField;
 import javax.swing.JLabel;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
-import javax.swing.filechooser.FileNameExtensionFilter;
-
 import vava33.d1dplot.auxi.DataFileUtils;
 import vava33.d1dplot.auxi.DataSerie;
 
@@ -49,6 +46,7 @@ import org.apache.commons.math3.util.FastMath;
 
 public class FindPeaks_dialog extends JDialog {
 
+    private static final long serialVersionUID = 9192274653821858871L;
     private PlotPanel plotpanel;
     private D1Dplot_main main;
     private int sliderFactDiv=100;
@@ -239,11 +237,11 @@ public class FindPeaks_dialog extends JDialog {
     
     private boolean isOneSerieSelected(){
         if (plotpanel.getSelectedSeries().isEmpty()){
-            log.info("select a serie first");
+            loginfo("select a serie first");
             return false;
         }
         if (plotpanel.getSelectedSeries().size()>1){
-            log.info("select ONE serie only");
+            loginfo("select ONE serie only");
             return false;
         }
         return true;
@@ -308,12 +306,18 @@ public class FindPeaks_dialog extends JDialog {
         if (!isOneSerieSelected())return;
         File pksFile = FileUtils.fchooser(this,new File(D1Dplot_global.getWorkdir()), null, 0, true, true);
         if (pksFile == null){
-            log.info("No data file selected");
+            loginfo("No data file selected");
             return;
         }
         
-        pksFile = DataFileUtils.writePeaksFile(pksFile, plotpanel.getSelectedSeries().get(0).getPatt1D(), plotpanel.getSelectedSeries().get(0).getPatt1D().indexOfSerie(plotpanel.getSelectedSeries().get(0)), true);
-        log.info(pksFile.toString()+" written!");
-        log.debug("saveDataFile exited");
+        pksFile = DataFileUtils.writePeaksFile(pksFile, plotpanel.getSelectedSeries().get(0).getPatt1D(), plotpanel.getSelectedSeries().get(0).getPatt1D().indexOfSerie(plotpanel.getSelectedSeries().get(0)), true, main);
+        loginfo(pksFile.toString()+" written!");
+    }
+    
+    private void loginfo(String s){
+        if (D1Dplot_global.logging){
+            log.info(s);
+        }
+        if(main!=null)main.getTAOut().stat(s); //ho passem pel txtArea
     }
 }

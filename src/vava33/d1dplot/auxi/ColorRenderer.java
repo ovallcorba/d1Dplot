@@ -19,6 +19,8 @@ import javax.swing.table.TableCellRenderer;
 
 public class ColorRenderer extends JLabel implements TableCellRenderer{
 
+    private static final long serialVersionUID = 437820856846347896L;
+
     Border unselectedBorder = null;
     Border selectedBorder = null;
     boolean isBordered = true;

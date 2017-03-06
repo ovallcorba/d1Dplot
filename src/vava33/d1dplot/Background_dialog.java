@@ -37,11 +37,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.ItemEvent;
-import java.util.ArrayList;
-
 import javax.swing.ButtonGroup;
 
-import vava33.d1dplot.auxi.DataPoint;
 import vava33.d1dplot.auxi.DataSerie;
 import vava33.d1dplot.auxi.PattOps;
 import vava33.d1dplot.auxi.Pattern1D;
@@ -55,12 +52,12 @@ import javax.swing.JToggleButton;
 
 public class Background_dialog extends JDialog {
 
+    private static final long serialVersionUID = -5952734543185556697L;
     private static final int def_npoints = 30;
     private static final int def_degree = 12;
 
     private PlotPanel plotpanel;
     private D1Dplot_main main;
-//    private ArrayList<DataPoint> puntsFons;
     private DataSerie puntsFons;
     private DataSerie fonsCalc;
     
@@ -232,9 +229,15 @@ public class Background_dialog extends JDialog {
                             "T2i", "T2f", "N"
                         }
                     ) {
+                        /**
+                         * 
+                         */
+                        private static final long serialVersionUID = 1527503710298754660L;
+                        @SuppressWarnings("rawtypes")
                         Class[] columnTypes = new Class[] {
                             Double.class, Double.class, Integer.class
                         };
+                        @SuppressWarnings({ "unchecked", "rawtypes" })
                         public Class getColumnClass(int columnIndex) {
                             return columnTypes[columnIndex];
                         }
@@ -360,7 +363,6 @@ public class Background_dialog extends JDialog {
         lbltsup.setEnabled(false);
         table.setEnabled(false);
         chckbxShowBackground.setSelected(true);
-//        puntsFons = new ArrayList<DataPoint>();
         fonsCalc = new DataSerie();
         puntsFons = new DataSerie();
     }
@@ -471,6 +473,7 @@ public class Background_dialog extends JDialog {
         }
         fonsCalc = PattOps.bkg_FitSpline(plotpanel.getSelectedSeries().get(0), puntsFons);
         updatePlotPanelMain(plotpanel.getSelectedSeries().get(0));
+        
     }
     protected void do_btnEstimate_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
@@ -488,7 +491,7 @@ public class Background_dialog extends JDialog {
     private void updatePlotPanelMain(DataSerie selectedSerie){
         
         if (selectedSerie==null){
-            log.debug("something is wrong, information on the bkg serie is missing");
+            if (D1Dplot_global.isDebug())log.debug("something is wrong, information on the bkg serie is missing");
             return;
         }
         Pattern1D selPatt = selectedSerie.getPatt1D();

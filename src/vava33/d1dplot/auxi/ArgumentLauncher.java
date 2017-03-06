@@ -64,6 +64,7 @@ public final class ArgumentLauncher {
         if (files.isEmpty())return;
         //el workpath sera el del primer fitxer
         D1Dplot_global.setWorkdir(files.get(0));
+        log.debug("workdir="+D1Dplot_global.getWorkdir());
         
         Iterator<File> itrF = files.iterator();
         while (itrF.hasNext()){
@@ -76,6 +77,7 @@ public final class ArgumentLauncher {
                 log.debug("it does not exist!");
             }
         }
+        mf.updateData();
     }
     
 

@@ -110,7 +110,7 @@ public final class D1Dplot_global {
     }
     
     public static void setWorkdir(File workDirOrFile) {
-        D1Dplot_global.workdir = workDirOrFile.getParent();
+        D1Dplot_global.workdir = workDirOrFile.getAbsolutePath();
     }
     
     public static Color parseColorName(String name){

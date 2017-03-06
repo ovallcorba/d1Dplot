@@ -97,7 +97,6 @@ public class DataSerie {
         this.setTipusSerie(stype);
     }
 
-    
     //copia tots els parametres excepte les dades
     public DataSerie(DataSerie inds, serieType stype,boolean addToPatt){
         this();
@@ -142,7 +141,7 @@ public class DataSerie {
         DataPoint ndp = new DataPoint(dp.getX()+this.zerrOff,dp.getY()*this.scale+this.getYOff(),dp.getSdy()*this.scale,dp.getyBkg()*this.scale);
         if (Pattern1D.isPlotwithbkg()){
             ndp.setY(ndp.getY()+(ndp.getyBkg()*this.scale));
-//            log.debug("applying ybkg");
+//            logdebug("applying ybkg");
         }
 //        if (this.getTipusSerie()==serieType.diff){
 //            ndp.setY(ndp.getY()+this.getPatt1D().getDiffoffset());
@@ -159,12 +158,22 @@ public class DataSerie {
         return this.seriePoints.indexOf(dp);
     }
     
+    public DataSerie getSubDataSerie(double t2i, double t2f){
+        DataSerie newds = new DataSerie(this,this.getTipusSerie(),false);
+        for (int i=0;i<this.getNpoints();i++){
+            if (this.getPoint(i).getX()<t2i)continue;
+            if (this.getPoint(i).getX()>t2f)continue;
+            newds.addPoint(this.getPoint(i));
+        }
+        return newds;
+    }
+    
     public DataPoint getPeak(int arrayPosition){
         DataPoint dp = this.peaks.get(arrayPosition);
         DataPoint ndp = new DataPoint(dp.getX()+this.zerrOff,dp.getY()*this.scale+this.getYOff(),dp.getSdy()*this.scale,dp.getyBkg()*this.scale);
         if (Pattern1D.isPlotwithbkg()){
             ndp.setY(ndp.getY()+(ndp.getyBkg()*this.scale));
-//            log.debug("applying ybkg");
+//            logdebug("applying ybkg");
         }
 //        if (this.getTipusSerie()==serieType.diff){
 //            ndp.setY(ndp.getY()+this.getPatt1D().getDiffoffset());
@@ -186,15 +195,18 @@ public class DataSerie {
     }
     
     public void removePoint(DataPoint dp){
-        log.debug("index of the point to remove="+this.seriePoints.indexOf(dp));
+        logdebug("index of the point to remove="+this.seriePoints.indexOf(dp));
         boolean removed = this.seriePoints.remove(dp);
-        log.debug(Boolean.toString(removed));
+        logdebug(Boolean.toString(removed));
+    }
+    public void removePoint(int index){
+        this.seriePoints.remove(index);
     }
     
     public void removePeak(DataPoint dp){
-        log.debug("index of the peak to remove="+this.peaks.indexOf(dp));
+        logdebug("index of the peak to remove="+this.peaks.indexOf(dp));
         boolean removed = this.peaks.remove(dp);
-        log.debug(Boolean.toString(removed));
+        logdebug(Boolean.toString(removed));
     }
 
     public void removeHKLPoint(DataHKL dhkl){
@@ -403,18 +415,18 @@ public class DataSerie {
         DataSerie newDS = new DataSerie();
         Iterator<DataPoint> itdp = this.seriePoints.iterator();
         
-        log.info(String.format("convert from %s to %s",this.getxUnits(), destXunits));
+        logdebug(String.format("convert from %s to %s",this.getxUnits(), destXunits));
         
         switch (this.getxUnits()){
             case tth:
                 switch (destXunits){
                     case tth:
-                        log.info("tth to tth");
+                        logdebug("tth to tth");
                         //do nothing
                         break;
                     case dsp:
                         //TTH to DSP
-                        log.info("tth to dsp");
+                        logdebug("tth to dsp");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double t2 = dp.getX();
@@ -428,7 +440,7 @@ public class DataSerie {
                         break;
                     case dspInv:
                         //TTH to DSP inv
-                        log.info("tth to dspInv");
+                        logdebug("tth to dspInv");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double t2 = dp.getX();
@@ -442,7 +454,7 @@ public class DataSerie {
                         break;
                     case Q:
                         //TTH to Q
-                        log.info("tth to Q");
+                        logdebug("tth to Q");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double t2 = dp.getX();
@@ -455,7 +467,7 @@ public class DataSerie {
 //                        newDS.setZerrOff(zer);
                         break;
                     default:
-                        log.info("unit conversion not supported");
+                        logdebug("unit conversion not supported");
                         break;
                 }
                 break;
@@ -463,7 +475,7 @@ public class DataSerie {
                 switch (destXunits){
                     case tth:
                         //DSP to TTH
-                        log.info("dsp to tth");
+                        logdebug("dsp to tth");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double dsp = dp.getX();
@@ -477,11 +489,11 @@ public class DataSerie {
                         break;
                     case dsp:
                         //DSP to DSP
-                        log.info("dsp to dsp");
+                        logdebug("dsp to dsp");
                         break;
                     case dspInv:
                         //DSP to DSP inv
-                        log.info("dsp to dspInv");
+                        logdebug("dsp to dspInv");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double dsp = dp.getX();
@@ -493,7 +505,7 @@ public class DataSerie {
                         break;
                     case Q:
                         //DSP to Q invertir i multiplicar per 2pi crec...
-                        log.info("dsp to Q");
+                        logdebug("dsp to Q");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double dsp = dp.getX();
@@ -506,7 +518,7 @@ public class DataSerie {
 //                        newDS.setZerrOff(zer);
                         break;
                     default:
-                        log.info("unit conversion not supported");
+                        logdebug("unit conversion not supported");
                         break;
                 }
                 break;
@@ -514,7 +526,7 @@ public class DataSerie {
                 switch (destXunits){
                     case tth:
                         //DSPinv to TTH
-                        log.info("dspInv to tth");
+                        logdebug("dspInv to tth");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double dsp = 1/dp.getX();
@@ -528,7 +540,7 @@ public class DataSerie {
                         break;
                     case dsp:
                         //DSPinv to DSP
-                        log.info("dspInv to dsp");
+                        logdebug("dspInv to dsp");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double dsp = dp.getX();
@@ -540,11 +552,11 @@ public class DataSerie {
                         break;
                     case dspInv:
                         //DSPinv to DSP inv
-                        log.info("dspInv to dspInv");
+                        logdebug("dspInv to dspInv");
                         break;
                     case Q:
                         //DSPinv to Q invertir i multiplicar per 2pi crec...
-                        log.info("dspInv to Q");
+                        logdebug("dspInv to Q");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double dsp = 1/dp.getX();
@@ -557,14 +569,14 @@ public class DataSerie {
 //                        newDS.setZerrOff(zer);
                         break;
                     default:
-                        log.info("unit conversion not supported");
+                        logdebug("unit conversion not supported");
                         break;
                 }
                 break;
             case Q:
                 switch (destXunits){
                     case tth:
-                        log.info("Q to tth");
+                        logdebug("Q to tth");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double q = dp.getX();
@@ -578,7 +590,7 @@ public class DataSerie {
                         break;
                     case dsp:
                         //Q to DSP (2pi/Q)
-                        log.info("Q to dsp");
+                        logdebug("Q to dsp");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double q = dp.getX();
@@ -592,7 +604,7 @@ public class DataSerie {
                         break;
                     case dspInv:
                         //Q to DSP inv
-                        log.info("Q to dspInv");
+                        logdebug("Q to dspInv");
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double q = dp.getX();
@@ -606,15 +618,15 @@ public class DataSerie {
                         break;
                     case Q:
                         //Q to Q
-                        log.info("Q to Q");
+                        logdebug("Q to Q");
                         break;
                     default:
-                        log.info("unit conversion not supported");
+                        logdebug("unit conversion not supported");
                         break;
                 }
                 break;
             default:
-                log.info("unit conversion not supported");
+                logdebug("unit conversion not supported");
                 break;
         }
 
@@ -631,8 +643,8 @@ public class DataSerie {
             ds10[i]=this.getPoint(i).getX();
             nds10[i]=newDS.getPoint(i).getX();
         }
-        log.writeNameNums("CONFIG", true, "ds10", ds10);
-        log.writeNameNums("CONFIG", true, "nds10", nds10);
+        if(D1Dplot_global.isDebug())log.writeNameNums("CONFIG", true, "ds10", ds10);
+        if(D1Dplot_global.isDebug())log.writeNameNums("CONFIG", true, "nds10", nds10);
         return newDS;
 
     }
@@ -877,7 +889,7 @@ public class DataSerie {
                 }
             }
         }
-        log.debug("index of the closest="+this.seriePoints.indexOf(closest));
+        logdebug("index of the closest="+this.seriePoints.indexOf(closest));
         return closest;
     }
     
@@ -898,7 +910,7 @@ public class DataSerie {
                 }
             }
         }
-        log.debug("index of the closest X ="+this.seriePoints.indexOf(closest));
+        logdebug("index of the closest X ="+this.seriePoints.indexOf(closest));
         return closest;
     }
     
@@ -945,7 +957,7 @@ public class DataSerie {
             DataPoint dp = this.getPeak(i);
             double diffX = FastMath.abs(dp.getX()-click.getX());
             if (diffX<tolX){
-                log.debug("Xpeak("+i+")="+dp.getX()+" diff="+diffX);
+                logdebug("Xpeak("+i+")="+dp.getX()+" diff="+diffX);
                 if (diffX<minDiffX){
                     minDiffX=diffX;
                     closest = dp;
@@ -954,7 +966,7 @@ public class DataSerie {
                 }
             }
         }
-        log.debug("index of the closest="+this.seriePoints.indexOf(closest));
+        logdebug("index of the closest="+this.seriePoints.indexOf(closest));
         return closest;
     }
 
@@ -972,4 +984,9 @@ public class DataSerie {
         this.serieName = serieName;
     }
     
+    private void logdebug(String s){
+        if(D1Dplot_global.isDebug())log.debug(s);
+    }
+    
+
 }

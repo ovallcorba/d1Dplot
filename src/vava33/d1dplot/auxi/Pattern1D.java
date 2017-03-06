@@ -40,7 +40,7 @@ public class Pattern1D {
         this.setOriginal_wavelength(-1f);
 
     }
-
+    
     
     private DataSerie containsBkgSerie(){
         Iterator<DataSerie> itrDS = this.getSeriesIterator();
@@ -154,6 +154,7 @@ public class Pattern1D {
     }
     
     public void removeAllSeries(){
+        globalNseries = globalNseries - this.series.size();
         this.series.clear();
     }
 
