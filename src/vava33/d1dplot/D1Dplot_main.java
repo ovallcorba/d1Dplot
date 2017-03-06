@@ -1,155 +1,20 @@
 package vava33.d1dplot;
 
 /**    
- *   DONE 170203: aplicar aquestes opcions al Plot (escala, zero, show, errors, ...)
- *   H TODO: txtOut? cal? menu de la dreta, acabar-lo i decidir que posar, acabar també el menu superior Xdiv, etc...
- *   H TODO: posar mes maco el 2T intensitat
- *   H TODO: PRF i altres formats (panalytical, etc...)
- *   DONE: implementar canvi unitats X (Q, dsp, ...) i canvi wavelenght diagrames? mirar si es pot fer apareixer la opcio al menu de la dreta de "convert to wavelength"
- *   DONE: treure i moure patterns
- *   H DONE: Guardar patterns
- *   H TODO: cal arrodonir step i 2theta al 4 o 5e decimal a l'escriure.. no se si ho he aplicat a tot arreu...
- *   H TODO: llegenda, titols eixos, etc... el tema llegenda faltaria update els fields cada vegada...
- *   DONE: obrir PRF
- *   DONE: afegir columna Yoffset...
- *   DONE: colors light,dark theme
- *   DONE: grid lines
- *   DONE: Fitxer config amb opcions igual que d2Dplot
- *   DONE: exportar pdf, png
- *   DONE: background (ajuntar amb bruchner sub?
- *   DONE: select points, search pks, ... salvar per dicvol?
- *   DONE: SUMAR RESTAR PATTERNS, REBINNING?
- *   H TODO: buscar als comentaris info del pattern (wavelengh, unitats, etc...) TRICKS, he afegit wave nomes
- *   H TODO: EL boto reload es podria posar al menu dret?
+ * D1Dplot
+ * Program to plot 1D X-ray Powder Diffraction Patterns
  *   
- *   DONE: plot en 2D
- *   DONE: save Bkg points, fer un save as... i detectar que es una serie BKG, preguntar si es vol guardar sencera o nomes uns pocs punts!
- *   DONE: apply sequential Y offset
- *   DONE: el titol dels eixos no s'actualitza al convertir unitats? 
- *   TODO: posar macos els comentaris del pattern a les sumes i restes
- *   TODO: nou tipus (llindar?) ... potser no cal..
- *   H TODO: COmmand line, no se perque si faig el show despres de llegir arguments es penja la finestra
- *   TODO: revisar el tema titol serie
- *   NOTTODO: implementar boto dret al pattern per estalviar-nos el menu superior?
- *   
- *   NO FUNCIONALITAT SINO OPTIMITZACIO:
- *   TODO: va molt lent quan s'obren molts patterns... potser intentar optimitzar alguna cosa (sobretot quan es selecciona una zona, igual o cal "repintar" tot)
- *   TODO: canviar batik per jfressvg (ocupa molt menys)
- *   TODO: tots els printstacktrace nomes si debug
- *   TODO: tots els log.info posar-ho al textbox
- *   TODO: NETEJA DE TOT, decimals als textbox, text inicial als Textbox i als labels (plot_panel:hkl,etc... que desapareixen),...
- *   DONE: posar condicio abans de les crides log.debug (islogging()) o (isdebug) per evitar que s'avaluin
- *   TODO: He començat a mirar perque vagi mes rapid. He posat continuous repaint a dalt de tot perque no repinti tot cada vegada... a veure com va.
- *    El que es podria mirar es d'utilitzar els limits i no recórrer cada vegada tot el pattern no? Mirar estrictament quan s'ha de tornar a dibuixar tot.
- *    Es pot posar un "flag" a dades1d que es pot activar abans de cridar repaint i indiqui que s'ha de rellegir les dades. Altrament, mentre el "flag" no s'activi
- *    podem nomes dibuixar les "parafarnalies", quadrats, eixos, window, etc... pot funcionar?  
- *    
- *   TODO: CANVI FILOSOFIA OPCIONS, fer alguna cosa no estatica... no se exactament com. L'objectiu es flexibilitzar la reutilitzacio de plotpanel
- *   
- *    NOTES:
- *      - posar crides al log (e.g. log.fine()) dins paintcomponent peta al fer design des d'eclipse
- *      
- * 
- * 170306:
- *  - He fet una mica de neteja..., printstactrace si debug, loginfo/logdebug,decimals textboxs...
- *  - He fet que DataFileUtils se li pugui donar el pattern on s'han d'afegir les series, ara nomes es retornen booleans. Aixi es mes facil l'update serie.
- *  - DONE: when opening from console filechosers crash (potser no s'inicialitza workdir?). Ara ja va pero cal revisar el setWorkdir perque agafi el FULL PATH COMPLET. REvisar documentacio de File.
- *  - DONE: acabar opcions de zoom amb mousedrag a 2Dplot
- *  - DONE: noms a suma i resta resultats mes significatius
- *  - DONE: posar macos els textbox de la finestra inicial... que tinguin els valors actuals a l'actualitzar vista o obrir patterns
- *  - Totes les crides a log he posat la comprovacio de (islogging) per evitar entrar-hi.
- *  - Tots els printstacktrace nomes si debug
+ * It uses the following libraries from the same author:
+ *  - com.vava33.jutils
  *  
+ * And the following 3rd party libraries: 
+ *  - net.miginfocom.swing.MigLayout
+ *  - org.apache.commons.math3.util.FastMath
  *  
- * 170303: --AQUESTA VERSIO DIRIEM QUE TE TOTA LA FUNCIONALITAT BASICA QUE VULL
- *  - Comprovacio plot2d de igual num punts i mateixos t2i t2f feta
- *  - DONE: permetre canviar filename (i potser canviar filename per serie name, o nomes name)
- *  - DONE: permetre canviar color (en batch)
- *  - Sequential Y offset
- *  - He començat a mirar perque vagi mes rapid. He posat continuous repaint a dalt de tot perque no repinti tot cada vegada... a veure com va.
- *  - Plot2D molt millorat, encara es pot fer:
- *      - DONE: Posar un checkbox que sigui always fit Y, es a dir que la seleccio no sigui quadrat sino a tota l'alçada igual que a 1D.
- *      - DONE: Opcio de posar els noms dels patterns a la mateixa buffered image (o al costat).
- *      - DONE: exportar imatge amb llegenda inclosa
+ * @author Oriol Vallcorba
+ * Licence: GPLv3
  *  
- *  
- * 170228
- *  - Funciona plot 2D, falta posar-ho maco i amb opcions (següent versió)
- *  - DONE: boto reload data
- *  - Afegida cerca de la wavelength als comentaris
- *  - DONE: IMPLEMENTAR EL REBINNING! (ho utilitza la suma)
- *  - DONE: SUMA PATTERNS (amb boto dret a la taula)
- *  - DONE: aplicar a varis no funciona be, he posat els tipus de dades per cada columna (cast)
- *  - DONE: posar titol a la serie (aixi puc posar llindar, bruchner,... etc...) 
- *  - DONE: obrir mes d'un pattern alhora. He canviat una mica els metodes opendatafile i update, etc...
- *  - DONE: wavelength missing to new pattern when converting WL  
- *  - Sutract dialog done i resta implementada, TODO: afegir suma i TODO: interpolar en cas que punts siguin diferents
- *  - DONE save for DICVOL
- *  - DONE ESTIC FENT MOUSEPRESSED SELECTING DELETING PEAKS
- *  - He fet molts canvis de correccio de coses
- *  - Redefinit equals a datapoint ja que com que el getPoint en retorna un de nou no els podia localitzar bé (no es el mateix objecte)
- *  - DONE: Implementar altres funcions del fons i acabar dialeg fons (save as new serie, etc...)
- *  - DONE: arreglar tema del plot del fons (fer aparèixer a la taula temporalment? es possible?)
- *
- * 170216
- *  - NEXTTODO: acabar peaksearch
- *  - NEXTTODO: utilitzar iteracio fons com a threshold del peaksearch
- *  - Bruchner funciona ja!
- *  - DONE: autoseleccionar a la taula l'ultim obert
- *  - Peak search, es millorable, per exemple, considerar un delsig per zones, etc... posar una finestreta amb opcions.
- *  - Implementades OPCIONS i fitxer CONFIG
- *  - taula amb decimals i centrat
- *  - Save PNG i SVG!!
- *  - DONE: al borrar varis de la taula peta perque modifiquem llista dins d'un for... arreglar!
- *  - DONE:mirar perque ocupa tant el JAR -> he importat nomes els jars minims de batik, que era el problema
- *         també el apache math l'he tret i nomes faig servir FastMath (a vavautils)
- *      
- * 170209-2 (abans crear opcions)
- *  - Afegida columna Yoffset
- *  - Implementat temes colors i grid lines
- *  - Afegit dspacing,Q,etc.. al label de sota... i ordenar el label
- *  - 
- *  
- * 170209
- *  - Canvi a doubles t2, etc..
- *  - Implementat lectura PRF i tipus de dataseries... es una mica liós
- *  - Errors a PlotPanel -- calcMaxMinXY() hi havia un index malament i no calculava minY
- *                       -- frametodatapoint Y no funcionava
- *  - plot prf amb fons
- *  - 
- *                       
- * 170208
- *  - Pensar com tractar millor dataseries/pattern i cas PRF:
- *      - sempre que fem canvi a una serie en creem una de nova (més fàcil tot plegat)
- *      - todo:prf
- *  - Implementat canvi unitats, tret del general (plot options) i afegit al menu dret
- *  
- * 170207
- *  - Canvis de funcionament importants:
- *     - eliminat arraylist points de pattern1D, nomes treballarem amb series i cada serie tindra els seus punts
- *     - Fem que DataSerie arraylist of datapoints sigui privat i només poguem cridar element per element (amb la consequent multiplicació scala + zero)
- *       Per si de cas deixem un metode per recuperar array original
- *     - vavalogger per tenir el nom de la classe (igual que a d2dplot)
- *     - implementades errorbars
- *     - baixat factorzoom de 1.5 a 1.1
- *     - Passat t2i, t2f, step a DATASERIE
- *     - Molts canvis en la filosofia Pattern1D--DataSerie...
- *     - Implementats formats lectura/escriptura (falta afegir-ho al menu D1Dplot_main)
- *       
- * 170203
- *  - Implementada la taula, amb tota la funcionalitat que els valors s'escriuen a les series
- *  - Aplicat zeroOff i scale. Es fa al dibuixar. També s'aplica al calcular maxX,Y minX,Y a dataserie (per fer fitgraph). 
- *    Caldrà tenir-ho en compte a l'escriure fitxers o dades, sempre aplicar l'escala.
- *    REALMENT es podria fer que quan dataserie et retorna un datapoint t'apliqui directament això. Per això hauriem de fer tot private a dataserie (arraylist,iterator) i a datapoint, per evitar accessos directes.
- *  
- * 170131:
- *  - Canvi filosofia eixos, ara es pot personalitzar customDiv. Caldra neteja a la propera versio.
- *  
- *  
- * (old first versions)
- *  - tests amb paint directament al frame, amb bufferedImage (no es optim)
- *  - primeres proves
- **/
+ */
 
 import java.awt.Color;
 import java.awt.Dimension;
