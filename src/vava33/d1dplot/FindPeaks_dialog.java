@@ -12,8 +12,6 @@ package vava33.d1dplot;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.Toolkit;
-
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
@@ -71,7 +69,7 @@ public class FindPeaks_dialog extends JDialog {
         this.plotpanel=p;
         this.main=m;
         setTitle("Find Peaks");
-        this.setIconImage(Toolkit.getDefaultToolkit().getImage(FindPeaks_dialog.class.getResource("/vava33/d1dplot/img/d1Dplot.png")));
+        this.setIconImage(D1Dplot_global.getIcon());
         setBounds(100, 100, 450, 290);
         getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -253,6 +251,15 @@ public class FindPeaks_dialog extends JDialog {
     protected void do_okButton_actionPerformed(ActionEvent e) {
         this.dispose();
     }
+    
+    @Override
+    public void dispose() {
+        plotpanel.setSelectingPeaks(false);
+        this.chckbxShowPeaks.setSelected(false);
+        plotpanel.getBkgseriePeakSearch().clearDataPoints();
+        super.dispose();
+    }
+    
     protected void do_btnAddPeaks_itemStateChanged(ItemEvent e) {
         if (!isOneSerieSelected())return;
         if (this.btnAddPeaks.isSelected()){

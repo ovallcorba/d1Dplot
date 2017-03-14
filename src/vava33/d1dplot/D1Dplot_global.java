@@ -11,6 +11,8 @@ package vava33.d1dplot;
  */
 
 import java.awt.Color;
+import java.awt.Image;
+import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -27,10 +29,7 @@ import com.vava33.jutils.VavaLogger;
 
 public final class D1Dplot_global {
 
-    public static final int satur32 = Short.MAX_VALUE;
-    public static final int satur65 = (Short.MAX_VALUE * 2) + 1;
-
-    public static final String welcomeMSG = "d1Dplot v1702 (170217) by O.Vallcorba";
+    public static final String welcomeMSG = "d1Dplot v1703 (170307) by O.Vallcorba";
     public static final String separator = System.getProperty("file.separator");
     public static final String userDir = System.getProperty("user.dir");
     public static final String configFilePath = System.getProperty("user.dir") + separator + "d1dconfig.cfg";
@@ -665,6 +664,10 @@ public final class D1Dplot_global {
       log.printmsg(loglevel,"prfFullprofColors = "+Boolean.toString(prfFullprofColors));
       log.printmsg(loglevel,"*****************************************************************************");
 
+    }
+    
+    public static Image getIcon(){
+        return Toolkit.getDefaultToolkit().getImage(D1Dplot_global.class.getResource("/vava33/d1dplot/img/d1Dplot.png"));
     }
     
     

@@ -140,7 +140,9 @@ public class PlotPanel2D extends JDialog {
      * Create the panel.
      */
     public PlotPanel2D(D1Dplot_main m) {
+        setTitle("2D plot");
         this.main = m;
+        this.setIconImage(D1Dplot_global.getIcon());
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {

@@ -34,6 +34,7 @@ import vava33.d1dplot.auxi.DataSerie;
 import java.awt.Color;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import java.awt.Font;
 
 public class Dicvol_dialog extends JDialog {
 
@@ -99,6 +100,7 @@ public class Dicvol_dialog extends JDialog {
     private JCheckBox chckbxZeroRefienment;
     private JCheckBox chckbxPrevZeroSearch;
     private JCheckBox chckbxDicvolOpt;
+    private JLabel lblBoultifA;
     
     /**
      * Create the dialog.
@@ -106,6 +108,7 @@ public class Dicvol_dialog extends JDialog {
     public Dicvol_dialog(DataSerie ds, D1Dplot_main m) {
         this.ds=ds;
         this.main=m;
+        this.setIconImage(D1Dplot_global.getIcon());
         this.setModal(true);
         setTitle("Save DICVOL file");
         setBounds(100, 100, 700, 419);
@@ -338,6 +341,11 @@ public class Dicvol_dialog extends JDialog {
                         do_okButton_actionPerformed(e);
                     }
                 });
+                {
+                    lblBoultifA = new JLabel("<html>\nBoultif, A., & Louër, D. (2004).<i>J. Appl. Crystallogr.</i>, 37, 724-731.\n</html>");
+                    lblBoultifA.setFont(new Font("Dialog", Font.PLAIN, 11));
+                    buttonPane.add(lblBoultifA);
+                }
                 okButton.setActionCommand("OK");
                 buttonPane.add(okButton);
                 getRootPane().setDefaultButton(okButton);

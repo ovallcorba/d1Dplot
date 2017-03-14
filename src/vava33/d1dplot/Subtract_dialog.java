@@ -12,8 +12,6 @@ package vava33.d1dplot;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.Toolkit;
-
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
@@ -63,8 +61,8 @@ public class Subtract_dialog extends JDialog {
      * Create the dialog.
      */
     public Subtract_dialog(PlotPanel p,D1Dplot_main m) {
-        setTitle("Subtract");
-        this.setIconImage(Toolkit.getDefaultToolkit().getImage(Subtract_dialog.class.getResource("/vava33/d1dplot/img/d1Dplot.png")));
+        setTitle("Subtract Patterns");
+        this.setIconImage(D1Dplot_global.getIcon());
         this.setPlotpanel(p);
         this.setMain(m);
         setBounds(100, 100, 814, 198);
