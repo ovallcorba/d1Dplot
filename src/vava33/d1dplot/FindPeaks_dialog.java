@@ -1,4 +1,4 @@
-package vava33.d1dplot;
+package com.vava33.d1dplot;
 
 /**
  * D1Dplot
@@ -9,9 +9,9 @@ package vava33.d1dplot;
  * Licence: GPLv3
  * 
  */
-
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
@@ -22,6 +22,8 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JCheckBox;
 
+import com.vava33.d1dplot.auxi.DataFileUtils;
+import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -35,12 +37,11 @@ import javax.swing.JLabel;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
-import vava33.d1dplot.auxi.DataFileUtils;
-import vava33.d1dplot.auxi.DataSerie;
-
 import javax.swing.JToggleButton;
 
 import org.apache.commons.math3.util.FastMath;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 
 public class FindPeaks_dialog extends JDialog {
 
@@ -60,6 +61,10 @@ public class FindPeaks_dialog extends JDialog {
     private JToggleButton btnAddPeaks;
     private JToggleButton btnRemovePeaks;
     private JButton btnSetFactminmax;
+    private JLabel lblTmin;
+    private JLabel lblTmax;
+    private JTextField txtTthmin;
+    private JTextField txtTthmax;
 
 
     /**
@@ -70,7 +75,7 @@ public class FindPeaks_dialog extends JDialog {
         this.main=m;
         setTitle("Find Peaks");
         this.setIconImage(D1Dplot_global.getIcon());
-        setBounds(100, 100, 450, 290);
+        setBounds(100, 100, 370, 540);
         getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         getContentPane().add(contentPanel, BorderLayout.CENTER);
@@ -96,7 +101,7 @@ public class FindPeaks_dialog extends JDialog {
         {
             JPanel panel = new JPanel();
             contentPanel.add(panel, "cell 0 1 2 1,grow");
-            panel.setLayout(new MigLayout("", "[][][grow]", "[][][][]"));
+            panel.setLayout(new MigLayout("", "[50:n][grow][][]", "[][][][][grow][][]"));
             {
                 btnAutoPeakSearch = new JButton("Auto Peak Search");
                 btnAutoPeakSearch.addActionListener(new ActionListener() {
@@ -104,12 +109,33 @@ public class FindPeaks_dialog extends JDialog {
                         do_btnAutoPeakSearch_actionPerformed(e);
                     }
                 });
-                panel.add(btnAutoPeakSearch, "cell 0 0,growx");
+                panel.add(btnAutoPeakSearch, "cell 0 0 4 1,growx");
             }
             {
-                chckbxUseBkgEstimation = new JCheckBox("use bkg estimation");
-                chckbxUseBkgEstimation.setSelected(true);
-                panel.add(chckbxUseBkgEstimation, "cell 1 0 2 1");
+                {
+                    lblTmin = new JLabel("t2min");
+                    panel.add(lblTmin, "cell 2 1,alignx trailing");
+                }
+                {
+                    txtTthmin = new JTextField();
+                    panel.add(txtTthmin, "cell 3 1,growx");
+                    txtTthmin.setColumns(5);
+                }
+                {
+                    lblTmax = new JLabel("t2max");
+                    panel.add(lblTmax, "cell 2 2,alignx right,aligny top");
+                }
+                {
+                    txtTthmax = new JTextField();
+                    panel.add(txtTthmax, "cell 3 2,growx,aligny top");
+                    txtTthmax.setColumns(5);
+                }
+                {
+                    chckbxUseBkgEstimation = new JCheckBox("use bkg estimation");
+                    chckbxUseBkgEstimation.setSelected(true);
+                    panel.add(chckbxUseBkgEstimation, "cell 2 3 2 1,alignx center");
+                }
+
             }
             {
                 btnAddPeaks = new JToggleButton("Add Peaks");
@@ -118,27 +144,40 @@ public class FindPeaks_dialog extends JDialog {
                         do_btnAddPeaks_itemStateChanged(e);
                     }
                 });
-                panel.add(btnAddPeaks, "cell 0 1,growx");
+                panel.add(btnAddPeaks, "cell 3 4,growx,aligny bottom");
             }
             {
                 JLabel lblFactor = new JLabel("factor:");
-                panel.add(lblFactor, "cell 1 1");
+                panel.add(lblFactor, "flowx,cell 0 5");
             }
             {
                 lblFact = new JLabel("fact");
-                panel.add(lblFact, "cell 2 1,alignx center");
+                panel.add(lblFact, "cell 1 5,alignx left");
             }
-            {
-                btnRemovePeaks = new JToggleButton("Remove Peaks");
-                btnRemovePeaks.addItemListener(new ItemListener() {
-                    public void itemStateChanged(ItemEvent e) {
-                        do_btnRemovePeaks_itemStateChanged(e);
-                    }
-                });
-                panel.add(btnRemovePeaks, "cell 0 2,growx");
-            }
+            btnSetFactminmax = new JButton("max/min");
+            btnSetFactminmax.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent arg0) {
+                    do_btnSetFactminmax_actionPerformed(arg0);
+                }
+            });
+            btnRemovePeaks = new JToggleButton("Remove Peaks");
+            btnRemovePeaks.addItemListener(new ItemListener() {
+                public void itemStateChanged(ItemEvent e) {
+                    do_btnRemovePeaks_itemStateChanged(e);
+                }
+            });
+            panel.add(btnRemovePeaks, "cell 3 5,growx,aligny bottom");
+            panel.add(btnSetFactminmax, "cell 0 6 2 1,growx,aligny top");
+            JButton btnRemoveAll = new JButton("Remove All");
+            btnRemoveAll.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    do_btnRemoveAll_actionPerformed(e);
+                }
+            });
+            panel.add(btnRemoveAll, "cell 3 6,growx,aligny top");
             {
                 slider = new JSlider();
+                slider.setOrientation(SwingConstants.VERTICAL);
                 slider.setMaximum(400);
                 slider.addChangeListener(new ChangeListener() {
                     public void stateChanged(ChangeEvent arg0) {
@@ -148,25 +187,7 @@ public class FindPeaks_dialog extends JDialog {
                 slider.setValue(105);
                 slider.setPaintTicks(true);
                 slider.setPaintLabels(true);
-                panel.add(slider, "cell 1 2 2 1,grow");
-            }
-            {
-                JButton btnRemoveAll = new JButton("Remove All");
-                btnRemoveAll.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        do_btnRemoveAll_actionPerformed(e);
-                    }
-                });
-                panel.add(btnRemoveAll, "cell 0 3,growx");
-            }
-            {
-                btnSetFactminmax = new JButton("set factMinMax");
-                btnSetFactminmax.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent arg0) {
-                        do_btnSetFactminmax_actionPerformed(arg0);
-                    }
-                });
-                panel.add(btnSetFactminmax, "cell 2 3,alignx right");
+                panel.add(slider, "cell 0 1 2 4,grow");
             }
         }
         {
@@ -193,7 +214,9 @@ public class FindPeaks_dialog extends JDialog {
                 buttonPane.add(okButton);
                 getRootPane().setDefaultButton(okButton);
             }
+
         }
+
         
         inicia();
     }
@@ -213,13 +236,25 @@ public class FindPeaks_dialog extends JDialog {
     }
     
     protected void do_btnAutoPeakSearch_actionPerformed(ActionEvent e) {
-        
+        this.autoPeakSearch();
+    }
+    
+    private void autoPeakSearch(){
         if (!isOneSerieSelected())return;
 
         try{
             float fact = (float)slider.getValue()/sliderFactDiv;
             boolean usebkg = chckbxUseBkgEstimation.isSelected();
-            DataSerie llindar = plotpanel.getSelectedSeries().get(0).findPeaksEvenBetter(fact,usebkg);
+            double tthmin = plotpanel.getSelectedSeries().get(0).getT2i();
+            double tthmax = plotpanel.getSelectedSeries().get(0).getT2f();
+            try{
+                tthmin=Double.parseDouble(txtTthmin.getText());
+                tthmax=Double.parseDouble(txtTthmax.getText());
+            }catch(Exception exrange){
+                log.debug("error parsing tthmin tthmax");
+            }
+            
+            DataSerie llindar = plotpanel.getSelectedSeries().get(0).findPeaksEvenBetter(fact,usebkg,tthmin,tthmax);
             if (llindar!=null){
                 llindar.setScale(fact);
                 plotpanel.setBkgseriePeakSearch(llindar);
@@ -246,7 +281,7 @@ public class FindPeaks_dialog extends JDialog {
     }
     protected void do_slider_stateChanged(ChangeEvent arg0) {
         lblFact.setText(Float.toString((float)slider.getValue()/sliderFactDiv));
-        btnAutoPeakSearch.doClick();
+        this.autoPeakSearch();
     }
     protected void do_okButton_actionPerformed(ActionEvent e) {
         this.dispose();
