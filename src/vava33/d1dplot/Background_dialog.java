@@ -1,5 +1,4 @@
-package vava33.d1dplot;
-
+package com.vava33.d1dplot;
 /**
  * D1Dplot
  * 
@@ -10,9 +9,9 @@ package vava33.d1dplot;
  * 
  */
 
-
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
@@ -35,16 +34,17 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.ItemEvent;
+
 import javax.swing.ButtonGroup;
 
-import vava33.d1dplot.auxi.DataSerie;
-import vava33.d1dplot.auxi.PattOps;
-import vava33.d1dplot.auxi.Pattern1D;
-
+import com.vava33.d1dplot.auxi.DataSerie;
+import com.vava33.d1dplot.auxi.PattOps;
+import com.vava33.d1dplot.auxi.Pattern1D;
 import com.vava33.jutils.VavaLogger;
 
 import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
+
 import java.awt.Font;
 
 //todo crear checkserieselected
@@ -89,6 +89,8 @@ public class Background_dialog extends JDialog {
     private JSeparator separator_1;
     private JCheckBox chckbxOnTop;
     private JLabel lblCitabruchnker;
+    private JLabel lbltini;
+    private JTextField txtTini_1;
     
     /**
      * Create the dialog.
@@ -165,14 +167,24 @@ public class Background_dialog extends JDialog {
                 panel.add(btnIterate, "cell 2 1,growx");
             }
             {
+                lbltini = new JLabel("2"+D1Dplot_global.theta+"ini");
+                panel.add(lbltini, "cell 0 2,alignx trailing");
+            }
+            {
+                txtTini_1 = new JTextField();
+                txtTini_1.setText("0.0");
+                panel.add(txtTini_1, "cell 1 2,growx");
+                txtTini_1.setColumns(10);
+            }
+            {
                 JLabel lblPatternEdge = new JLabel("Pattern Edge");
-                panel.add(lblPatternEdge, "cell 0 2");
+                panel.add(lblPatternEdge, "cell 0 3");
             }
             {
                 rdbtnNormal = new JRadioButton("Normal");
                 rdbtnNormal.setSelected(true);
                 buttonGroup.add(rdbtnNormal);
-                panel.add(rdbtnNormal, "cell 1 2");
+                panel.add(rdbtnNormal, "flowx,cell 1 3");
             }
             {
                 rdbtnInverse = new JRadioButton("Inverse");
@@ -368,6 +380,8 @@ public class Background_dialog extends JDialog {
         lbltsup.setEnabled(false);
         table.setEnabled(false);
         chckbxShowBackground.setSelected(true);
+        if (!isOneSerieSelected())return;
+        txtTini_1.setText(String.format("%.5f", plotpanel.getSelectedSeries().get(0).getT2i()));
 //        fonsCalc = new DataSerie();
 //        puntsFons = new DataSerie();
     }
@@ -433,7 +447,16 @@ public class Background_dialog extends JDialog {
         try{
             int niter = Integer.parseInt(txtNiter.getText());   
             int nveins = Integer.parseInt(txtNveins.getText());
-            DataSerie fonsCalc = PattOps.bkg_Bruchner(plotpanel.getSelectedSeries().get(0), niter, nveins, rdbtnNormal.isSelected(),chckbxMulti.isSelected(),((DefaultTableModel)table.getModel()));
+            double t2i = Double.parseDouble(txtTini_1.getText());
+            DataSerie dsactive = plotpanel.getSelectedSeries().get(0);
+            //check the point number corresponding to this t2i
+            if (t2i<dsactive.getT2i()){
+                t2i=dsactive.getT2i();
+                log.debug("t2i="+t2i);
+//                log.debug(String.format("dpindex of 2t=%.5f is %d", t2i,ipoint));
+//                if (ipoint<0)ipoint=0;
+            }
+            DataSerie fonsCalc = PattOps.bkg_Bruchner(dsactive, niter, nveins, rdbtnNormal.isSelected(),t2i,chckbxMulti.isSelected(),((DefaultTableModel)table.getModel()));
             this.updatePlotPanelMain(plotpanel.getSelectedSeries().get(0),fonsCalc,null);
         }catch(Exception ex){
             ex.printStackTrace();

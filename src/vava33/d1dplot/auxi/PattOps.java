@@ -1,4 +1,4 @@
-package vava33.d1dplot.auxi;
+package com.vava33.d1dplot.auxi;
 
 /**
  * D1Dplot
@@ -10,11 +10,6 @@ package vava33.d1dplot.auxi;
  * 
  */
 
-import java.awt.BasicStroke;
-import java.awt.event.ActionEvent;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-
 import javax.swing.table.DefaultTableModel;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
@@ -25,9 +20,8 @@ import org.apache.commons.math3.fitting.PolynomialCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import org.apache.commons.math3.util.FastMath;
 
-import vava33.d1dplot.D1Dplot_global;
-import vava33.d1dplot.auxi.DataSerie.serieType;
-
+import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.auxi.DataSerie.serieType;
 import com.vava33.jutils.VavaLogger;
 
 
@@ -37,7 +31,7 @@ public final class PattOps {
     
     private static VavaLogger log = D1Dplot_global.getVavaLogger(PattOps.class.getName());
     
-    private static DataSerie bkg_Bruchner_firstPass(DataSerie ds){  //no depen de N
+    private static DataSerie bkg_Bruchner_firstPass(DataSerie ds,double t2ini){  //no depen de N
         DataSerie ds0 = new DataSerie(ds,serieType.bkg,false);
         double[] vals = ds.calcYmeanYDesvYmaxYmin(); 
         double Imean = vals[0];
@@ -48,6 +42,7 @@ public final class PattOps {
         //ara corregim els punts
         for(int i=0; i<ds.getNpoints(); i++){
             double x = ds.getPoint(i).getX();
+            if (x<t2ini)continue;
             double y = ds.getPoint(i).getY();
             
             if(y>(Imean+2*(Imean-Imin))){
@@ -60,17 +55,20 @@ public final class PattOps {
     }
     //normal=true invers==normal=false
     //si multi = true, treure info de defaulttablemodel
-    public static DataSerie bkg_Bruchner(DataSerie ds, int niter, int nveins, boolean edgenormal,boolean multi,DefaultTableModel m) {
+    public static DataSerie bkg_Bruchner(DataSerie ds, int niter, int nveins, boolean edgenormal,double t2ini,boolean multi,DefaultTableModel m) {
         
         //primer fem el pas preliminar (es guarda a PATT[1])
-        DataSerie ds0 = bkg_Bruchner_firstPass(ds);
+        DataSerie ds0 = bkg_Bruchner_firstPass(ds,t2ini);
         DataSerie ds1 = new DataSerie(ds0,serieType.bkg,false);
 
         for(int p=0;p<niter;p++){
             ds1 = new DataSerie(ds0,serieType.bkg,false);
             
             for(int i=0; i<ds0.getNpoints(); i++){
-                //remplaçarem cada punt i del diagrama per un de fons, que es la mitja dels +-N veins
+                //rempla�arem cada punt i del diagrama per un de fons, que es la mitja dels +-N veins
+                
+                if(ds0.getPoint(i).getX()<t2ini)continue;
+                
                 //en cas que tinguem N variable:
                 if(multi){
                     double t2punt= ds0.getPoint(i).getX();
