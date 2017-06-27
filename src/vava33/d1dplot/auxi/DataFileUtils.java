@@ -1,4 +1,4 @@
-package vava33.d1dplot.auxi;
+package com.vava33.d1dplot.auxi;
 
 
 /**
@@ -34,14 +34,14 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 
 
+
 import org.apache.commons.math3.util.FastMath;
 
-import vava33.d1dplot.D1Dplot_global;
-import vava33.d1dplot.D1Dplot_main;
-import vava33.d1dplot.Dicvol_dialog;
-import vava33.d1dplot.auxi.DataSerie.serieType;
-import vava33.d1dplot.auxi.DataSerie.xunits;
-
+import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.D1Dplot_main;
+import com.vava33.d1dplot.Dicvol_dialog;
+import com.vava33.d1dplot.auxi.DataSerie.serieType;
+import com.vava33.d1dplot.auxi.DataSerie.xunits;
 import com.vava33.jutils.VavaLogger;
 import com.vava33.jutils.FileUtils;
 
@@ -50,8 +50,8 @@ public final class DataFileUtils {
     private static VavaLogger log = D1Dplot_global.getVavaLogger(DataFileUtils.class.getName());
     
     
-    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,PRF,GR;}
-    public static enum SupportedWriteExtensions {DAT,XYE,ASC,GSA,XRDML,GR;}
+    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,PRF,GR,TXT;}
+    public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR;}
     public static final Map<String, String> formatInfo;
     static
     {
@@ -64,6 +64,7 @@ public final class DataFileUtils {
         formatInfo.put("xrdml", "Panalytical format (*.xrdml)");
         formatInfo.put("prf", "Obs,calc and difference profiles after fullprof refinement (*.prf)");
         formatInfo.put("gr", "g(r) from pdfgetx3 (*.gr)");
+        formatInfo.put("txt", "2 columns space or comma separated (*.txt)");
     }
     
     public static enum SupportedWritePeaksFormats {DIC,TXT;}
@@ -189,6 +190,7 @@ public final class DataFileUtils {
                 ok = readGR(d1file,patt1D);
                 break;
             default:
+                ok = readUNK(d1file,patt1D);
                 break;
 
         }
@@ -472,6 +474,68 @@ public final class DataFileUtils {
     private static boolean readASC(File f, Pattern1D patt1D){
         return readDAT_ALBA(f,patt1D);
 
+    }
+    
+    //only 1 serie
+    public static boolean readUNK(File datFile, Pattern1D patt1D) {
+        boolean readed = true;
+        DataSerie ds = new DataSerie();
+        try {
+            Scanner sf = new Scanner(datFile);
+            while (sf.hasNextLine()){
+                String line = sf.nextLine();
+                if (isComment(line)){
+                    patt1D.getCommentLines().add(line);
+                    double wl = searchForWavel(line);
+                    if (wl>0){
+                        patt1D.setOriginal_wavelength(wl);
+                        ds.setWavelength(wl);
+                    }
+                    continue;
+                }
+                if (line.trim().isEmpty()){
+                    continue;
+                }
+
+                //test csv:
+                String values[] = line.trim().split(",");
+                log.writeNameNumPairs("config", true, "values.length (comma)=", values.length);
+                if (values.length<2){
+                    values = line.trim().split("\\s+");
+                    log.writeNameNumPairs("config", true, "values.length (space)=", values.length);
+                    if (values.length<2){
+                        continue;
+                    }
+                }
+                
+                double t2 = Double.parseDouble(values[0]);
+                double inten = Double.parseDouble(values[1]);
+                double sdev = 0.0;
+                try{
+                    sdev = Double.parseDouble(values[2]);
+                }catch(Exception ex){
+                    log.debug("error parsing sdev");
+                }
+
+                ds.addPoint(new DataPoint(t2,inten,sdev));
+
+                if (!sf.hasNextLine()){
+                    ds.setT2f(t2);
+                }
+            }
+            ds.setSerieName(datFile.getName());
+            patt1D.AddDataSerie(ds);
+            sf.close();
+
+        }catch(Exception e){
+            if (D1Dplot_global.isDebug())e.printStackTrace();
+            readed = false;
+        }
+        if (readed){
+            return true;
+        }else{
+            return false;
+        }
     }
     
     //only 1 serie
@@ -787,19 +851,23 @@ public final class DataFileUtils {
                     inten = Double.parseDouble(values[1]);
                     if (values.length>2)sdev = Double.parseDouble(values[2]);
                 }catch(Exception readex){
-                    System.out.println("Error detecting DAT format");
+                    log.info("Error detecting DAT format");
                     continue;
                 }
                 break;
             }
             sf.close();
             
-            //al free format la primera linia es 2ti step 2tf
+            //al free format la primera linia es 2ti step 2tf, i l'step ha de ser petit pero no zero (important per els diagrames resta)
+            if (inten<0)return false;
+            if (FastMath.abs(inten)>0.5)return false;
+            if (FastMath.abs(inten)==0.000000f)return false;
+            
             if(t2>inten){
                 if(sdev>inten){
                     if (sdev>t2){
                         //probablement sera freeformat
-                        System.out.println("free format detected!");
+                        log.info("free format detected!");
                         return true;
                     }
                 }
@@ -955,6 +1023,7 @@ public final class DataFileUtils {
             dsCal.setSerieName(f.getName()+" ("+dsCal.getTipusSerie().toString()+")");
             dsDif.setSerieName(f.getName()+" ("+dsDif.getTipusSerie().toString()+")");
             dsHKL.setSerieName(f.getName()+" ("+dsHKL.getTipusSerie().toString()+")");
+            dsHKL.setYOff(maxminXY[3]);
             patt1D.AddDataSerie(dsObs);
             patt1D.AddDataSerie(dsCal);
             patt1D.AddDataSerie(dsDif);
@@ -1339,7 +1408,7 @@ public final class DataFileUtils {
                 out.println("            <ratioKAlpha2KAlpha1>1.0000</ratioKAlpha2KAlpha1>");
                 out.println("        </usedWavelength>");
             }else{
-                System.out.println("Warning, no wavelength given. It will not be written on the XRDML file");
+                log.info("Warning, no wavelength given. It will not be written on the XRDML file");
             }
             out.println("        <scan appendNumber=\"0\" mode=\"Continuous\" scanAxis=\"Gonio\" status=\"Completed\">");
             out.println("            <header>");

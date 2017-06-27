@@ -1,4 +1,4 @@
-package vava33.d1dplot.auxi;
+package com.vava33.d1dplot.auxi;
 
 /**
  * D1Dplot

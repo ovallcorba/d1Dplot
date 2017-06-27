@@ -1,5 +1,4 @@
-package vava33.d1dplot.auxi;
-
+package com.vava33.d1dplot.auxi;
 /**
  * D1Dplot
  * 
@@ -19,14 +18,14 @@ import java.util.Iterator;
 
 
 
+
 import org.apache.commons.math3.util.FastMath;
 
-import vava33.d1dplot.D1Dplot_global;
-
+import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.jutils.VavaLogger;
 
 public class DataSerie {
-    private static float def_markerSize=3;
+    private static float def_markerSize=0;
     private static float def_lineWidth=1;
     
     public enum serieType {
@@ -43,7 +42,12 @@ public class DataSerie {
             return this.name;
         }
         public xunits getEnum(String n){
-            if (this.getName()==n)return this;
+//            log.debug(n + " vs " +this.getName());
+//            log.debug(Boolean.toString(n.equalsIgnoreCase(this.getName())));
+//            log.debug(Boolean.toString(n.equalsIgnoreCase(this.toString())));
+
+            if (n.equalsIgnoreCase(this.getName()))return this;
+            if (n.equalsIgnoreCase(this.toString()))return this;
             return null;
         }
     }
@@ -762,20 +766,29 @@ public class DataSerie {
     }
     
     //retorna el fons-llindar si s'ha fet servir el fons
-    public DataSerie findPeaksEvenBetter(float delsig,boolean usebkg){
+    public DataSerie findPeaksEvenBetter(float delsig,boolean usebkg,double minX, double maxX){
         //interpolar mirar quin està mes avall dels dos del costat i interpolar el valor de y elevat a la recta centre-inferior. alsehores buscar el mig de x
         peaks.clear();
         double desv = 1;
         DataSerie bkg = null;
+        
+        if((minX>maxX)||(minX<0&&maxX<0)){
+            minX=this.getT2i();
+            maxX=this.getT2f();
+        }
+        
         if (usebkg){
-            bkg = PattOps.bkg_Bruchner(this, 20, 50, true, false, null);
+            bkg = PattOps.bkg_Bruchner(this, 20, 50, true, this.getT2i()-1, false, null);
         }else{
             desv = this.calcYmeanYDesvYmaxYmin()[1];            
         }
         if (bkg==null)usebkg=false;
-
+        
+        
         //limits menys 1
         for (int i=1;i<this.getNpoints()-1;i++){
+            if (this.getPoint(i).getX()<minX)continue; //rang on buscar pics
+            if (this.getPoint(i).getX()>maxX)continue;
             double ycent = this.getPoint(i).getY();
             if (usebkg){
                 if (ycent < bkg.getPoint(i).getY()*delsig)continue;

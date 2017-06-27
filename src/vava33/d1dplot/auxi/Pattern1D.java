@@ -1,4 +1,5 @@
-package vava33.d1dplot.auxi;
+package com.vava33.d1dplot.auxi;
+
 
 /**
  * D1Dplot
@@ -15,7 +16,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.D1Dplot_global;
 
 public class Pattern1D {
 
