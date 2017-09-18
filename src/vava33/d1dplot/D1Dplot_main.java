@@ -1,4 +1,4 @@
-package vava33.d1dplot;
+package com.vava33.d1dplot;
 
 /**    
  * D1Dplot
@@ -10,6 +10,8 @@ package vava33.d1dplot;
  * And the following 3rd party libraries: 
  *  - net.miginfocom.swing.MigLayout
  *  - org.apache.commons.math3.util.FastMath
+ *  - org.apache.batik
+ *  - org.w3c.dom
  *  
  * @author Oriol Vallcorba
  * Licence: GPLv3
@@ -81,18 +83,18 @@ import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 
 import net.miginfocom.swing.MigLayout;
-import vava33.d1dplot.auxi.ArgumentLauncher;
-import vava33.d1dplot.auxi.ColorEditor;
-import vava33.d1dplot.auxi.ColorRenderer;
-import vava33.d1dplot.auxi.DataFileUtils;
-import vava33.d1dplot.auxi.DataPoint;
-import vava33.d1dplot.auxi.DataSerie;
-import vava33.d1dplot.auxi.PattOps;
-import vava33.d1dplot.auxi.Pattern1D;
-import vava33.d1dplot.auxi.PatternsTableCellRenderer;
-import vava33.d1dplot.auxi.PatternsTableModel;
-import vava33.d1dplot.auxi.DataSerie.xunits;
 
+import com.vava33.d1dplot.auxi.ArgumentLauncher;
+import com.vava33.d1dplot.auxi.ColorEditor;
+import com.vava33.d1dplot.auxi.ColorRenderer;
+import com.vava33.d1dplot.auxi.DataFileUtils;
+import com.vava33.d1dplot.auxi.DataPoint;
+import com.vava33.d1dplot.auxi.DataSerie;
+import com.vava33.d1dplot.auxi.PattOps;
+import com.vava33.d1dplot.auxi.Pattern1D;
+import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
+import com.vava33.d1dplot.auxi.PatternsTableModel;
+import com.vava33.d1dplot.auxi.DataSerie.xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.LogJTextArea;
 import com.vava33.jutils.VavaLogger;
@@ -148,7 +150,7 @@ public class D1Dplot_main {
     private JMenuItem mntmSaveAs;
     private JCheckBox chckbxAutopos;
     private JCheckBox chckbxHklLabels;
-    private JCheckBox chckbxShowGridLines;
+    private JCheckBox chckbxShowGridY;
     private JMenu mnPlot;
     private JMenuItem mntmExportAsPng;
     private JMenuItem mntmExportAsSvg;
@@ -169,6 +171,7 @@ public class D1Dplot_main {
     private JMenuItem mntmAbout;
     private JMenuItem mntmRebinning;
     private JMenuItem mntmUsersGuide;
+    private JCheckBox chckbxShowGridX;
     
     /**
      * Launch the application.
@@ -201,9 +204,14 @@ public class D1Dplot_main {
             public void run() {
                 try {
                     D1Dplot_main frame = new D1Dplot_main();
-                    frame.showMainFrame();
                     D1Dplot_global.printAllOptions("info");
                     ArgumentLauncher.readArguments(frame, args);
+                    if (ArgumentLauncher.isLaunchGraphics()){
+                        frame.showMainFrame();
+                    }else{
+//                        frame.disposeMainFrame();
+                        System.exit(0);
+                    }
                 } catch (Exception e) {
                     if (D1Dplot_global.isDebug())e.printStackTrace();
                     log.severe("Error initializing main window");
@@ -230,6 +238,7 @@ public class D1Dplot_main {
         boolean ok = D1Dplot_global.writeParFile();
         logdebug("par file written (method returned "+Boolean.toString(ok)+")");
         mainFrame.dispose();
+        System.exit(0);
     }
     protected void do_mntmQuit_actionPerformed(ActionEvent e) {
         do_mainFrame_windowClosing(null);
@@ -474,13 +483,13 @@ public class D1Dplot_main {
         separator_3.setOrientation(SwingConstants.VERTICAL);
         panel.add(separator_3, "cell 8 0 1 3,growy");
         
-        chckbxShowGridLines = new JCheckBox("Grid lines");
-        chckbxShowGridLines.addItemListener(new ItemListener() {
+        chckbxShowGridY = new JCheckBox("Grid Y");
+        chckbxShowGridY.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 do_chckbxShowGridLines_itemStateChanged(e);
             }
         });
-        panel.add(chckbxShowGridLines, "cell 9 0");
+        panel.add(chckbxShowGridY, "flowx,cell 9 0");
         
         JLabel lblYTitle = new JLabel("Y title");
         panel.add(lblYTitle, "cell 0 1,alignx trailing");
@@ -586,6 +595,14 @@ public class D1Dplot_main {
             }
         });
         panel.add(chckbxVerticalYLabel, "cell 9 2");
+        
+        chckbxShowGridX = new JCheckBox("Grid X");
+        chckbxShowGridX.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent arg0) {
+                do_chckbxShowGridX_itemStateChanged(arg0);
+            }
+        });
+        panel.add(chckbxShowGridX, "cell 9 0");
 
         
         scrollPane_2 = new JScrollPane();
@@ -809,7 +826,7 @@ public class D1Dplot_main {
         patt.setOriginal_wavelength(dss[0].getPatt1D().getOriginal_wavelength());
         patt.AddDataSerie(suma);
         panel_plot.getPatterns().add(patt);
-        this.updateData();
+        this.updateData(false);
 
     }
     
@@ -887,7 +904,7 @@ public class D1Dplot_main {
                 }
             }
 //            panel_plot.repaint();
-            this.updateData();
+            this.updateData(false);
         }
     }
     
@@ -936,7 +953,7 @@ public class D1Dplot_main {
             }
             
 //            panel_plot.repaint();
-            this.updateData();
+            this.updateData(false);
         }
         
         
@@ -1118,7 +1135,7 @@ public class D1Dplot_main {
             }
         }
 //        panel_plot.repaint();
-        this.updateData();
+        this.updateData(false);
     }
     
     private int getColumnByName(JTable table, String name) {
@@ -1167,16 +1184,16 @@ public class D1Dplot_main {
         this.txtYtitle.setText(panel_plot.getYlabel());
         
         int iconwidth = 18;
-        Image MU = new ImageIcon(D1Dplot_main.class.getResource("/vava33/d1dplot/img/fletxa_amunt.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+        Image MU = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/fletxa_amunt.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
         buttonUp.setText("");
         buttonUp.setIcon(new ImageIcon(MU));
-        Image MD = new ImageIcon(D1Dplot_main.class.getResource("/vava33/d1dplot/img/fletxa_avall.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+        Image MD = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/fletxa_avall.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
         buttonDown.setText("");
         buttonDown.setIcon(new ImageIcon(MD));
-        Image ADD = new ImageIcon(D1Dplot_main.class.getResource("/vava33/d1dplot/img/afegir.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+        Image ADD = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/afegir.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
         buttonAdd.setText("");
         buttonAdd.setIcon(new ImageIcon(ADD));
-        Image REM = new ImageIcon(D1Dplot_main.class.getResource("/vava33/d1dplot/img/borrar.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+        Image REM = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/borrar.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
         buttonRemove.setText("");
         buttonRemove.setIcon(new ImageIcon(REM));
         
@@ -1231,22 +1248,23 @@ public class D1Dplot_main {
             readDataFile(datFile[i]);    
         }
         logdebug("openDataFile exited");
-        this.updateData();
+        this.updateData(true);
     }
     
     //creem aquest per l'argument launcher
-    public void readDataFile(File datfile){
+    public Pattern1D readDataFile(File datfile){
         Pattern1D patt = new Pattern1D();
         boolean ok = DataFileUtils.readPatternFile(datfile,patt);
         if (!ok){
             loginfo("Error reading data file");
-            return;
+            return null;
         }
         panel_plot.getPatterns().add(patt);
         D1Dplot_global.setWorkdir(datfile);
+        return patt;
     }
     
-    public void updateData(){
+    public void updateData(boolean fitgraph){
         logdebug("updateData entered");
         //check the current selection
         int selRow = -1;
@@ -1265,7 +1283,7 @@ public class D1Dplot_main {
             }
          }
         
-        panel_plot.fitGraph();
+        if(fitgraph)panel_plot.fitGraph();
         panel_plot.repaint();
 //        mainFrame.repaint();
         logdebug("updateData exited");
@@ -1416,7 +1434,7 @@ public class D1Dplot_main {
                 panel_plot.getPatterns().remove(ds.getPatt1D());
             }
         }
-        updateData();
+        updateData(false);
         return;
     }
 
@@ -1458,7 +1476,7 @@ public class D1Dplot_main {
             }
         }
         
-        updateData();
+        updateData(false);
         return;
         
     }
@@ -1494,7 +1512,7 @@ public class D1Dplot_main {
             }
         }
         
-        updateData();
+        updateData(false);
         return;
     }
     
@@ -1590,10 +1608,16 @@ public class D1Dplot_main {
     }
     protected void do_chckbxShowGridLines_itemStateChanged(ItemEvent e) {
         if (this.panel_plot==null)return;
-        panel_plot.setShowGrid(chckbxShowGridLines.isSelected());
+        panel_plot.setShowGridY(chckbxShowGridY.isSelected());
         panel_plot.repaint();
     }
 
+    protected void do_chckbxShowGridX_itemStateChanged(ItemEvent arg0) {
+        if (this.panel_plot==null)return;
+        panel_plot.setShowGridX(chckbxShowGridX.isSelected());
+        panel_plot.repaint();
+    }
+    
     public static int getDef_Width() {
         return def_Width;
     }
@@ -1658,7 +1682,11 @@ public class D1Dplot_main {
                 BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = img.createGraphics();
         g2d.scale(scaleFactor, scaleFactor);
+        panel_plot.getGraphPanel().setTransp(true);
+        panel_plot.getGraphPanel().setOpaque(false);
         panel_plot.getGraphPanel().paintComponent(g2d);
+        panel_plot.getGraphPanel().setTransp(false);
+        panel_plot.getGraphPanel().setOpaque(true);
         g2d.dispose();
 
         try {
@@ -1671,7 +1699,7 @@ public class D1Dplot_main {
 
     protected void do_mntmCloseAll_actionPerformed(ActionEvent e) {
         panel_plot.getPatterns().clear();
-        this.updateData();
+        this.updateData(true);
     }
     
     protected void do_mntmExportAsPng_actionPerformed(ActionEvent e) {
@@ -1801,7 +1829,7 @@ public class D1Dplot_main {
                 patt.getSerie(0).setColor(c);
             }
         }
-        this.updateData();
+        this.updateData(false);
     }
 
     protected void do_mntm2Dplot_actionPerformed(ActionEvent e) {
@@ -1872,7 +1900,7 @@ public class D1Dplot_main {
         }
         if (totRange/dss.length != rangedp[0]){
             loginfo("inconsitency on nr of points in the coincident range");
-            return;
+//            return;
         }
         
         //apliquem NOMES SI ES INCONSISTENT
@@ -1928,7 +1956,7 @@ public class D1Dplot_main {
             //ara ja tenim les linies que hem d'aplicar offset
             table_files.setValueAt(yoffIni+yoff*i, selRow, this.getColumnByName(table_files, PatternsTableModel.columns.YOffset.toString()));
         }
-        this.updateData();
+        this.updateData(false);
         
     }
     
@@ -2053,7 +2081,7 @@ public class D1Dplot_main {
             newds.setSerieName(panel_plot.getPatterns().get(pattern).getSerie(serie).getSerieName()+" (rebinned)");
             newds.setPatt1D(panel_plot.getPatterns().get(pattern).getSerie(serie).getPatt1D());
         }
-        this.updateData();
+        this.updateData(false);
     }
     
     protected void do_mntmUsersGuide_actionPerformed(ActionEvent e) {
@@ -2062,4 +2090,5 @@ public class D1Dplot_main {
         }
         aboutDiag.do_btnUsersGuide_actionPerformed(e);
     }
+
 }

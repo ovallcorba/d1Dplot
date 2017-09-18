@@ -1,4 +1,4 @@
-package vava33.d1dplot;
+package com.vava33.d1dplot;
 
 /**
  * D1Dplot
@@ -10,13 +10,17 @@ package vava33.d1dplot;
  * 
  */
 
+
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
@@ -38,13 +42,17 @@ import javax.swing.JPanel;
 
 
 
+
+
+
+
+import com.vava33.d1dplot.auxi.DataHKL;
+import com.vava33.d1dplot.auxi.DataPoint;
+import com.vava33.d1dplot.auxi.DataSerie;
+import com.vava33.d1dplot.auxi.Pattern1D;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
-import vava33.d1dplot.auxi.DataHKL;
-import vava33.d1dplot.auxi.DataPoint;
-import vava33.d1dplot.auxi.DataSerie;
-import vava33.d1dplot.auxi.Pattern1D;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
@@ -126,6 +134,8 @@ public class PlotPanel extends JPanel {
     private Plot1d graphPanel;
     //parametres interaccio/contrast
     private boolean mouseBox = false;
+    private boolean sqSelect = false;
+    private boolean shiftPressed = false;
     private boolean mouseDrag = false;
     private boolean mouseMove = false;
     private boolean mouseZoom = false;
@@ -146,7 +156,8 @@ public class PlotPanel extends JPanel {
     //paint triggers
 //    private boolean continuousRepaint = false;
     private boolean hkllabels = true;
-    private boolean showGrid = false;
+    private boolean showGridY = false;
+    private boolean showGridX = false;
     
     boolean showPeaks = true;
     boolean showBackground = false;
@@ -416,6 +427,29 @@ public class PlotPanel extends JPanel {
             txtYdiv.setEditable(false);
         }
         
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(new KeyEventDispatcher() {
+
+            @Override
+            public boolean dispatchKeyEvent(KeyEvent ke) {
+                    switch (ke.getID()) {
+                    case KeyEvent.KEY_PRESSED:
+                        if (ke.getKeyCode() == KeyEvent.VK_SHIFT) {
+                            shiftPressed = true;
+                            log.debug("now shift is PRESSED");
+                        }
+                        break;
+
+                    case KeyEvent.KEY_RELEASED:
+                        if (ke.getKeyCode() == KeyEvent.VK_SHIFT) {
+                            shiftPressed = false;
+                            log.debug("now shift is NOT pressed");
+                        }
+                        break;
+                    }
+                    return false;
+            }
+        });
+        
     }
     
     protected void do_graphPanel_mouseDragged(MouseEvent e) {
@@ -461,11 +495,23 @@ public class PlotPanel extends JPanel {
             if (rwidth<minZoomPixels)return;
             double rheight = rarea.height;
             double yrect = rarea.y;
+            if (sqSelect){ //afecta a x i a y
+                rheight = FastMath.abs(dragPoint.y-currentPoint.y);
+            }
+            //drag
             //defecte drag cap a la dreta
             double xrect = dragPoint.x;
             if (dragPoint.x > currentPoint.x){
                 //estem fent el drag cap a la esquerra, corregim vertex
                 xrect = currentPoint.x;
+            }
+            if (sqSelect){ //afecta a x i a y
+                //defecte drag cap avall
+                yrect = dragPoint.y;
+                if (dragPoint.y > currentPoint.y){
+                    //drag cap amunt, corregim vertex
+                    yrect = currentPoint.y;
+                }
             }
             zoomRect = new Rectangle2D.Double(xrect,yrect,rwidth,rheight);
         }
@@ -626,6 +672,11 @@ public class PlotPanel extends JPanel {
                     }
                 }
             }else{
+                if(this.shiftPressed){
+                    this.sqSelect=true;
+                }else{
+                    this.sqSelect=false;
+                }
                 this.mouseDrag = true;
                 this.zoomRect = null; //reiniciem rectangle
                 this.setMouseBox(true);
@@ -674,6 +725,7 @@ public class PlotPanel extends JPanel {
 
             //COMPROVEM QUE HI HAGI UN MINIM D'AREA ENTREMIG (per evitar un click sol)
             if (FastMath.abs(e.getPoint().x-dragPoint.x)<minZoomPixels)return;
+            if (this.sqSelect)if (FastMath.abs(e.getPoint().y-dragPoint.y)<minZoomPixels)return;
             
             Point2D.Double dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
             Point2D.Double dataPointInicial = this.getDataPointFromFramePoint(dragPoint);
@@ -690,31 +742,17 @@ public class PlotPanel extends JPanel {
             }
             
             if (dataPointFinal == null){
-                //mirem si podem considerar l'extrem
-                if ((e.getPoint().x-dragPoint.x)<0){
-                    //vol dir que el final es mes petit que l'inicial, hem fet rectangle cap a l'esquerra, cap al zero, cal buscar
-                    //el limit de l'esquerra
-                    //poso +1 per assegurar
-//                    dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double((double)this.getRectangleGraphArea().getMinX()+1, e.getPoint().y));
-                    dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(this.getRectangleGraphArea().getMinX()+1, e.getPoint().y));
-                    if (dataPointFinal!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointFinal (after)", dataPointFinal.x,dataPointFinal.y);
+                log.debug("dataPoint final is null");
+                dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(e.getPoint().x),checkFrameYValue(e.getPoint().y)));
 
-                }else{
-                    //el final es mes gran, doncs al reves
-                    dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(this.getRectangleGraphArea().getMaxX()-1, e.getPoint().y));
-                    if (dataPointFinal!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointFinal (after)", dataPointFinal.x,dataPointFinal.y);
-
-                }
+              if (dataPointFinal!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointFinal (after)", dataPointFinal.x,dataPointFinal.y);
+                
+                
             }
             if (dataPointInicial==null){
-                //fem el mateix amb l'inicial
-                if ((e.getPoint().x-dragPoint.x)<0){
-                    //hem començat per la dreta, si es null es que estem fora per la dreta.
-                    dataPointInicial = this.getDataPointFromFramePoint(new Point2D.Double(this.getRectangleGraphArea().getMaxX()-1, dragPoint.y));
-                }else{
-                    dataPointInicial = this.getDataPointFromFramePoint(new Point2D.Double(this.getRectangleGraphArea().getMinX()+1, dragPoint.y));
-                }
-                
+                log.debug("dataPoint inicial is null");
+                dataPointInicial = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(dragPoint.x),checkFrameYValue(dragPoint.y)));
+                if (dataPointInicial!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointInicial (after)", dataPointInicial.x,dataPointInicial.y);
             }
             
             if (dataPointFinal == null || dataPointInicial==null){
@@ -728,9 +766,20 @@ public class PlotPanel extends JPanel {
             this.setXrangeMin(xrmin);
             this.setXrangeMax(xrmax);
             this.calcScaleFitX();
+            
+            if (this.sqSelect){
+                double yrmin = FastMath.min(dataPointFinal.y, dataPointInicial.y);
+                double yrmax = FastMath.max(dataPointFinal.y, dataPointInicial.y);
+                if(isDebug())log.writeNameNums("config", true, "yrangeMin yrangeMax", yrmin,yrmax);
+                this.setYrangeMin(yrmin);
+                this.setYrangeMax(yrmax);
+                this.calcScaleFitY();
+              }
+            
             this.repaint();
         }
 //        continuousRepaint=false;
+        this.sqSelect=false;
     }
     
 
@@ -802,6 +851,31 @@ public class PlotPanel extends JPanel {
         double ytop = getGapAxisTop()+padding;
         return new Rectangle2D.Double(xtop,ytop,calcPlotSpaceX(),calcPlotSpaceY());
     }
+    
+    //it returns the same value if it is inside the graph area, otherwise it returns the closest point on the border
+    private double checkFrameXValue(double xval){
+        Rectangle2D.Double rect = this.getRectangleGraphArea();
+        if (xval>rect.getMinX() && xval<rect.getMaxX()){ //no poso <= >= per evitar anar justos...
+            return xval;
+        }else{
+            if (xval<rect.getMinX())return rect.getMinX()+1;
+            if (xval>rect.getMaxX())return rect.getMaxX()-1;
+        }
+        return xval;
+    }
+    
+    //it returns the same value if it is inside the graph area, otherwise it returns the closest point on the border
+    private double checkFrameYValue(double yval){
+        Rectangle2D.Double rect = this.getRectangleGraphArea();
+        if (yval>rect.getMinY() && yval<rect.getMaxY()){ //no poso <= >= per evitar anar justos...
+            return yval;
+        }else{
+            if (yval<rect.getMinY())return rect.getMinY()+1;
+            if (yval>rect.getMaxY())return rect.getMaxY()-1;
+        }
+        return yval;
+    }
+
     
     private void resetView(boolean resetAxes) {
         this.calcMaxMinXY();
@@ -1318,12 +1392,20 @@ public class PlotPanel extends JPanel {
         PlotPanel.lightTheme = lightTheme;
     }
 
-    public boolean isShowGrid() {
-        return showGrid;
+    public boolean isShowGridY() {
+        return showGridY;
     }
 
-    public void setShowGrid(boolean showGrid) {
-        this.showGrid = showGrid;
+    public void setShowGridY(boolean showGrid) {
+        this.showGridY = showGrid;
+    }
+    
+    public boolean isShowGridX() {
+        return showGridX;
+    }
+
+    public void setShowGridX(boolean showGrid) {
+        this.showGridX = showGrid;
     }
 
     public static int getPadding() {
@@ -1587,12 +1669,17 @@ public class PlotPanel extends JPanel {
 
         private int panelW, panelH;
         private Graphics2D g2;
+        private boolean saveTransp = false;
         
         public Plot1d(){
             super();
             this.setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
         }
 
+        public void setTransp(boolean transp){
+            this.saveTransp=transp;
+        }
+        
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -1602,10 +1689,12 @@ public class PlotPanel extends JPanel {
             g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
                     RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
 
-            if (lightTheme){
-                this.setBackground(Light_bkg);
-            }else{
-                this.setBackground(Dark_bkg);
+            if (!this.saveTransp){
+                if (lightTheme){
+                    this.setBackground(Light_bkg);
+                }else{
+                    this.setBackground(Dark_bkg);
+                }
             }
 
 //            final Graphics2D g1 = (Graphics2D) g2.create();
@@ -1640,7 +1729,7 @@ public class PlotPanel extends JPanel {
 
 
                 //1st draw axes (and optionally grid)
-                this.drawAxes(g2,showGrid);
+                this.drawAxes(g2,showGridY,showGridX);
 
                 Iterator<Pattern1D> itrp = getPatterns().iterator();
                 while (itrp.hasNext()){
@@ -1667,7 +1756,7 @@ public class PlotPanel extends JPanel {
                 if (showPeaks){
                     drawPeaks(g2);
                     if (bkgseriePeakSearch.getNpoints()>0){
-                        drawPatternPoints(g2,bkgseriePeakSearch,bkgseriePeakSearch.getColor());
+                        drawPatternLine(g2,bkgseriePeakSearch,bkgseriePeakSearch.getColor());
                     }
                 }
 
@@ -1702,7 +1791,7 @@ public class PlotPanel extends JPanel {
             }
         }
 
-        private void drawAxes(Graphics2D g1, boolean grid){
+        private void drawAxes(Graphics2D g1, boolean gridY, boolean gridX){
             log.fine("drawAxes entered");
 
             //provem de fer linia a 60 pixels de l'esquerra i a 60 pixels de baix (40 i 40 de dalt i a la dreta com a marges)
@@ -1812,7 +1901,7 @@ public class PlotPanel extends JPanel {
 
                 //i ara el grid
                 //pel grid, vytop.y sera el punt superior de la linia, yiniPrim sera el punt inferior (AIXO PER LES Y, despres les X es defineixen al bucle)
-                if(grid){
+                if(gridY){
                     BasicStroke dashed = new BasicStroke(1, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,2}, 0);
                     g1.setStroke(dashed);
                     Line2D.Double ld = new Line2D.Double(xvalPix,vytop.y,xvalPix,yiniSec);
@@ -1880,10 +1969,10 @@ public class PlotPanel extends JPanel {
                 Line2D.Double l = new Line2D.Double(xiniSec,yvalPix,xfinSec,yvalPix);
                 g1.draw(l);
                 yval = yval + div_incYSec;
-
+                
                 //i ara el grid
                 //pel grid, vytop.y sera el punt superior de la linia, yiniPrim sera el punt inferior (AIXO PER LES Y, despres les X es defineixen al bucle)
-                if(grid){
+                if(gridX){
                     BasicStroke dashed = new BasicStroke(1, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,2}, 0);
                     g1.setStroke(dashed);
                     Line2D.Double ld = new Line2D.Double(vxright.x,yvalPix,xfinSec,yvalPix);
@@ -2047,7 +2136,7 @@ public class PlotPanel extends JPanel {
 
                 //la X es la 2THETA pero la Y hauria de ser el punt de menor intensitat de OBS més un hkloffset (en pixels, definit a patt1d)
                 double fx = getFrameXFromDataPointX(tth);
-                double fy = getFrameYFromDataPointY(0.0);
+                double fy = getFrameYFromDataPointY(0.0+serie.getYOff());
                 fy = fy - Pattern1D.getHkloff() +Pattern1D.getHklticksize()/2f;  //pensem que la Y es cap avall!
 
                 Point2D.Double ptop = new Point2D.Double(fx, fy-Pattern1D.getHklticksize()/2);
