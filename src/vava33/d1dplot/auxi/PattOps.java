@@ -45,8 +45,8 @@ public final class PattOps {
             if (x<t2ini)continue;
             double y = ds.getPoint(i).getY();
             
-            if(y>(Imean+2*(Imean-Imin))){
-                ds0.addPoint(new DataPoint(x,Imean+2*(Imean-Imin),0));
+            if(y>(Imean+10*(Imean-Imin))){
+                ds0.addPoint(new DataPoint(x,Imean+10*(Imean-Imin),0));
             }else{
                 ds0.addPoint(new DataPoint(x,y,0));
             }
@@ -227,12 +227,15 @@ public final class PattOps {
     }
     
     //it returns the coincident zone only
-    public static DataSerie subtractDataSeriesCoincidentPoints(DataSerie ds1, DataSerie ds2, float factor){
+    // double t2i,t2f for factor calculation in case factor < 1
+    public static DataSerie subtractDataSeriesCoincidentPoints(DataSerie ds1, DataSerie ds2, float factor, double fac_t2i, double fac_t2f){
         int tol =30;
+        float percent_auto_factor = 0.95f; //this will be multiplied to the minimum factor to give some margin
         
         DataSerie result = new DataSerie(ds1,ds1.getTipusSerie(),false);
         double t2i = FastMath.max(ds1.getPoint(0).getX(), ds2.getPoint(0).getX());
-        double t2f = FastMath.min(ds1.getPoint(ds1.getNpoints()-1).getX(), ds2.getPoint(ds1.getNpoints()-1).getX());
+        double t2f = FastMath.min(ds1.getPoint(ds1.getNpoints()-1).getX(), ds2.getPoint(ds2.getNpoints()-1).getX());    
+
         
         DataPoint dp1ini = ds1.getClosestDP_xonly(t2i, tol);
         DataPoint dp1fin = ds1.getClosestDP_xonly(t2f, tol);
@@ -254,11 +257,33 @@ public final class PattOps {
             return null;
         }
         
+        //PRIMER RECALCULEM EL FACTOR EN CAS DE SER NEGATIU (AUTO)
+        if (factor<0) {
+            factor = getScaleFactor(ds1,ds2,iinidp1,iinidp2,rangedp1,fac_t2i,fac_t2f) * percent_auto_factor;
+            log.info(String.format("subtracting factor used = %.2f",factor));
+        }
+
+        
         for (int i=0;i<rangedp1;i++){ //TODO HAURIA DE SER <=  (Comprovar-ho)
             result.addPoint(new DataPoint(ds1.getPoint(iinidp1+i).getX(),ds1.getPoint(iinidp1+i).getY()-factor*ds2.getPoint(iinidp2+i).getY(),ds1.getPoint(iinidp1+i).getSdy()-factor*ds2.getPoint(iinidp2+i).getSdy()));
         }
         
         return result;
+    }
+    
+    // get the factor such as all the intensities are (y1 - F*y2 >= 0), in a given range (rangedp) starting each serie in a specific point (iinidpX)
+    public static float getScaleFactor(DataSerie ds1, DataSerie ds2, int iinidp1, int iinidp2, int rangedp, double fac_t2i, double fac_t2f) {
+        float factor = 100;
+        for (int i=0;i<rangedp;i++){ //TODO HAURIA DE SER <=  (Comprovar-ho)
+            double x1 = ds1.getPoint(iinidp1+i).getX();
+            if (x1<fac_t2i)continue;
+            if (x1>fac_t2f)break;
+            double y1 = ds1.getPoint(iinidp1+i).getY();
+            double y2 = ds2.getPoint(iinidp2+i).getY();
+            float fac = (float) (y1/y2);
+            if (fac<factor)factor = fac;
+        }
+        return factor;
     }
     
     //ADDITION OF DATASERIES (with coincident points)
