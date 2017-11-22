@@ -3,19 +3,19 @@ package com.vava33.d1dplot;
 /**    
  * D1Dplot
  * Program to plot 1D X-ray Powder Diffraction Patterns
- *       
+ *
  * It uses the following libraries from the same author:
  *  - com.vava33.jutils
- *  
+ *
  * And the following 3rd party libraries: 
  *  - net.miginfocom.swing.MigLayout
  *  - org.apache.commons.math3.util.FastMath
  *  - org.apache.batik
  *  - org.w3c.dom
- *  
+ *   
  * @author Oriol Vallcorba
  * Licence: GPLv3
- *  
+ *   
  */
 
 import java.awt.Color;
@@ -77,11 +77,6 @@ import javax.swing.event.TableModelListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
-import org.apache.batik.dom.GenericDOMImplementation;
-import org.apache.batik.svggen.SVGGraphics2D;
-import org.w3c.dom.DOMImplementation;
-import org.w3c.dom.Document;
-
 import net.miginfocom.swing.MigLayout;
 
 import com.vava33.d1dplot.auxi.ArgumentLauncher;
@@ -108,6 +103,7 @@ public class D1Dplot_main {
     private static float tAoutFsize = 12.0f;
     private static int def_Width=1024;
     private static int def_Height=768;
+    private static String LandF = "system";
     
     private Background_dialog bkgDiag;
     private FindPeaks_dialog FindPksDiag;
@@ -125,7 +121,7 @@ public class D1Dplot_main {
     private JTextField txtYtitle;
     private JTextField txtHklTickSize;
     private JCheckBox chckbxShowLegend;
-    private JComboBox comboTheme;
+    private JComboBox<String> comboTheme;
     private static JCheckBox chckbxIntensityWithBackground;
     private JTextField txtLegendx;
     private JTextField txtLegendy;
@@ -172,6 +168,7 @@ public class D1Dplot_main {
     private JMenuItem mntmRebinning;
     private JMenuItem mntmUsersGuide;
     private JCheckBox chckbxShowGridX;
+    private JCheckBox chckbxVerticalYAxis;
     
     /**
      * Launch the application.
@@ -180,19 +177,24 @@ public class D1Dplot_main {
         
         //first thing to do is read PAR files if exist
         FileUtils.detectOS();
+        FileUtils.setLocale();
         D1Dplot_global.readParFile();
         D1Dplot_global.initPars();
+        
         //LOGGER
         log = D1Dplot_global.getVavaLogger(D1Dplot_main.class.getName());
         System.out.println(log.logStatus());
                 
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-//            if(UIManager.getLookAndFeel().toString().contains("metal")){
-//                UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel");    
-//            }
-            // UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName()); //java metal
-            
+            if (FileUtils.containsIgnoreCase(D1Dplot_global.LandF, "system")){
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            }
+            if (FileUtils.containsIgnoreCase(D1Dplot_global.LandF, "gtk")){
+                UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel");
+            }
+            if (FileUtils.containsIgnoreCase(D1Dplot_global.LandF, "metal")){
+                UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+            }
         } catch (Throwable e) {
             if (D1Dplot_global.isDebug())e.printStackTrace();
             log.warning("Error initializing System look and feel");
@@ -271,7 +273,7 @@ public class D1Dplot_main {
         tabbedPanel_bottom.setBorder(null);
         splitPane.setRightComponent(tabbedPanel_bottom);
 
-        JComboBox comboXunitsTable = new JComboBox();
+        JComboBox<String> comboXunitsTable = new JComboBox<String>();
         for (DataSerie.xunits a :DataSerie.xunits.values()){
             comboXunitsTable.addItem(a.getName());
         }
@@ -421,7 +423,7 @@ public class D1Dplot_main {
         JPanel panel = new JPanel();
         scrollPane_1.setViewportView(panel);
         panel.setBorder(null);
-        panel.setLayout(new MigLayout("", "[][grow][][][][][][][][]", "[][][]"));
+        panel.setLayout(new MigLayout("", "[][grow][][][][][][][][]", "[][][][]"));
         
         JLabel lblXTitle = new JLabel("X title");
         panel.add(lblXTitle, "cell 0 0,alignx trailing");
@@ -548,13 +550,13 @@ public class D1Dplot_main {
         JLabel lbltheme = new JLabel("Theme");
         panel.add(lbltheme, "cell 0 2,alignx trailing");
         
-        comboTheme = new JComboBox();
+        comboTheme = new JComboBox<String>();
         comboTheme.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent arg0) {
                 do_comboTheme_itemStateChanged(arg0);
             }
         });
-        comboTheme.setModel(new DefaultComboBoxModel(new String[] {"Light", "Dark"}));
+        comboTheme.setModel(new DefaultComboBoxModel<String>(new String[] {"Light", "Dark"}));
         panel.add(comboTheme, "cell 1 2,growx,aligny top");
         
         chckbxHklLabels = new JCheckBox("HKL labels on mouse");
@@ -603,6 +605,15 @@ public class D1Dplot_main {
             }
         });
         panel.add(chckbxShowGridX, "cell 9 0");
+        
+        chckbxVerticalYAxis = new JCheckBox("Vertical Y axis");
+        chckbxVerticalYAxis.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent arg0) {
+                do_chckbxVerticalYAxis_itemStateChanged(arg0);
+            }
+        });
+        chckbxVerticalYAxis.setSelected(true);
+        panel.add(chckbxVerticalYAxis, "cell 9 3");
 
         
         scrollPane_2 = new JScrollPane();
@@ -898,7 +909,15 @@ public class D1Dplot_main {
                 DataSerie newDS = ds.convertToXunits(destUnits);
                 
                 if (newDS!=null){
+                    newDS.setColor(ds.getColor()); //SAME COLOR
                     patt.AddDataSerie(newDS);                    
+                    ds.setPlotThis(false);
+                    if (D1Dplot_global.getAskForDeleteOriginals()) {
+                        boolean keep = FileUtils.YesNoDialog(mainFrame, "keep original patten?");
+                        if (!keep) patt.removeDataSerie(ds);
+                    }else {
+                        patt.removeDataSerie(ds);
+                    }
                 }else{
                     loginfo("not converted, same input and output units maybe?");
                 }
@@ -949,7 +968,24 @@ public class D1Dplot_main {
                     loginfo(String.format("pattern %d serie %d has no wavelength assigned", pattern,serie));
                     continue;
                 }
-                patt.AddDataSerie(ds.convertToNewWL(newWL));
+                
+                
+                DataSerie newDS = ds.convertToNewWL(newWL);
+                
+                if (newDS!=null){
+                    newDS.setColor(ds.getColor()); //SAME COLOR
+                    patt.AddDataSerie(newDS);
+                    ds.setPlotThis(false);
+                    if (D1Dplot_global.getAskForDeleteOriginals()) {
+                        boolean keep = FileUtils.YesNoDialog(mainFrame, "keep original patten?");
+                        if (!keep) patt.removeDataSerie(ds);
+                    }else {
+                        patt.removeDataSerie(ds);
+                    }
+                }else{
+                    loginfo("error converting wavelength");
+                }
+                
             }
             
 //            panel_plot.repaint();
@@ -1054,6 +1090,7 @@ public class D1Dplot_main {
     }
     
     private void aplicarselecciotaula(ListSelectionEvent arg0){
+        log.debug("applicarSeleccioTaula entered");
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
       //prova amb selected rows:
@@ -1071,7 +1108,7 @@ public class D1Dplot_main {
     }
     
     private void applicarModificacioTaula(int columna, int filaIni, int filaFin){
-
+        log.debug("applicarModificacioTaula entered");
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
         
@@ -1166,7 +1203,7 @@ public class D1Dplot_main {
         splitPane.resetToPreferredSizes();
 
         
-        FileUtils.setLocale();
+//        FileUtils.setLocale();
         this.tAOut.setMidaLletra(tAoutFsize);
         loginfo(D1Dplot_global.welcomeMSG);
 
@@ -1635,17 +1672,32 @@ public class D1Dplot_main {
     }
     
     
-    private void saveSVG(File fsvg){
+    /**
+     * @return the landF
+     */
+    public static String getLandF() {
+        return LandF;
+    }
 
+    /**
+     * @param landF the landF to set
+     */
+    public static void setLandF(String landF) {
+        LandF = landF;
+    }
+
+    private void saveSVG(File fsvg){
+        this.panel_plot.getGraphPanel().setSaveSVG(true);
+        
         // Get a DOMImplementation.
-        DOMImplementation domImpl = GenericDOMImplementation.getDOMImplementation();
+        org.w3c.dom.DOMImplementation domImpl = org.apache.batik.dom.GenericDOMImplementation.getDOMImplementation();
 
         // Create an instance of org.w3c.dom.Document.
         String svgNS = "http://www.w3.org/2000/svg";
-        Document document = domImpl.createDocument(svgNS, "svg", null);
+        org.w3c.dom.Document document = domImpl.createDocument(svgNS, "svg", null);
 
         // Create an instance of the SVG Generator.
-        SVGGraphics2D svgGenerator = new SVGGraphics2D(document);
+        org.apache.batik.svggen.SVGGraphics2D svgGenerator = new org.apache.batik.svggen.SVGGraphics2D(document);
 
         // Ask the test to render into the SVG Graphics2D implementation.
         panel_plot.getGraphPanel().paintComponent(svgGenerator);
@@ -1659,10 +1711,12 @@ public class D1Dplot_main {
 
         } catch (Exception e) {
             if (D1Dplot_global.isDebug())e.printStackTrace();
+            this.panel_plot.getGraphPanel().setSaveSVG(false);
         }
+        this.panel_plot.getGraphPanel().setSaveSVG(false);
 
     }
-    
+
     private void savePNG(File fpng, float factor){
         double pageWidth = panel_plot.getGraphPanel().getSize().width*factor;
         double pageHeight = panel_plot.getGraphPanel().getSize().height*factor;
@@ -1696,7 +1750,7 @@ public class D1Dplot_main {
         }
         logdebug(fpng.toString()+" written");
     }
-
+    
     protected void do_mntmCloseAll_actionPerformed(ActionEvent e) {
         panel_plot.getPatterns().clear();
         this.updateData(true);
@@ -1744,6 +1798,7 @@ public class D1Dplot_main {
                 int actionDialog = JOptionPane.showConfirmDialog(mainFrame,
                         "Replace existing file?");
                 if (actionDialog == JOptionPane.NO_OPTION)return;
+                fsvg.delete();
             }
             this.saveSVG(fsvg);
         }
@@ -1759,6 +1814,12 @@ public class D1Dplot_main {
         panel_plot.repaint();
     }
 
+    protected void do_chckbxVerticalYAxis_itemStateChanged(ItemEvent arg0) {
+        if (this.panel_plot==null)return;
+        PlotPanel.setVerticalYAxe(chckbxVerticalYAxis.isSelected());
+        panel_plot.repaint();
+    }
+    
     protected void do_mntmFindPeaks_1_actionPerformed(ActionEvent e) {
         if (FindPksDiag == null) {
             FindPksDiag = new FindPeaks_dialog(this.panel_plot,this);
@@ -1873,7 +1934,7 @@ public class D1Dplot_main {
         for (int i=0; i<dss.length;i++){
             t2is[i]=dss[i].getPoint(0).getX();
             t2fs[i]=dss[i].getPoint(dss[i].getNpoints()-1).getX();
-            logdebug(String.format("t2i(%d)=%.3f t2f(%d)=%3f", i,t2is[i],i,t2fs[i]));
+            log.fine(String.format("t2i(%d)=%.3f t2f(%d)=%3f", i,t2is[i],i,t2fs[i]));
         }
         double t2i = PattOps.findMax(t2is);
         double t2f = PattOps.findMin(t2fs);
@@ -2090,5 +2151,6 @@ public class D1Dplot_main {
         }
         aboutDiag.do_btnUsersGuide_actionPerformed(e);
     }
+
 
 }

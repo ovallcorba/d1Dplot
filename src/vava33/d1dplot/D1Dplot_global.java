@@ -1,4 +1,5 @@
-package vava33.d1dplot;
+package com.vava33.d1dplot;
+
 
 /**
  * D1Dplot
@@ -21,15 +22,14 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Scanner;
 
-import vava33.d1dplot.auxi.DataSerie;
-import vava33.d1dplot.auxi.Pattern1D;
-
+import com.vava33.d1dplot.auxi.DataSerie;
+import com.vava33.d1dplot.auxi.Pattern1D;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
 public final class D1Dplot_global {
 
-    public static final String welcomeMSG = "d1Dplot v1703 (170307) by O.Vallcorba";
+    public static final String welcomeMSG = "d1Dplot v1710 (171109) by O.Vallcorba";
     public static final String separator = System.getProperty("file.separator");
     public static final String userDir = System.getProperty("user.dir");
     public static final String configFilePath = System.getProperty("user.dir") + separator + "d1dconfig.cfg";
@@ -42,6 +42,8 @@ public final class D1Dplot_global {
     public static final String beta= "\u03B2";
     public static final SimpleDateFormat fHora = new SimpleDateFormat("yyyy-MM-dd");
 
+    private static Boolean askForDeleteOriginals = true;
+    
     public static VavaLogger log;
     
     private static final boolean overrideLogLevelConfigFile = false;
@@ -49,11 +51,12 @@ public final class D1Dplot_global {
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     //global 
-    public static boolean logging = false;
-    public static String loglevel = "info"; //info, config, etc...
+    public static boolean logging = true;
+    public static String loglevel = "fine"; //info, config, etc...
     public static String workdir = System.getProperty("user.dir");
     private static Integer def_Width=768;
     private static Integer def_Height=1024;
+    public static String LandF = "system";
     
     //PlotPanel
     private static Boolean lightTheme;  //"temes" de colors: DARK, LIGHT
@@ -76,6 +79,10 @@ public final class D1Dplot_global {
     private static Boolean verticalYlabel;
 //    private static String xlabel = "2"+D1Dplot_global.theta+" (º)";
 //    private static String ylabel = "Intensity";
+    private static Integer def_nDecimalsX;
+    private static Integer def_nDecimalsY;
+    private static Float def_axis_fsize;    //sizes relative to default one (12?)
+    private static Float def_axisL_fsize;
     
     //pattern1D and dataserie
     private static Integer hkloff;
@@ -205,6 +212,7 @@ public final class D1Dplot_global {
         workdir = System.getProperty("user.dir");
         def_Width=null;
         def_Height=null;
+        LandF=null;
         
         //plotpanel
         lightTheme = null;
@@ -225,7 +233,11 @@ public final class D1Dplot_global {
         div_PrimPixSize = null;
         div_SecPixSize = null;
         verticalYlabel = null;
-
+        def_nDecimalsX = null;
+        def_nDecimalsY = null;
+        def_axis_fsize = null;
+        def_axisL_fsize = null;
+        
         //pattern1d
         hkloff = null;
         hklticksize = null;
@@ -245,6 +257,11 @@ public final class D1Dplot_global {
             def_Height = D1Dplot_main.getDef_Height();
         }else{
             D1Dplot_main.setDef_Height(def_Height.intValue());
+        }
+        if (LandF == null){
+            LandF = D1Dplot_main.getLandF();
+        }else{
+            D1Dplot_main.setLandF(LandF.toString());
         }
         
         //from PlotPanel
@@ -338,6 +355,26 @@ public final class D1Dplot_global {
         }else{
             PlotPanel.setVerticalYlabel(verticalYlabel.booleanValue());
         }
+        if (def_nDecimalsX ==null) {
+            def_nDecimalsX = PlotPanel.getDefNdecimalsx();
+        }else{
+            PlotPanel.setDefNdecimalsx(def_nDecimalsX.intValue());
+        }
+        if (def_nDecimalsY ==null) {
+            def_nDecimalsY = PlotPanel.getDefNdecimalsy();
+        }else{
+            PlotPanel.setDefNdecimalsy(def_nDecimalsY.intValue());
+        }
+        if (def_axis_fsize ==null) {
+            def_axis_fsize = PlotPanel.getDef_axis_fsize();
+        }else{
+            PlotPanel.setDef_axis_fsize(def_axis_fsize.floatValue());
+        }
+        if (def_axisL_fsize ==null) {
+            def_axisL_fsize = PlotPanel.getDef_axisL_fsize();
+        }else{
+            PlotPanel.setDef_axisL_fsize(def_axisL_fsize.floatValue());
+        }
         
         //PATTERN1D
         if (hkloff == null){
@@ -398,6 +435,11 @@ public final class D1Dplot_global {
                         if (FileUtils.containsIgnoreCase(loglvl, "warning"))loglevel = "warning";
                         if (FileUtils.containsIgnoreCase(loglvl, "info"))loglevel = "info";
                     }
+                }
+                
+                if (FileUtils.containsIgnoreCase(line, "LookAndFeel")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    if(value!=null)LandF = value;
                 }
                 
                 if (FileUtils.containsIgnoreCase(line, "IniWidth")){
@@ -542,6 +584,27 @@ public final class D1Dplot_global {
                     if(fvalue!=null)def_lineWidth = fvalue.floatValue();
                 }
                 
+                if (FileUtils.containsIgnoreCase(line, "axisFontSizeRelative")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Float fvalue = parseFloat(value);
+                    if(fvalue!=null)def_axis_fsize = fvalue.floatValue();
+                }
+                if (FileUtils.containsIgnoreCase(line, "axisLabelFontSizeRelative")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Float fvalue = parseFloat(value);
+                    if(fvalue!=null)def_axisL_fsize = fvalue.floatValue();
+                }
+                if (FileUtils.containsIgnoreCase(line, "nDecimalsX")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Integer ivalue = parseInteger(value);
+                    if(ivalue!=null)def_nDecimalsX = ivalue.intValue();
+                }
+                if (FileUtils.containsIgnoreCase(line, "nDecimalsY")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Integer ivalue = parseInteger(value);
+                    if(ivalue!=null)def_nDecimalsY = ivalue.intValue();
+                }
+                
             }
             //per si ha canviat el loglevel/logging
             initLogger(D1Dplot_global.class.getName()); //during the par reading
@@ -569,6 +632,7 @@ public final class D1Dplot_global {
             output.println("workdir = "+workdir);
             output.println("logging = "+Boolean.toString(logging));
             output.println("loglevel = "+loglevel);
+            output.println("LookAndFeel = "+LandF);
             output.println(String.format("%s = %d", "IniWidth",def_Width));
             output.println(String.format("%s = %d", "IniHeight",def_Height));
             String but = "Left";
@@ -594,20 +658,26 @@ public final class D1Dplot_global {
             output.println(String.format("%s = %d", "GapAxisRight",gapAxisRight));
             output.println(String.format("%s = %d", "GeneralPadding",padding));
             output.println(String.format("%s = %d", "AxisLabelsPadding",AxisLabelsPadding));
-            output.println(String.format("%s = %.2f", "SepPrimaryXDivInAutoMode",incXPrimPIXELS));
-            output.println(String.format("%s = %.2f", "SepSecundaryXDivInAutoMode",incXSecPIXELS));
-            output.println(String.format("%s = %.2f", "SepPrimaryXDivInAutoMode",incYPrimPIXELS));
-            output.println(String.format("%s = %.2f", "SepSecundaryYDivInAutoMode",incYSecPIXELS));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.2f", "SepPrimaryXDivInAutoMode",incXPrimPIXELS));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.2f", "SepSecundaryXDivInAutoMode",incXSecPIXELS));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.2f", "SepPrimaryXDivInAutoMode",incYPrimPIXELS));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.2f", "SepSecundaryYDivInAutoMode",incYSecPIXELS));
             output.println(String.format("%s = %d", "SizePxPrimDiv",div_PrimPixSize));
             output.println(String.format("%s = %d", "SizePxSecunDiv",div_SecPixSize));
-            output.println(String.format("%s = %.2f", "ZoomFactor",facZoom));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.2f", "ZoomFactor",facZoom));
             output.println("verticalYlabel = "+Boolean.toString(verticalYlabel));
             
             output.println(String.format("%s = %d", "hklOffset",hkloff));
             output.println(String.format("%s = %d", "hklTickSize",hklticksize));
-            output.println(String.format("%s = %.2f", "def_linewidth",def_lineWidth));
-            output.println(String.format("%s = %.2f", "def_markerSize",def_markerSize));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.2f", "def_linewidth",def_lineWidth));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.2f", "def_markerSize",def_markerSize));
             output.println("prfFullprofColors = "+Boolean.toString(prfFullprofColors));
+            
+            output.println(String.format(FileUtils.currentlocale,"%s = %.1f", "axisFontSizeRelative",def_axis_fsize));
+            output.println(String.format(FileUtils.currentlocale,"%s = %.1f", "axisLabelFontSizeRelative",def_axisL_fsize));
+            output.println(String.format("%s = %d", "nDecimalsX",def_nDecimalsX));
+            output.println(String.format("%s = %d", "nDecimalsY",def_nDecimalsY));
+           
             output.close();
 
         }catch(Exception e){
@@ -625,6 +695,7 @@ public final class D1Dplot_global {
       log.printmsg(loglevel,"workdir = "+workdir);
       log.printmsg(loglevel,"logging = "+Boolean.toString(logging));
       log.printmsg(loglevel,"loglevel = "+loglevel);
+      log.printmsg(loglevel,"LookAndFeel = "+LandF);
       log.printmsg(loglevel,String.format("%s = %d", "IniWidth",def_Width));
       log.printmsg(loglevel,String.format("%s = %d", "IniHeight",def_Height));
       String but = "Left";
@@ -649,25 +720,43 @@ public final class D1Dplot_global {
       log.printmsg(loglevel,String.format("%s = %d", "GapAxisRight",gapAxisRight));
       log.printmsg(loglevel,String.format("%s = %d", "GeneralPadding",padding));
       log.printmsg(loglevel,String.format("%s = %d", "AxisLabelsPadding",AxisLabelsPadding));
-      log.printmsg(loglevel,String.format("%s = %.2f", "SepPrimaryXDivInAutoMode",incXPrimPIXELS));
-      log.printmsg(loglevel,String.format("%s = %.2f", "SepSecundaryXDivInAutoMode",incXSecPIXELS));
-      log.printmsg(loglevel,String.format("%s = %.2f", "SepPrimaryXDivInAutoMode",incYPrimPIXELS));
-      log.printmsg(loglevel,String.format("%s = %.2f", "SepSecundaryYDivInAutoMode",incYSecPIXELS));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.2f", "SepPrimaryXDivInAutoMode",incXPrimPIXELS));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.2f", "SepSecundaryXDivInAutoMode",incXSecPIXELS));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.2f", "SepPrimaryXDivInAutoMode",incYPrimPIXELS));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.2f", "SepSecundaryYDivInAutoMode",incYSecPIXELS));
       log.printmsg(loglevel,String.format("%s = %d", "SizePxPrimDiv",div_PrimPixSize));
       log.printmsg(loglevel,String.format("%s = %d", "SizePxSecunDiv",div_SecPixSize));
-      log.printmsg(loglevel,String.format("%s = %.2f", "ZoomFactor",facZoom));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.2f", "ZoomFactor",facZoom));
       log.printmsg(loglevel,"verticalYlabel = "+Boolean.toString(verticalYlabel));
       log.printmsg(loglevel,String.format("%s = %d", "hklOffset",hkloff));
       log.printmsg(loglevel,String.format("%s = %d", "hklTickSize",hklticksize));
-      log.printmsg(loglevel,String.format("%s = %.2f", "def_linewidth",def_lineWidth));
-      log.printmsg(loglevel,String.format("%s = %.2f", "def_markerSize",def_markerSize));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.2f", "def_linewidth",def_lineWidth));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.2f", "def_markerSize",def_markerSize));
       log.printmsg(loglevel,"prfFullprofColors = "+Boolean.toString(prfFullprofColors));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.1f", "axisFontSizeRelative",def_axis_fsize));
+      log.printmsg(loglevel,String.format(FileUtils.currentlocale,"%s = %.1f", "axisLabelFontSizeRelative",def_axisL_fsize));
+      log.printmsg(loglevel,String.format("%s = %d", "nDecimalsX",def_nDecimalsX));
+      log.printmsg(loglevel,String.format("%s = %d", "nDecimalsY",def_nDecimalsY));
       log.printmsg(loglevel,"*****************************************************************************");
 
     }
     
     public static Image getIcon(){
-        return Toolkit.getDefaultToolkit().getImage(D1Dplot_global.class.getResource("/vava33/d1dplot/img/d1Dplot.png"));
+        return Toolkit.getDefaultToolkit().getImage(D1Dplot_global.class.getResource("/com/vava33/d1dplot/img/d1Dplot.png"));
+    }
+
+    /**
+     * @return the askForDeleteOriginals
+     */
+    public static Boolean getAskForDeleteOriginals() {
+        return askForDeleteOriginals;
+    }
+
+    /**
+     * @param askForDeleteOriginals the askForDeleteOriginals to set
+     */
+    public static void setAskForDeleteOriginals(Boolean askForDeleteOriginals) {
+        D1Dplot_global.askForDeleteOriginals = askForDeleteOriginals;
     }
     
     

@@ -1,4 +1,4 @@
-package vava33.d1dplot.auxi;
+package com.vava33.d1dplot.auxi;
 
 /**
  * D1Dplot
@@ -16,8 +16,7 @@ import javax.swing.JTable;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableCellRenderer;
 
-import vava33.d1dplot.D1Dplot_global;
-
+import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -31,27 +30,32 @@ public class PatternsTableCellRenderer extends DefaultTableCellRenderer {
           boolean isSelected, boolean hasFocus, int row, int col) {
 
         // PRIMER FORMATEJO EL VALOR (ABANS DE CRIDAR SUPER)
+        
+        try {
+            //      nP, nS, Filename, Color, Scale, ZerOff, Wavel, XUnits, YOffset, Marker, Line, ErrBars, Show,
+            if (table.getColumnName(col)==PatternsTableModel.columns.Scale.toString()){
+                value = FileUtils.dfX_2.format((Number)value);
+            }
+            if (table.getColumnName(col)==PatternsTableModel.columns.ZerOff.toString()){
+                value = FileUtils.dfX_3.format((Number)value);
+            }
+            if (table.getColumnName(col)==PatternsTableModel.columns.Wavel.toString()){
+                value = FileUtils.dfX_4.format((Number)value);
+            }
+            if (table.getColumnName(col)==PatternsTableModel.columns.YOffset.toString()){
+                value = FileUtils.dfX_1.format((Number)value);
+            }
+            if (table.getColumnName(col)==PatternsTableModel.columns.Marker.toString()){
+                value = FileUtils.dfX_1.format((Number)value);
+            }
+            if (table.getColumnName(col)==PatternsTableModel.columns.Line.toString()){
+                value = FileUtils.dfX_1.format((Number)value);
+            }
+        }catch(Exception ex) {
+            if(D1Dplot_global.isDebug())ex.printStackTrace();
+        }
+        
 
-        //      nP, nS, Filename, Color, Scale, ZerOff, Wavel, XUnits, YOffset, Marker, Line, ErrBars, Show,
-        if (table.getColumnName(col)==PatternsTableModel.columns.Scale.toString()){
-            value = FileUtils.dfX_2.format((Number)value);
-        }
-        if (table.getColumnName(col)==PatternsTableModel.columns.ZerOff.toString()){
-            value = FileUtils.dfX_3.format((Number)value);
-        }
-        if (table.getColumnName(col)==PatternsTableModel.columns.Wavel.toString()){
-            log.debug("YEAH");
-            value = FileUtils.dfX_4.format((Number)value);
-        }
-        if (table.getColumnName(col)==PatternsTableModel.columns.YOffset.toString()){
-            value = FileUtils.dfX_1.format((Number)value);
-        }
-        if (table.getColumnName(col)==PatternsTableModel.columns.Marker.toString()){
-            value = FileUtils.dfX_1.format((Number)value);
-        }
-        if (table.getColumnName(col)==PatternsTableModel.columns.Line.toString()){
-            value = FileUtils.dfX_1.format((Number)value);
-        }
 
         Component c = super.getTableCellRendererComponent(table, value,
                 isSelected, hasFocus, row, col);

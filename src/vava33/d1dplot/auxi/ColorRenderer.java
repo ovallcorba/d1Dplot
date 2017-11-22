@@ -1,4 +1,4 @@
-package vava33.d1dplot.auxi;
+package com.vava33.d1dplot.auxi;
 
 /**
  * D1Dplot
@@ -34,6 +34,9 @@ public class ColorRenderer extends JLabel implements TableCellRenderer{
                             JTable table, Object color,
                             boolean isSelected, boolean hasFocus,
                             int row, int column) {
+        
+        if (color==null)return null;
+        
         Color newColor = (Color)color;
         setBackground(newColor);
         if (isBordered) {

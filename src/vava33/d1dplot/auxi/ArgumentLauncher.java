@@ -73,9 +73,12 @@ public final class ArgumentLauncher {
             ConsoleWritter.stat("     -sum");
             ConsoleWritter.stat("            Sum the input patterns, additional OPTIONS will be applied on the result");
             ConsoleWritter.stat("");
-            ConsoleWritter.stat("     -diff FACT");
-            ConsoleWritter.stat("            In this case only two patterns are expected, it will perform Patt1 - Fact*Patt2");
+            ConsoleWritter.stat("     -diff FACT [T2I T2F]");
+            ConsoleWritter.stat("            In this case, first pattern on the list will act as background. It will be subtracted to all other files");
+            ConsoleWritter.stat("            The operation is: Patt - Fact*Background");
             ConsoleWritter.stat("            Additional options will be applied on the resulting files");
+            ConsoleWritter.stat("            If FACT<0 automatic scaling will be performed using the range from T2I to T2F");
+            ConsoleWritter.stat("            (T2I and T2F can be supplied only when FACT<0)");
             ConsoleWritter.stat("");
             ConsoleWritter.stat("     -rebin T2I STEP T2F");
             ConsoleWritter.stat("            Applies a rebinning on the input patterns according to T2I STEP T2F");
@@ -99,7 +102,7 @@ public final class ArgumentLauncher {
             ConsoleWritter.stat("     -outwave WAVELENGTH");
             ConsoleWritter.stat("            To change the wavelength of the pattern(s)");   
             ConsoleWritter.stat("");
-
+            
             return;
         }
         
@@ -205,15 +208,18 @@ public final class ArgumentLauncher {
             argL.remove(ifound);
             for (int i=0;i<argL.size();i++){
                 File f = new File(argL.get(i));
-                ConsoleWritter.stat("== Reading file "+argL.get(i));
+                //ConsoleWritter.stat("== Reading file "+argL.get(i));
+                ConsoleWritter.stat("== Reading file "+f.toString());
                 if (!f.exists()){
                     ConsoleWritter.stat("File not found");
                     continue;
                 }
-                Pattern1D p = mf.readDataFile(new File(argL.get(i)));
-
-                File outf = FileUtils.canviNomFitxer(p.getFile(), FileUtils.getFNameNoExt(p.getFile())+suffix);
-
+                //Pattern1D p = mf.readDataFile(new File(argL.get(i)));
+                Pattern1D p = mf.readDataFile(f);
+                log.debug(p.getFile().toString());
+                File outf = FileUtils.canviNomFitxer(new File(p.getFile().getName()), FileUtils.getFNameNoExt(p.getFile().getName())+suffix);
+                outf = new File(f.getParent()+D1Dplot_global.separator+outf.getName());
+                ConsoleWritter.stat("== Out file "+outf.toString());
                 
                 //HEM DE CONVERTIR WAVEL??
                 if (outwavel>0){
@@ -333,19 +339,36 @@ public final class ArgumentLauncher {
         ifound = getArgLindexOf(argL,"-diff");
         if (ifound>=0){
             float factor = 1.0f;
+            double fac_t2i = 0.0f;
+            double fac_t2f = 0.0f;
             try{
                 factor = Float.parseFloat(argL.get(ifound+1));
                 argL.remove(ifound+1);
             }catch(Exception ex){
                 ConsoleWritter.stat("No factor found, using 1.0");
             }
-            argL.remove(ifound);
-            if (argL.size()!=2){
-                ConsoleWritter.stat("ERROR: only two files can be used in subtraction");
-                return;
+            
+            if (factor<0) {
+                //reading of t2i and t2f (if any)
+                try{
+                    fac_t2i = Double.parseDouble(argL.get(ifound+1));
+                    argL.remove(ifound+1);
+                }catch(Exception ex){
+                    ConsoleWritter.stat("No factor_t2I found, using 0.0");
+                }
+                try{
+                    fac_t2f = Double.parseDouble(argL.get(ifound+1));
+                    argL.remove(ifound+1);
+                }catch(Exception ex){
+                    ConsoleWritter.stat("No factor_t2F found, using 0.0");
+                }
             }
             
-            ArrayList<Pattern1D> patts = new ArrayList<Pattern1D>(2);
+            argL.remove(ifound);
+
+            //A PARTIR D'AQUI HI HA UNA LLISTA DE FITXERS, ON EL PRIMER SERA EL FONS i LA RESTA PATTERNS ON SUBSTREURE'L
+            
+            ArrayList<Pattern1D> patts = new ArrayList<Pattern1D>();
             StringBuilder sbNames = new StringBuilder();
 
             for (int i=0;i<argL.size();i++){
@@ -360,76 +383,74 @@ public final class ArgumentLauncher {
                 sbNames.append(p.getSerie(0).getSerieName()+" ");
             }
             
-            String outfname = FileUtils.getFNameNoExt(patts.get(0).getFile())+suffix;
-            if (hasName){
-                outfname = suffix;
-            }
-            File outf = FileUtils.canviNomFitxer(patts.get(0).getFile(), outfname);
+            
+            for (int i=1; i<patts.size();i++) {
+                String outfname = FileUtils.getFNameNoExt(patts.get(i).getFile().getName())+suffix;
+                File outf = FileUtils.canviNomFitxer(patts.get(i).getFile(), outfname);
+                
+                DataSerie ds1 = patts.get(i).getSerie(0);
+                DataSerie ds2 = patts.get(0).getSerie(0); //EL FONS!
 
-            DataSerie ds1 = patts.get(0).getSerie(0);
-            DataSerie ds2 = patts.get(1).getSerie(0);
-            
-            if (ds1.getNpoints()!=ds2.getNpoints()){
-                ConsoleWritter.stat("different number of points");
-            }
-            if (ds1.getPoint(0).getX()!=ds2.getPoint(0).getX()){
-                ConsoleWritter.stat("different first point");
-            }
-            
-            DataSerie result = null;
-            if (!PattOps.haveCoincidentPointsDS(ds1, ds2)){
-                DataSerie ds2reb = PattOps.rebinDS(ds1, ds2);
-                ConsoleWritter.stat("rebinning performed on serie "+ds2.getSerieName());
-                //debug
-                ds2reb.setSerieName(ds2.getSerieName());
-                result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2reb, factor);
-            }else{
-                result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2, factor);
-            }
-            if (result==null){
-                ConsoleWritter.stat("error in subtraction");
-                return;
-            }
-//            result.setSerieName("subtraction result (factor="+FileUtils.dfX_2.format(factor)+")"); //POSAR UN NOM AMB MES INFO
-//            result.setSerieName(String.format("SUB: %s - %.2f*%s",ds1.getSerieName(),factor,ds2.getSerieName())); 
-            String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.getSerieName(),factor,ds2.getSerieName());
-            result.setSerieName(s);
-            Pattern1D patt = new Pattern1D();
-            patt.getCommentLines().addAll(ds1.getPatt1D().getCommentLines());
-            patt.getCommentLines().add(s);
-            patt.setOriginal_wavelength(ds1.getPatt1D().getOriginal_wavelength());
-            patt.AddDataSerie(result);
-            
-            //OPERACIONS ADDICIONALS
-            
-            //HEM DE CONVERTIR WAVEL??
-            if (outwavel>0){
-                //first check wavelength
-                if (!checkWL(patt.getSerie(0),wavel)){
-                    ConsoleWritter.stat("Original wavelength missing, skipping pattern");
+                if (ds1.getNpoints()!=ds2.getNpoints()){
+                    ConsoleWritter.stat("different number of points");
                 }
-                //now we change
-                patt.getSeries().add(0, patt.getSerie(0).convertToNewWL(outwavel));
-            }
-
-
-            //HEM DE CONVERTIR UNITATS??
-            if (!sourceXunits){
-                //first check wavelength
-                if (!checkWL(patt.getSerie(0),wavel)){
-                    ConsoleWritter.stat("Wavelength missing, skipping pattern");
+                if (ds1.getPoint(0).getX()!=ds2.getPoint(0).getX()){
+                    ConsoleWritter.stat("different first point");
                 }
-
-                //now we can change
-                DataSerie newDS = changeXunits(patt.getSerie(0),xunits);
-                if (newDS!=null){
-                    patt.getSeries().add(0,newDS);    
+                
+                DataSerie result = null;
+                if (!PattOps.haveCoincidentPointsDS(ds1, ds2)){
+                    DataSerie ds2reb = PattOps.rebinDS(ds1, ds2);
+                    ConsoleWritter.stat("rebinning performed on serie "+ds2.getSerieName());
+                    //debug
+                    ds2reb.setSerieName(ds2.getSerieName());
+                    result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2reb, factor,fac_t2i,fac_t2f);
                 }else{
-                    ConsoleWritter.stat("Error changing X-units, skipping pattern");
+                    result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2, factor,fac_t2i,fac_t2f);
                 }
-            } //tindrem a serie 0 la nova amb xunits canviades
+                if (result==null){
+                    ConsoleWritter.stat("error in subtraction");
+                    return;
+                }
+                String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.getSerieName(),factor,ds2.getSerieName());
+                result.setSerieName(s);
+                Pattern1D patt = new Pattern1D();
+                patt.getCommentLines().addAll(ds1.getPatt1D().getCommentLines());
+                patt.getCommentLines().add(s);
+                patt.setOriginal_wavelength(ds1.getPatt1D().getOriginal_wavelength());
+                patt.AddDataSerie(result);
+                
+                //OPERACIONS ADDICIONALS
+                
+                //HEM DE CONVERTIR WAVEL??
+                if (outwavel>0){
+                    //first check wavelength
+                    if (!checkWL(patt.getSerie(0),wavel)){
+                        ConsoleWritter.stat("Original wavelength missing, skipping pattern");
+                    }
+                    //now we change
+                    patt.getSeries().add(0, patt.getSerie(0).convertToNewWL(outwavel));
+                }
 
-            writePatternS0(outf,patt,outformat);
+
+                //HEM DE CONVERTIR UNITATS??
+                if (!sourceXunits){
+                    //first check wavelength
+                    if (!checkWL(patt.getSerie(0),wavel)){
+                        ConsoleWritter.stat("Wavelength missing, skipping pattern");
+                    }
+
+                    //now we can change
+                    DataSerie newDS = changeXunits(patt.getSerie(0),xunits);
+                    if (newDS!=null){
+                        patt.getSeries().add(0,newDS);    
+                    }else{
+                        ConsoleWritter.stat("Error changing X-units, skipping pattern");
+                    }
+                } //tindrem a serie 0 la nova amb xunits canviades
+
+                writePatternS0(outf,patt,outformat);
+            }
         }
         
         
