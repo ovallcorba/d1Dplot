@@ -31,6 +31,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -78,6 +80,7 @@ public class PlotPanel extends JPanel {
 
     //TEMES
     private static final Color Dark_bkg = Color.BLACK;
+//    private static final Color Dark_bkg = Color.BLUE.darker().darker();
     private static final Color Dark_frg = Color.WHITE;
     private static final Color Light_bkg = Color.WHITE;
     private static final Color Light_frg = Color.BLACK;
@@ -116,6 +119,7 @@ public class PlotPanel extends JPanel {
     private static int div_PrimPixSize = 8;
     private static int div_SecPixSize = 4;
     private static boolean verticalYlabel = false;
+    private static boolean verticalYAxe = true;
 
     private static VavaLogger log = D1Dplot_global.getVavaLogger(PlotPanel.class.getName());
 
@@ -532,6 +536,7 @@ public class PlotPanel extends JPanel {
     
 
     protected void do_graphPanel_mouseMoved(MouseEvent e) {
+        log.fine("mouseMoved!!");
         if (arePatterns()){
             Point2D.Double dp = getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
             if (dp!=null){
@@ -611,14 +616,14 @@ public class PlotPanel extends JPanel {
                 }
             }
         }else{
-            lblTthInten.setText("");
-            lblDsp.setText("");
-            lblHkl.setText("");
+//            lblTthInten.setText("");
+//            lblDsp.setText("");
+//            lblHkl.setText("");
         }
     }
 
     
-    // Identificar el botó i segons quin sigui moure o fer zoom
+    // Identificar el bot� i segons quin sigui moure o fer zoom
     protected void do_graphPanel_mousePressed(MouseEvent arg0) {
         if (!arePatterns())return;
         this.dragPoint = new Point2D.Double(arg0.getPoint().x, arg0.getPoint().y);
@@ -875,7 +880,7 @@ public class PlotPanel extends JPanel {
         }
         return yval;
     }
-
+    
     
     private void resetView(boolean resetAxes) {
         this.calcMaxMinXY();
@@ -1540,6 +1545,20 @@ public class PlotPanel extends JPanel {
         this.negativeYAxisLabels = negativeYAxisLabels;
     }
 
+    /**
+     * @return the verticalYAxe
+     */
+    public static boolean isVerticalYAxe() {
+        return verticalYAxe;
+    }
+
+    /**
+     * @param verticalYAxe the verticalYAxe to set
+     */
+    public static void setVerticalYAxe(boolean verticalYAxe) {
+        PlotPanel.verticalYAxe = verticalYAxe;
+    }
+
     public boolean isShowPeaks() {
         return showPeaks;
     }
@@ -1661,6 +1680,43 @@ public class PlotPanel extends JPanel {
     }
     
     
+    private static int def_nDecimalsX = 3;
+    private static int def_nDecimalsY = 1;
+    //sizes relative to default one (12?)
+    private static float def_axis_fsize = 0.f;
+//    private float def_yaxis_fsize = 2.f;
+    private static float def_axisL_fsize = 0.f;
+    
+
+    public static float getDef_axis_fsize() {
+        return PlotPanel.def_axis_fsize;
+    }
+
+    public static void setDef_axis_fsize(float def_axis_fsize) {
+        PlotPanel.def_axis_fsize = def_axis_fsize;
+    }
+
+    public static float getDef_axisL_fsize() {
+        return PlotPanel.def_axisL_fsize;
+    }
+
+    public static void setDef_axisL_fsize(float def_axisL_fsize) {
+        PlotPanel.def_axisL_fsize = def_axisL_fsize;
+    }
+
+    public static int getDefNdecimalsx() {
+        return PlotPanel.def_nDecimalsX;
+    }
+
+    public static int getDefNdecimalsy() {
+        return PlotPanel.def_nDecimalsY;
+    }
+    public static void setDefNdecimalsx(int ndec) {
+        PlotPanel.def_nDecimalsX=ndec;
+    }
+    public static void setDefNdecimalsy(int ndec) {
+        PlotPanel.def_nDecimalsY=ndec;
+    }
     
 //  ------------------------------------ PANELL DE DIBUIX
     class Plot1d extends JPanel {
@@ -1670,24 +1726,103 @@ public class PlotPanel extends JPanel {
         private int panelW, panelH;
         private Graphics2D g2;
         private boolean saveTransp = false;
+        private int svgFontSize= 30;
+        private boolean saveSVG = false;
+        
+        private DecimalFormat def_xaxis_format = FileUtils.dfX_3;
+        private DecimalFormat def_yaxis_format = FileUtils.dfX_1;
         
         public Plot1d(){
             super();
             this.setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
+            this.setDoubleBuffered(true);
+            this.setDecimalsXaxis(PlotPanel.def_nDecimalsX);
+            this.setDecimalsYaxis(PlotPanel.def_nDecimalsY);
         }
 
         public void setTransp(boolean transp){
             this.saveTransp=transp;
         }
         
+        public boolean isSaveSVG() {
+            return saveSVG;
+        }
+        public void setSaveSVG(boolean saveSVG) {
+            this.saveSVG = saveSVG;
+        }
+
+        public DecimalFormat getDef_xaxis_format() {
+            return def_xaxis_format;
+        }
+
+        public void setDef_xaxis_format(DecimalFormat def_xaxis_format) {
+            this.def_xaxis_format = def_xaxis_format;
+        }
+
+        public DecimalFormat getDef_yaxis_format() {
+            return def_yaxis_format;
+        }
+
+        public void setDef_yaxis_format(DecimalFormat def_yaxis_format) {
+            this.def_yaxis_format = def_yaxis_format;
+        }
+        
+        public void setDecimalsXaxis(int dec) {
+            switch (dec) {
+                case 0:
+                    this.setDef_xaxis_format(FileUtils.dfX_0);
+                    break;
+                case 1:
+                    this.setDef_xaxis_format(FileUtils.dfX_1);
+                    break;
+                case 2:
+                    this.setDef_xaxis_format(FileUtils.dfX_2);
+                    break;
+                case 3:
+                    this.setDef_xaxis_format(FileUtils.dfX_3);
+                    break;
+                case 4:
+                    this.setDef_xaxis_format(FileUtils.dfX_4);
+                    break;
+                case 5:
+                    this.setDef_xaxis_format(FileUtils.dfX_5);
+                    break;
+                default:
+                    this.setDef_xaxis_format(FileUtils.dfX_3);
+            }
+        }
+        public void setDecimalsYaxis(int dec) {
+            switch (dec) {
+                case 0:
+                    this.setDef_yaxis_format(FileUtils.dfX_0);
+                    break;
+                case 1:
+                    this.setDef_yaxis_format(FileUtils.dfX_1);
+                    break;
+                case 2:
+                    this.setDef_yaxis_format(FileUtils.dfX_2);
+                    break;
+                case 3:
+                    this.setDef_yaxis_format(FileUtils.dfX_3);
+                    break;
+                case 4:
+                    this.setDef_yaxis_format(FileUtils.dfX_4);
+                    break;
+                case 5:
+                    this.setDef_yaxis_format(FileUtils.dfX_5);
+                    break;
+                default:
+                    this.setDef_yaxis_format(FileUtils.dfX_3);
+                    break;
+            }
+        }
+
+
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-
-            g2 = (Graphics2D) g;
-
-            g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
-                    RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
+            log.debug("paintComponent PlotPanel");
+        
 
             if (!this.saveTransp){
                 if (lightTheme){
@@ -1696,14 +1831,35 @@ public class PlotPanel extends JPanel {
                     this.setBackground(Dark_bkg);
                 }
             }
-
+            
 //            final Graphics2D g1 = (Graphics2D) g2.create();
 
             if (getPatterns().size() > 0) {
 
                 panelW = this.getWidth();
                 panelH = this.getHeight();
+                
+                BufferedImage off_Image = null;
+                int fsz = this.getFont().getSize();
+                int diff = svgFontSize-fsz;
+                if (isSaveSVG()) {
+                    PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()+diff);
+                    PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()+diff);
+                    g2 = (Graphics2D) g;
+                    g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
+                            RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
+                  }else {
+                      off_Image =
+                              new BufferedImage(panelW, panelH,
+                                                BufferedImage.TYPE_INT_ARGB);
+                      g2 = off_Image.createGraphics();
+                      
+                      g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
+                  }
+                
 
+                
                 //primer caculem els limits -- ho trec, no crec que faci falta...
 //                calcMaxMinXY();
                 if (getScalefitY()<0){
@@ -1732,7 +1888,10 @@ public class PlotPanel extends JPanel {
                 this.drawAxes(g2,showGridY,showGridX);
 
                 Iterator<Pattern1D> itrp = getPatterns().iterator();
+                int npatt = getPatterns().size();
+                int ipatt = 0;
                 while (itrp.hasNext()){
+                    log.debug(String.format("Patt %d of %d", ipatt,npatt));
                     Pattern1D patt = itrp.next();
                     for (int i=0; i<patt.getNseries(); i++){
                         DataSerie ds = patt.getSerie(i);
@@ -1747,8 +1906,13 @@ public class PlotPanel extends JPanel {
                             drawErrorBars(g2,patt.getSerie(i),patt.getSerie(i).getColor());
                         }
                     }
+                    ipatt=ipatt+1;
                 }
 
+                log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
+                log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
+                log.debug(Boolean.toString(isSaveSVG()));
+                
                 if(showLegend){
                     drawLegend(g2);
                 }
@@ -1787,12 +1951,19 @@ public class PlotPanel extends JPanel {
                     g2.fill(zoomRect);
                 }
                 
+                if (!isSaveSVG()) {
+                    g.drawImage(off_Image, 0, 0, null);
+                  }else {
+                      PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()-diff);
+                      PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()-diff);
+                  }
+//                g2.dispose();
 //                if(continuousRepaint)this.repaint();
             }
         }
 
         private void drawAxes(Graphics2D g1, boolean gridY, boolean gridX){
-            log.fine("drawAxes entered");
+            log.debug("drawAxes entered");
 
             //provem de fer linia a 60 pixels de l'esquerra i a 60 pixels de baix (40 i 40 de dalt i a la dreta com a marges)
 
@@ -1817,41 +1988,23 @@ public class PlotPanel extends JPanel {
             Line2D.Double ordenada = new Line2D.Double(vytop,vybot);  //Y axis vertical
             Line2D.Double abcissa = new Line2D.Double(vxleft, vxright);  //X axis horizontal
 
-            g1.draw(ordenada);
+            if (verticalYAxe)g1.draw(ordenada);
             g1.draw(abcissa);
 
             //PINTEM ELS TITOLS DELS EIXOS
             Font font = g1.getFont();
             FontRenderContext frc = g1.getFontRenderContext();
-
-
-            // Y-axis (ordinate) label.
-            String s = getYlabel();
-            double sw = font.getStringBounds(s, frc).getWidth();
-            double sh =  font.getStringBounds(s, frc).getHeight();
-            double ylabelheight = sh; //per utilitzar-ho despres
-            double sx = AxisLabelsPadding;
-            double sy = sh + AxisLabelsPadding;
-            if (verticalYlabel){
-                sy = (panelH - sw)/2;
-                sx = (ylabelheight/2)+padding;
-                AffineTransform orig = g1.getTransform();
-                g1.rotate(-Math.PI/2,sx,sy);
-                g1.drawString(s,(float)sx,(float)sy);
-                g1.setTransform(orig);
-            }else{
-                //el posem sobre l'eix en horitzontal
-                g1.drawString(s,(float)sx,(float)sy);
-            }
+            log.fine("default font size="+font.getSize());
 
 
             // X-axis (abcissa) label.
-            s = getXlabel();
-            sy = panelH - AxisLabelsPadding;
-            sw = font.getStringBounds(s, frc).getWidth();
-            sx = (panelW - sw)/2;
+            String s = getXlabel();
+            double sy = panelH - AxisLabelsPadding;
+            double sw = g1.getFont().getStringBounds(s, frc).getWidth();
+            double sx = (panelW - sw)/2;
+            log.fine("Xaxis label font size="+g1.getFont().getSize());
             g1.drawString(s, (float)sx,(float)sy);
-
+            g1.setFont(font); //recuperem font defecte
 
 
             // **** linies divisio eixos
@@ -1873,16 +2026,19 @@ public class PlotPanel extends JPanel {
                 Line2D.Double l = new Line2D.Double(xvalPix,yiniPrim,xvalPix,yfinPrim);
                 g1.draw(l);
                 //ara el label sota la linia 
-                s = String.format("%.3f", xval);
-                sw = font.getStringBounds(s, frc).getWidth();
-                sh = font.getStringBounds(s, frc).getHeight();
+                //                    s = String.format("%.3f", xval);
+                s = this.def_xaxis_format.format(xval);
+                g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
+                log.fine("Xaxis font size="+g1.getFont().getSize());
+                sw = g1.getFont().getStringBounds(s, frc).getWidth();
+                double sh = g1.getFont().getStringBounds(s, frc).getHeight();
                 double xLabel = xvalPix - sw/2f; //el posem centrat a la linia
                 double yLabel = yfinPrim + AxisLabelsPadding + sh;
                 g1.drawString(s, (float)xLabel, (float)yLabel);
                 xval = xval + div_incXPrim;
+                g1.setFont(font);
 
                 if(xval> (int)(1+getxMax()))break; //provem de posar-ho aqui perque no dibuixi mes enllà
-
             }
 
             //ara les secundaries
@@ -1912,80 +2068,106 @@ public class PlotPanel extends JPanel {
                 if(xval> (int)(1+getxMax()))break; //provem de posar-ho aqui perque no dibuixi mes enllà
             }
 
-            //---eix Y
-            //Per tots els punts les coordenades Y seran les mateixes
-            double xiniPrim = coordXeixY - (div_PrimPixSize/2.f); 
-            double xfinPrim = coordXeixY + (div_PrimPixSize/2.f);
-            //ara dibuixem les Primaries i posem els labels
-            double yval = getDiv_startValY();
-            while (yval <= getYrangeMax()){
-                if (yval < getYrangeMin()){
+            if (verticalYAxe) {
+                // Y-axis (ordinate) label.
+                s = getYlabel();
+                sw = g1.getFont().getStringBounds(s, frc).getWidth();
+                double sh =  g1.getFont().getStringBounds(s, frc).getHeight();
+                double ylabelheight = sh; //per utilitzar-ho despres
+                sx = AxisLabelsPadding;
+                sy = sh + AxisLabelsPadding;
+                g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
+                log.fine("Yaxis label font size="+g1.getFont().getSize());
+                if (verticalYlabel){
+                    sy = (panelH - sw)/2;
+                    sx = (ylabelheight/2)+padding;
+                    AffineTransform orig = g1.getTransform();
+                    g1.rotate(-Math.PI/2,sx,sy);
+                    g1.drawString(s,(float)sx,(float)sy);
+                    g1.setTransform(orig);
+                }else{
+                    //el posem sobre l'eix en horitzontal
+                    g1.drawString(s,(float)sx,(float)sy);
+                }
+                g1.setFont(font);
+                //---eix Y
+                //Per tots els punts les coordenades Y seran les mateixes
+                double xiniPrim = coordXeixY - (div_PrimPixSize/2.f); 
+                double xfinPrim = coordXeixY + (div_PrimPixSize/2.f);
+                //ara dibuixem les Primaries i posem els labels
+                double yval = getDiv_startValY();
+                while (yval <= getYrangeMax()){
+                    if (yval < getYrangeMin()){
+                        yval = yval + div_incYPrim;
+                        continue;
+                    }
+                    if (!negativeYAxisLabels && (yval<0)){
+                        yval = yval + div_incYPrim;
+                        continue;
+                    }
+
+                    double yvalPix = getFrameYFromDataPointY(yval);
+                    Line2D.Double l = new Line2D.Double(xiniPrim, yvalPix, xfinPrim, yvalPix);
+                    g1.draw(l);
+                    //ara el label a l'esquerra de la linia (atencio a negatius, depen si hi ha l'opcio)
+                    //                s = String.format("%.1f", yval);
+                    s = this.def_yaxis_format.format(yval);
+                    g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
+                    log.fine("Yaxis font size="+g1.getFont().getSize());
+                    sw = g1.getFont().getStringBounds(s, frc).getWidth();
+                    sh = g1.getFont().getStringBounds(s, frc).getHeight();
+                    double xLabel = xiniPrim - AxisLabelsPadding - sw; 
+                    double yLabel = yvalPix + sh/2f; //el posem centrat a la linia
+
+                    //Sino hi cap fem la font mes petita
+                    double limit = getGapAxisLeft();
+                    if (verticalYlabel)limit = getGapAxisLeft()-ylabelheight;
+                    while(sw>limit){
+                        g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
+                        sw = g1.getFont().getStringBounds(s, g1.getFontRenderContext()).getWidth();
+                        xLabel = xiniPrim - AxisLabelsPadding - sw;
+                    }
+
+                    g1.drawString(s, (float)xLabel, (float)yLabel);
+                    g1.setFont(font);                //recuperem font
                     yval = yval + div_incYPrim;
-                    continue;
-                }
-                if (!negativeYAxisLabels && (yval<0)){
-                    yval = yval + div_incYPrim;
-                    continue;
                 }
 
-                double yvalPix = getFrameYFromDataPointY(yval);
-                Line2D.Double l = new Line2D.Double(xiniPrim, yvalPix, xfinPrim, yvalPix);
-                g1.draw(l);
-                //ara el label a l'esquerra de la linia (atencio a negatius, depen si hi ha l'opcio)
-                s = String.format("%.1f", yval);
-                sw = font.getStringBounds(s, frc).getWidth();
-                sh = font.getStringBounds(s, frc).getHeight();
-                double xLabel = xiniPrim - AxisLabelsPadding - sw; 
-                double yLabel = yvalPix + sh/2f; //el posem centrat a la linia
-
-                //Sino hi cap fem la font mes petita
-                double limit = getGapAxisLeft();
-                if (verticalYlabel)limit = getGapAxisLeft()-ylabelheight;
-                while(sw>limit){
-                    g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
-                    sw = g1.getFont().getStringBounds(s, g1.getFontRenderContext()).getWidth();
-                    xLabel = xiniPrim - AxisLabelsPadding - sw;
-                }
-
-                g1.drawString(s, (float)xLabel, (float)yLabel);
-                g1.setFont(font);                //recuperem font
-                yval = yval + div_incYPrim;
-            }
-
-            //ara les secundaries
-            double xiniSec = coordXeixY - (div_SecPixSize/2.f); 
-            double xfinSec = coordXeixY + (div_SecPixSize/2.f);
-            yval = getDiv_startValY();
-            while (yval <= getYrangeMax()){
-                if (yval < getYrangeMin()){
+                //ara les secundaries
+                double xiniSec = coordXeixY - (div_SecPixSize/2.f); 
+                double xfinSec = coordXeixY + (div_SecPixSize/2.f);
+                yval = getDiv_startValY();
+                while (yval <= getYrangeMax()){
+                    if (yval < getYrangeMin()){
+                        yval = yval + div_incYSec;
+                        continue;
+                    }
+                    if (!negativeYAxisLabels && (yval<0)){
+                        yval = yval + div_incYSec;
+                        continue;
+                    }
+                    double yvalPix = getFrameYFromDataPointY(yval);
+                    Line2D.Double l = new Line2D.Double(xiniSec,yvalPix,xfinSec,yvalPix);
+                    g1.draw(l);
                     yval = yval + div_incYSec;
-                    continue;
-                }
-                if (!negativeYAxisLabels && (yval<0)){
-                    yval = yval + div_incYSec;
-                    continue;
-                }
-                double yvalPix = getFrameYFromDataPointY(yval);
-                Line2D.Double l = new Line2D.Double(xiniSec,yvalPix,xfinSec,yvalPix);
-                g1.draw(l);
-                yval = yval + div_incYSec;
-                
-                //i ara el grid
-                //pel grid, vytop.y sera el punt superior de la linia, yiniPrim sera el punt inferior (AIXO PER LES Y, despres les X es defineixen al bucle)
-                if(gridX){
-                    BasicStroke dashed = new BasicStroke(1, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,2}, 0);
-                    g1.setStroke(dashed);
-                    Line2D.Double ld = new Line2D.Double(vxright.x,yvalPix,xfinSec,yvalPix);
-                    g1.draw(ld);
-                    g1.setStroke(stroke); //recuperem l'anterior
-                }
 
+                    //i ara el grid
+                    //pel grid, vytop.y sera el punt superior de la linia, yiniPrim sera el punt inferior (AIXO PER LES Y, despres les X es defineixen al bucle)
+                    if(gridX){
+                        BasicStroke dashed = new BasicStroke(1, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,2}, 0);
+                        g1.setStroke(dashed);
+                        Line2D.Double ld = new Line2D.Double(vxright.x,yvalPix,xfinSec,yvalPix);
+                        g1.draw(ld);
+                        g1.setStroke(stroke); //recuperem l'anterior
+                    }
+
+                }
             }
-            log.fine("drawAxes exit");
+            log.debug("drawAxes exit");
         }
 
         private void drawPatternLine(Graphics2D g1, DataSerie serie, Color col){
-            log.fine("drawPatternLine entered");
+            log.debug("drawPatternLine entered");
             g1.setColor(col);
             BasicStroke stroke = new BasicStroke(serie.getLineWidth());
             g1.setStroke(stroke);
@@ -2054,12 +2236,12 @@ public class PlotPanel extends JPanel {
                 g1.draw(l);
 
             }
-            log.fine("drawPatternLine exit");
+            log.debug("drawPatternLine exit");
         }
 
         //separo linia i punts per si volem canviar l'ordre de dibuix
         private void drawPatternPoints(Graphics2D g1, DataSerie serie, Color col){
-            log.fine("drawPatternPoints entered");
+            log.debug("drawPatternPoints entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(0.0f);
@@ -2070,17 +2252,17 @@ public class PlotPanel extends JPanel {
 
                 if (isFramePointInsideGraphArea(p1)){
                     double radiPunt = serie.getMarkerSize()/2.f;
-//                    g1.fillOval((int)FastMath.round(p1.x-radiPunt), (int)FastMath.round(p1.y-radiPunt), FastMath.round(serie.getMarkerSize()), FastMath.round(serie.getMarkerSize()));
+                    g1.fillOval((int)FastMath.round(p1.x-radiPunt), (int)FastMath.round(p1.y-radiPunt), FastMath.round(serie.getMarkerSize()), FastMath.round(serie.getMarkerSize()));
                     g1.drawOval((int)FastMath.round(p1.x-radiPunt), (int)FastMath.round(p1.y-radiPunt), FastMath.round(serie.getMarkerSize()), FastMath.round(serie.getMarkerSize()));
                 }
             }
-            log.fine("drawPatternPoints exit");
+            log.debug("drawPatternPoints exit");
         }
 
 
         //separo linia i punts per si volem canviar l'ordre de dibuix
         private void drawErrorBars(Graphics2D g1, DataSerie serie, Color col){
-            log.fine("drawErrorBars entered");
+            log.debug("drawErrorBars entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(1.0f);
@@ -2121,7 +2303,7 @@ public class PlotPanel extends JPanel {
                 g1.draw(new Line2D.Double(pbotl.x,pbotl.y,pbotr.x,pbotr.y));
 
             }
-            log.fine("drawErrorBars exit");
+            log.debug("drawErrorBars exit");
         }
 
         private void drawHKL(Graphics2D g1, DataSerie serie, Color col){
@@ -2151,7 +2333,7 @@ public class PlotPanel extends JPanel {
                 g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
 
             }
-            log.fine("drawHKL exit");
+            log.debug("drawHKL exit");
         }
 
         private void drawLegend(Graphics2D g1){
@@ -2201,6 +2383,7 @@ public class PlotPanel extends JPanel {
                         int t_X = l_finX+margin; //TODO: revisar si queda millor x2
                         int maxlength = panelW-padding-margin-t_X;
                         String s =  patt.getSerie(i).getSerieName(); //TODO: POSAR CORRECTAMENT EL NOM
+                        g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
                         double[] swh = getWidthHeighString(g1,s);
                         int count=0;
                         while (swh[0]>maxlength){
@@ -2290,6 +2473,7 @@ public class PlotPanel extends JPanel {
                         int t_X = l_finX+margin; //TODO: revisar si queda millor x2
                         int maxlength = panelW-padding-margin-t_X;
                         String s =  patt.getSerie(i).getSerieName(); //TODO: POSAR CORRECTAMENT EL NOM
+                        g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
                         double[] swh = getWidthHeighString(g1,s);
                         int count=0;
                         while (swh[0]>maxlength){
