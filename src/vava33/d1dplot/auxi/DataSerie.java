@@ -1,4 +1,5 @@
 package com.vava33.d1dplot.auxi;
+
 /**
  * D1Dplot
  * 
@@ -29,7 +30,7 @@ public class DataSerie {
     private static float def_lineWidth=1;
     
     public enum serieType {
-        dat, obs, cal, hkl, diff, bkg, bkgEstimP, gr
+        dat, obs, cal, hkl, diff, bkg, bkgEstimP, gr, ref
     }
     
     public enum xunits {
@@ -253,6 +254,8 @@ public class DataSerie {
                     maxY = punt.getY();
                 }
             }
+            if (FastMath.abs(minY-maxY)<1)maxY=minY+100;
+            if (FastMath.abs(minX-maxX)<1)maxX=minX+1;
             return new double[]{maxX,minX,maxY,minY};
         }else{
             return null;
@@ -646,6 +649,7 @@ public class DataSerie {
                 this.setMarkerSize(getDef_markerSize()+2.0f);
                 this.setLineWidth(0.0f);
                 break;
+            //TODO AFEGIR COSES PEL REF?
             default:
                 break;
         }
@@ -879,7 +883,7 @@ public class DataSerie {
                 }
             }
         }
-        logdebug("index of the closest="+this.seriePoints.indexOf(closest));
+        log.fine("index of the closest="+this.seriePoints.indexOf(closest));
         return closest;
     }
     
@@ -900,7 +904,7 @@ public class DataSerie {
                 }
             }
         }
-        logdebug("index of the closest X ="+this.seriePoints.indexOf(closest));
+        log.fine("index of the closest X ="+this.seriePoints.indexOf(closest));
         return closest;
     }
     
@@ -947,7 +951,7 @@ public class DataSerie {
             DataPoint dp = this.getPeak(i);
             double diffX = FastMath.abs(dp.getX()-click.getX());
             if (diffX<tolX){
-                logdebug("Xpeak("+i+")="+dp.getX()+" diff="+diffX);
+                log.fine("Xpeak("+i+")="+dp.getX()+" diff="+diffX);
                 if (diffX<minDiffX){
                     minDiffX=diffX;
                     closest = dp;
@@ -956,7 +960,7 @@ public class DataSerie {
                 }
             }
         }
-        logdebug("index of the closest="+this.seriePoints.indexOf(closest));
+        log.fine("index of the closest="+this.seriePoints.indexOf(closest));
         return closest;
     }
 

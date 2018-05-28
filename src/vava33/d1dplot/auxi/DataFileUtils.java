@@ -26,15 +26,6 @@ import java.util.Scanner;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-//import org.apache.commons.math3.util.FastMath;
-
-
-
-
-
-
-
-
 import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.d1dplot.D1Dplot_global;
@@ -50,7 +41,7 @@ public final class DataFileUtils {
     private static VavaLogger log = D1Dplot_global.getVavaLogger(DataFileUtils.class.getName());
     
     
-    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,PRF,GR,TXT;}
+    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,PRF,GR,TXT,REF;}
     public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR;}
     public static final Map<String, String> formatInfo;
     static
@@ -65,6 +56,7 @@ public final class DataFileUtils {
         formatInfo.put("prf", "Obs,calc and difference profiles after fullprof refinement (*.prf)");
         formatInfo.put("gr", "g(r) from pdfgetx3 (*.gr)");
         formatInfo.put("txt", "2 columns space or comma separated (*.txt)");
+        formatInfo.put("ref", "1 column of 2theta values (*.ref)");
     }
     
     public static enum SupportedWritePeaksFormats {DIC,TXT;}
@@ -188,6 +180,9 @@ public final class DataFileUtils {
                 break;
             case GR:
                 ok = readGR(d1file,patt1D);
+                break;
+            case REF:
+                ok = readREF(d1file,patt1D);
                 break;
             default:
                 ok = readUNK(d1file,patt1D);
@@ -583,6 +578,71 @@ public final class DataFileUtils {
                 }
             }
             ds.setSerieName(datFile.getName());
+            patt1D.AddDataSerie(ds);
+            sf.close();
+
+        }catch(Exception e){
+            if (D1Dplot_global.isDebug())e.printStackTrace();
+            readed = false;
+        }
+        if (readed){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    
+    //ref is a list of 2theta values, you can use in comments wave X.XXXX
+    public static boolean readREF(File datFile, Pattern1D patt1D) {
+        boolean firstLine = true;
+        boolean readed = true;
+        DataSerie ds = new DataSerie();
+
+        try {
+            Scanner sf = new Scanner(datFile);
+            while (sf.hasNextLine()){
+                String line = sf.nextLine();
+                if (isComment(line)){
+                    patt1D.getCommentLines().add(line);
+                    double wl = searchForWavel(line);
+                    if (wl>0){
+                        patt1D.setOriginal_wavelength(wl);
+                        ds.setWavelength(wl);
+                    }
+                    continue;
+                }
+                if (line.trim().isEmpty()){
+                    continue;
+                }
+                
+                String values[] = line.trim().split("\\s+");
+
+                double t2 = Double.parseDouble(values[0]);
+                double inten = 0.0;
+                try{
+                    inten = Double.parseDouble(values[1]);                    
+                }catch(Exception ex){
+                    log.debug("error parsing inten");
+                }
+                double sdev = 0.0;
+                try{
+                    sdev = Double.parseDouble(values[2]);
+                }catch(Exception ex){
+                    log.debug("error parsing sdev");
+                }
+
+                ds.addPoint(new DataPoint(t2,inten,sdev));
+                if (firstLine){
+                    ds.setT2i(t2);
+                    firstLine = false;
+                }
+
+                if (!sf.hasNextLine()){
+                    ds.setT2f(t2);
+                }
+            }
+            ds.setSerieName(datFile.getName());
+            ds.setTipusSerie(serieType.ref);
             patt1D.AddDataSerie(ds);
             sf.close();
 

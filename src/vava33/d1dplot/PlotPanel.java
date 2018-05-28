@@ -1822,7 +1822,7 @@ public class PlotPanel extends JPanel {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             log.debug("paintComponent PlotPanel");
-        
+            
 
             if (!this.saveTransp){
                 if (lightTheme){
@@ -1840,11 +1840,11 @@ public class PlotPanel extends JPanel {
                 panelH = this.getHeight();
                 
                 BufferedImage off_Image = null;
-                int fsz = this.getFont().getSize();
-                int diff = svgFontSize-fsz;
+//                int fsz = this.getFont().getSize();
+//                int diff = svgFontSize-fsz;
                 if (isSaveSVG()) {
-                    PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()+diff);
-                    PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()+diff);
+//                    PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()+diff);
+//                    PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()+diff);
                     g2 = (Graphics2D) g;
                     g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
                             RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
@@ -1896,11 +1896,18 @@ public class PlotPanel extends JPanel {
                     for (int i=0; i<patt.getNseries(); i++){
                         DataSerie ds = patt.getSerie(i);
                         if (!ds.isPlotThis())continue;
-                        if(ds.getTipusSerie()==DataSerie.serieType.hkl){
-                            drawHKL(g2,ds,ds.getColor());
-                        }else{
-                            if(ds.getLineWidth()>0)drawPatternLine(g2,ds,ds.getColor()); 
-                            if(ds.getMarkerSize()>0)drawPatternPoints(g2,ds,ds.getColor());
+                        
+                        switch (ds.getTipusSerie()){
+                            case hkl:
+                                drawHKL(g2,ds,ds.getColor());
+                                break;
+                            case ref:
+                                drawREF(g2,ds,ds.getColor());
+                                break;
+                            default: //dibuix linea normal, (dat, dif, gr, ...)
+                                if(ds.getLineWidth()>0)drawPatternLine(g2,ds,ds.getColor()); 
+                                if(ds.getMarkerSize()>0)drawPatternPoints(g2,ds,ds.getColor());
+                                break;
                         }
                         if (patt.getSerie(i).isShowErrBars()){
                             drawErrorBars(g2,patt.getSerie(i),patt.getSerie(i).getColor());
@@ -1954,8 +1961,8 @@ public class PlotPanel extends JPanel {
                 if (!isSaveSVG()) {
                     g.drawImage(off_Image, 0, 0, null);
                   }else {
-                      PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()-diff);
-                      PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()-diff);
+                    //   PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()-diff);
+                    //   PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()-diff);
                   }
 //                g2.dispose();
 //                if(continuousRepaint)this.repaint();
@@ -2000,6 +2007,7 @@ public class PlotPanel extends JPanel {
             // X-axis (abcissa) label.
             String s = getXlabel();
             double sy = panelH - AxisLabelsPadding;
+            g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
             double sw = g1.getFont().getStringBounds(s, frc).getWidth();
             double sx = (panelW - sw)/2;
             log.fine("Xaxis label font size="+g1.getFont().getSize());
@@ -2335,6 +2343,53 @@ public class PlotPanel extends JPanel {
             }
             log.debug("drawHKL exit");
         }
+        
+        //draw vertical lines
+        private void drawREF(Graphics2D g1, DataSerie serie, Color col){
+            log.fine("drawREF entered");
+            for (int i = 0; i < serie.getNpoints(); i++){
+                g1.setColor(col);
+                BasicStroke stroke = new BasicStroke(serie.getLineWidth());
+                switch (FastMath.round(serie.getMarkerSize())) {
+                    case 1:
+                        stroke = new BasicStroke(serie.getLineWidth(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,2}, 0);
+                        break;
+                    case 2:
+                        stroke = new BasicStroke(serie.getLineWidth(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,4}, 0);
+                        break;
+                    case 3:
+                        stroke = new BasicStroke(serie.getLineWidth(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{2,4}, 0);
+                        break;
+                    default:
+                        stroke = new BasicStroke(serie.getLineWidth());
+                        break;
+                    
+                }
+//                BasicStroke stroke = new BasicStroke(serie.getLineWidth());
+//                g1.setStroke(stroke);
+//                BasicStroke dashed = new BasicStroke(serie.getLineWidth(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,2}, 0);
+                g1.setStroke(stroke);
+                
+
+                //despres del canvi a private de seriePoints
+                double tth = serie.getPoint(i).getX();
+
+                //la X es la 2THETA i s'ha de fer una linea de dalt a baix
+                double fx = getFrameXFromDataPointX(tth);
+                Point2D.Double ptop = new Point2D.Double(fx, getGapAxisTop()+padding);
+                Point2D.Double pbot = new Point2D.Double(fx, panelH-getGapAxisBottom()-padding);
+
+                //comprovem que tot estigui dins
+//                if (!isFramePointInsideGraphArea(ptop) || !isFramePointInsideGraphArea(pbot)){
+//                    continue;
+//                }
+
+                //ara dibuixem la linia
+                g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
+
+            }
+            log.debug("drawREF exit");
+        }
 
         private void drawLegend(Graphics2D g1){
 
@@ -2537,11 +2592,188 @@ public class PlotPanel extends JPanel {
             return w_h;
         }
 
+        
+        //TODO: TEST PER FER UN ESCALAT REAL
+        protected void paintPNG(Graphics g, int w, int h) {
+//          if (g2 == null) {
+//              super.paintComponent(g);
+//          }else {
+//              super.paintComponent(g2);    
+//          }
+          
+          super.paintComponent(g);
+          log.debug("paintComponent PlotPanel");
+          
+//          n=n+1;
+//          if (n>6) {
+//              log.debug("n>6 exiting");
+//              return;
+//          }
+          
+          
+//          final Graphics2D g2 = (Graphics2D) g;
+
+
+          if (!this.saveTransp){
+              if (lightTheme){
+                  this.setBackground(Light_bkg);
+              }else{
+                  this.setBackground(Dark_bkg);
+              }
+          }
+          
+//          final Graphics2D g1 = (Graphics2D) g2.create();
+
+          if (getPatterns().size() > 0) {
+
+              panelW = this.getWidth();
+              panelH = this.getHeight();
+              
+              BufferedImage off_Image = null;
+//              int fsz = this.getFont().getSize();
+//              int diff = svgFontSize-fsz;
+              if (isSaveSVG()) {
+//                  PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()+diff);
+//                  PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()+diff);
+                  g2 = (Graphics2D) g;
+                  g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
+                          RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
+                }else {
+                    off_Image =
+                            new BufferedImage(w, h,
+                                              BufferedImage.TYPE_INT_ARGB);
+                    g2 = off_Image.createGraphics();
+                    
+                    g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
+                      RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
+                }
+              
+
+              
+              //primer caculem els limits -- ho trec, no crec que faci falta...
+//              calcMaxMinXY();
+              if (getScalefitY()<0){
+                  calcScaleFitY();    
+              }
+              if (getScalefitX()<0){
+                  calcScaleFitX();    
+              }
+
+
+//              if (mouseBox == true && zoomRect != null) {
+//                  //dibuixem el rectangle
+//                  g2.setColor(Color.darkGray);
+//                  BasicStroke stroke = new BasicStroke(3f);
+//                  g2.setStroke(stroke);
+//                  g2.draw(zoomRect);
+//                  Color gristransp = new Color(Color.LIGHT_GRAY.getRed(), Color.LIGHT_GRAY.getGreen(),Color.LIGHT_GRAY.getBlue(), 128 );
+//                  g2.setColor(gristransp);
+//                  g2.fill(zoomRect);
+//                  return; //no cal seguir pintant...
+//              }
+//              if (continuousRepaint)this.repaint();
+
+
+              //1st draw axes (and optionally grid)
+              this.drawAxes(g2,showGridY,showGridX);
+
+              Iterator<Pattern1D> itrp = getPatterns().iterator();
+              int npatt = getPatterns().size();
+              int ipatt = 0;
+              while (itrp.hasNext()){
+                  log.debug(String.format("Patt %d of %d", ipatt,npatt));
+                  Pattern1D patt = itrp.next();
+                  for (int i=0; i<patt.getNseries(); i++){
+                      DataSerie ds = patt.getSerie(i);
+                      if (!ds.isPlotThis())continue;
+                      
+                      switch (ds.getTipusSerie()){
+                          case hkl:
+                              drawHKL(g2,ds,ds.getColor());
+                              break;
+                          case ref:
+                              drawREF(g2,ds,ds.getColor());
+                              break;
+                          default: //dibuix linea normal, (dat, dif, gr, ...)
+                              if(ds.getLineWidth()>0)drawPatternLine(g2,ds,ds.getColor()); 
+                              if(ds.getMarkerSize()>0)drawPatternPoints(g2,ds,ds.getColor());
+                              break;
+                      }
+                      
+                      
+//                      if(ds.getTipusSerie()==DataSerie.serieType.hkl){
+//                          drawHKL(g2,ds,ds.getColor());
+//                      }else{
+//                          if(ds.getLineWidth()>0)drawPatternLine(g2,ds,ds.getColor()); 
+//                          if(ds.getMarkerSize()>0)drawPatternPoints(g2,ds,ds.getColor());
+//                      }
+                      
+                      if (patt.getSerie(i).isShowErrBars()){
+                          drawErrorBars(g2,patt.getSerie(i),patt.getSerie(i).getColor());
+                      }
+                  }
+                  ipatt=ipatt+1;
+              }
+
+              log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
+              log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
+              log.debug(Boolean.toString(isSaveSVG()));
+              
+              if(showLegend){
+                  drawLegend(g2);
+              }
+
+              if (showPeaks){
+                  drawPeaks(g2);
+                  if (bkgseriePeakSearch.getNpoints()>0){
+                      drawPatternLine(g2,bkgseriePeakSearch,bkgseriePeakSearch.getColor());
+                  }
+              }
+
+//              if (isShowBackground()){
+//                  logdebug("showbackground");
+//                  if (bkgserie.getNpoints()!=0){
+//                      drawPatternLine(g2,bkgserie,bkgserie.getColor()); 
+//                      drawPatternPoints(g2,bkgserie,bkgserie.getColor());
+//                  }
+//                  if (bkgEstimPoints.getNpoints()!=0){
+//                      drawPatternPoints(g2,bkgEstimPoints,bkgEstimPoints.getColor());
+//                  }
+//              }
+
+//              g1.dispose();
+//              g2.dispose();
+
+              fillWindowValues();
+              
+              if (mouseBox == true && zoomRect != null) {
+                  //dibuixem el rectangle
+                  g2.setColor(Color.darkGray);
+                  BasicStroke stroke = new BasicStroke(3f);
+                  g2.setStroke(stroke);
+                  g2.draw(zoomRect);
+                  Color gristransp = new Color(Color.LIGHT_GRAY.getRed(), Color.LIGHT_GRAY.getGreen(),Color.LIGHT_GRAY.getBlue(), 128 );
+                  g2.setColor(gristransp);
+                  g2.fill(zoomRect);
+              }
+              
+              if (!isSaveSVG()) {
+                  g.drawImage(off_Image, 0, 0, null);
+                }else {
+//                    PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()-diff);
+//                    PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()-diff);
+                }
+//              g2.dispose();
+//              if(continuousRepaint)this.repaint();
+          }
+      }
+        
+        
     }
     
     
     
-    
+ 
     
     
     
