@@ -3,19 +3,19 @@ package com.vava33.d1dplot;
 /**    
  * D1Dplot
  * Program to plot 1D X-ray Powder Diffraction Patterns
- *
+ *       
  * It uses the following libraries from the same author:
  *  - com.vava33.jutils
- *
+ *  
  * And the following 3rd party libraries: 
  *  - net.miginfocom.swing.MigLayout
  *  - org.apache.commons.math3.util.FastMath
  *  - org.apache.batik
  *  - org.w3c.dom
- *   
+ *  
  * @author Oriol Vallcorba
  * Licence: GPLv3
- *   
+ *  
  */
 
 import java.awt.Color;
@@ -169,6 +169,7 @@ public class D1Dplot_main {
     private JMenuItem mntmUsersGuide;
     private JCheckBox chckbxShowGridX;
     private JCheckBox chckbxVerticalYAxis;
+    private JMenuItem mntmExportAsPng_1;
     
     /**
      * Launch the application.
@@ -665,6 +666,14 @@ public class D1Dplot_main {
                 do_mntmExportAsPng_actionPerformed(e);
             }
         });
+        
+        mntmExportAsPng_1 = new JMenuItem("Export as PNG (individual)...");
+        mntmExportAsPng_1.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent arg0) {
+                do_mntmExportAsPng_1_actionPerformed(arg0);
+            }
+        });
+        mnFile.add(mntmExportAsPng_1);
         
         mntmExportAsSvg = new JMenuItem("Export as SVG...");
         mnFile.add(mntmExportAsSvg);
@@ -1280,7 +1289,7 @@ public class D1Dplot_main {
             loginfo("No data file selected");
             return;
         }
-        if (datFile.length>8)DataSerie.setDef_markerSize(0); //perque vagi mes fluid
+        //if (datFile.length>8)DataSerie.setDef_markerSize(0); //perque vagi mes fluid -- 05/12 ja no crec que faci falta
         for (int i=0; i<datFile.length;i++){
             readDataFile(datFile[i]);    
         }
@@ -1686,6 +1695,11 @@ public class D1Dplot_main {
         LandF = landF;
     }
 
+  //import org.apache.batik.dom.GenericDOMImplementation;
+//    import org.apache.batik.svggen.SVGGraphics2D;
+    //import org.w3c.dom.DOMImplementation;
+    //import org.w3c.dom.Document;
+    
     private void saveSVG(File fsvg){
         this.panel_plot.getGraphPanel().setSaveSVG(true);
         
@@ -1716,7 +1730,7 @@ public class D1Dplot_main {
         this.panel_plot.getGraphPanel().setSaveSVG(false);
 
     }
-
+    
     private void savePNG(File fpng, float factor){
         double pageWidth = panel_plot.getGraphPanel().getSize().width*factor;
         double pageHeight = panel_plot.getGraphPanel().getSize().height*factor;
@@ -1754,6 +1768,45 @@ public class D1Dplot_main {
     protected void do_mntmCloseAll_actionPerformed(ActionEvent e) {
         panel_plot.getPatterns().clear();
         this.updateData(true);
+    }
+    
+    protected void do_mntmExportAsPng_1_actionPerformed(ActionEvent arg0) {
+        Iterator<Pattern1D> itrP = panel_plot.getPatterns().iterator();
+        //set all to false show
+        while(itrP.hasNext()) {
+            Pattern1D p = itrP.next();
+            Iterator<DataSerie> itrS = p.getSeries().iterator();
+            while (itrS.hasNext()) {
+                DataSerie s = itrS.next();
+                s.setPlotThis(false);
+            }
+        }
+        //ara anirem activant un a un i guardant
+        itrP = panel_plot.getPatterns().iterator();
+        while(itrP.hasNext()) {
+            Pattern1D p = itrP.next();
+            Iterator<DataSerie> itrS = p.getSeries().iterator();
+            while (itrS.hasNext()) {
+                DataSerie s = itrS.next();
+                s.setPlotThis(true);
+                //save file
+                File fpng = FileUtils.canviExtensio(s.getPatt1D().getFile(),"png");
+                log.debug(fpng.toString());
+                this.savePNG(fpng,1.0f);
+                s.setPlotThis(false);
+            }
+        }
+        
+        itrP = panel_plot.getPatterns().iterator();
+        //set all to true show
+        while(itrP.hasNext()) {
+            Pattern1D p = itrP.next();
+            Iterator<DataSerie> itrS = p.getSeries().iterator();
+            while (itrS.hasNext()) {
+                DataSerie s = itrS.next();
+                s.setPlotThis(true);
+            }
+        }
     }
     
     protected void do_mntmExportAsPng_actionPerformed(ActionEvent e) {
@@ -2151,6 +2204,7 @@ public class D1Dplot_main {
         }
         aboutDiag.do_btnUsersGuide_actionPerformed(e);
     }
+
 
 
 }
