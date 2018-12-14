@@ -14,6 +14,7 @@ import java.awt.FlowLayout;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -43,15 +44,16 @@ import org.apache.commons.math3.util.FastMath;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
-public class FindPeaks_dialog extends JDialog {
+public class FindPeaksDialog {
 
-    private static final long serialVersionUID = 9192274653821858871L;
+	private JDialog findPeaksDialog;
     private PlotPanel plotpanel;
-    private D1Dplot_main main;
     private int sliderFactDiv=100;
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(FindPeaks_dialog.class.getName());
-
-    private final JPanel contentPanel = new JPanel();
+    
+    private static final String className = "PKS_dialog";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+    
+    private JPanel contentPanel;
     private JCheckBox chckbxShowPeaks;
     private JCheckBox chckbxOnTop;
     private JLabel lblFact;
@@ -70,15 +72,15 @@ public class FindPeaks_dialog extends JDialog {
     /**
      * Create the dialog.
      */
-    public FindPeaks_dialog(PlotPanel p, D1Dplot_main m) {
+    public FindPeaksDialog(JFrame parent, PlotPanel p) {
         this.plotpanel=p;
-        this.main=m;
-        setTitle("Find Peaks");
-        this.setIconImage(D1Dplot_global.getIcon());
-        setBounds(100, 100, 370, 540);
-        getContentPane().setLayout(new BorderLayout());
+        this.contentPanel = new JPanel();
+        this.findPeaksDialog = new JDialog(parent,"Find Peaks",false);
+        findPeaksDialog.setIconImage(D1Dplot_global.getIcon());
+        findPeaksDialog.setBounds(100, 100, 370, 540);
+        findPeaksDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        getContentPane().add(contentPanel, BorderLayout.CENTER);
+        findPeaksDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);
         contentPanel.setLayout(new MigLayout("", "[grow][]", "[][grow][]"));
         {
             chckbxShowPeaks = new JCheckBox("Show peaks");
@@ -202,7 +204,7 @@ public class FindPeaks_dialog extends JDialog {
         {
             JPanel buttonPane = new JPanel();
             buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
-            getContentPane().add(buttonPane, BorderLayout.SOUTH);
+            findPeaksDialog.getContentPane().add(buttonPane, BorderLayout.SOUTH);
             {
                 JButton okButton = new JButton("Close");
                 okButton.addActionListener(new ActionListener() {
@@ -212,7 +214,7 @@ public class FindPeaks_dialog extends JDialog {
                 });
                 okButton.setActionCommand("OK");
                 buttonPane.add(okButton);
-                getRootPane().setDefaultButton(okButton);
+                findPeaksDialog.getRootPane().setDefaultButton(okButton);
             }
 
         }
@@ -227,18 +229,6 @@ public class FindPeaks_dialog extends JDialog {
         lblFact.setText(Float.toString((float)slider.getValue()/sliderFactDiv));
     }
 
-    protected void do_chckbxShowPeaks_itemStateChanged(ItemEvent e) {
-        plotpanel.setShowPeaks(chckbxShowPeaks.isSelected());
-    }
-    
-    protected void do_chckbxOnTop_itemStateChanged(ItemEvent e) {
-        this.setAlwaysOnTop(chckbxOnTop.isSelected());
-    }
-    
-    protected void do_btnAutoPeakSearch_actionPerformed(ActionEvent e) {
-        this.autoPeakSearch();
-    }
-    
     private void autoPeakSearch(){
         if (!isOneSerieSelected())return;
 
@@ -264,38 +254,42 @@ public class FindPeaks_dialog extends JDialog {
         }catch(Exception ex){
             ex.printStackTrace();
         }
-        plotpanel.repaint();
+        plotpanel.actualitzaPlot();;
     }
     
     
     private boolean isOneSerieSelected(){
         if (plotpanel.getSelectedSeries().isEmpty()){
-            loginfo("select a serie first");
+            log.warning("Select a serie first");
             return false;
         }
         if (plotpanel.getSelectedSeries().size()>1){
-            loginfo("select ONE serie only");
+            log.warning("Select ONE serie only");
             return false;
         }
         return true;
     }
-    protected void do_slider_stateChanged(ChangeEvent arg0) {
+    private void do_chckbxShowPeaks_itemStateChanged(ItemEvent e) {
+	    plotpanel.setShowPeaks(chckbxShowPeaks.isSelected());
+	}
+
+	private void do_chckbxOnTop_itemStateChanged(ItemEvent e) {
+		findPeaksDialog.setAlwaysOnTop(chckbxOnTop.isSelected());
+	}
+
+	private void do_btnAutoPeakSearch_actionPerformed(ActionEvent e) {
+	    this.autoPeakSearch();
+	}
+
+	private void do_slider_stateChanged(ChangeEvent arg0) {
         lblFact.setText(Float.toString((float)slider.getValue()/sliderFactDiv));
         this.autoPeakSearch();
     }
-    protected void do_okButton_actionPerformed(ActionEvent e) {
-        this.dispose();
+    private void do_okButton_actionPerformed(ActionEvent e) {
+        this.tanca();
     }
     
-    @Override
-    public void dispose() {
-        plotpanel.setSelectingPeaks(false);
-        this.chckbxShowPeaks.setSelected(false);
-        plotpanel.getBkgseriePeakSearch().clearDataPoints();
-        super.dispose();
-    }
-    
-    protected void do_btnAddPeaks_itemStateChanged(ItemEvent e) {
+    private void do_btnAddPeaks_itemStateChanged(ItemEvent e) {
         if (!isOneSerieSelected())return;
         if (this.btnAddPeaks.isSelected()){
             this.btnAddPeaks.setText("Finish");
@@ -306,7 +300,7 @@ public class FindPeaks_dialog extends JDialog {
         }
     }
 
-    protected void do_btnRemovePeaks_itemStateChanged(ItemEvent e) {
+    private void do_btnRemovePeaks_itemStateChanged(ItemEvent e) {
         if (!isOneSerieSelected())return;
         if (this.btnRemovePeaks.isSelected()){
             this.btnRemovePeaks.setText("Finish");
@@ -317,14 +311,14 @@ public class FindPeaks_dialog extends JDialog {
         }
     }
     
-    protected void do_btnRemoveAll_actionPerformed(ActionEvent e) {
+    private void do_btnRemoveAll_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
         plotpanel.getSelectedSeries().get(0).clearPeaks();
-        plotpanel.repaint();
+        plotpanel.actualitzaPlot();
     }
-    protected void do_btnSetFactminmax_actionPerformed(ActionEvent arg0) {
+    private void do_btnSetFactminmax_actionPerformed(ActionEvent arg0) {
         String s = (String)JOptionPane.showInputDialog(
-                this,
+        		findPeaksDialog,
                 "Enter factor slide Min Max=",
                 "Set Factor slide Min Max",
                 JOptionPane.PLAIN_MESSAGE,
@@ -344,22 +338,26 @@ public class FindPeaks_dialog extends JDialog {
             }
         }
     }
-    protected void do_btnSavePeaks_actionPerformed(ActionEvent e) {
+    private void do_btnSavePeaks_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
-        File pksFile = FileUtils.fchooser(this,new File(D1Dplot_global.getWorkdir()), null, 0, true, true);
+        File pksFile = FileUtils.fchooserSaveAsk(findPeaksDialog,new File(D1Dplot_global.getWorkdir()), null, null);
         if (pksFile == null){
-            loginfo("No data file selected");
+            log.warning("No data file selected");
             return;
         }
         
-        pksFile = DataFileUtils.writePeaksFile(pksFile, plotpanel.getSelectedSeries().get(0).getPatt1D(), plotpanel.getSelectedSeries().get(0).getPatt1D().indexOfSerie(plotpanel.getSelectedSeries().get(0)), true, main);
-        loginfo(pksFile.toString()+" written!");
+        pksFile = DataFileUtils.writePeaksFile(pksFile, plotpanel.getSelectedSeries().get(0).getPatt1D(), plotpanel.getSelectedSeries().get(0).getPatt1D().indexOfSerie(plotpanel.getSelectedSeries().get(0)), true);
+        log.info(pksFile.toString()+" written!");
     }
     
-    private void loginfo(String s){
-        if (D1Dplot_global.logging){
-            log.info(s);
-        }
-        if(main!=null)main.getTAOut().stat(s); //ho passem pel txtArea
+    public void tanca() {
+	    plotpanel.setSelectingPeaks(false);
+	    this.chckbxShowPeaks.setSelected(false);
+	    plotpanel.getBkgseriePeakSearch().clearDataPoints();
+	    findPeaksDialog.dispose();
+	}
+
+	public void visible(boolean vis) {
+    	this.findPeaksDialog.setVisible(true);
     }
 }

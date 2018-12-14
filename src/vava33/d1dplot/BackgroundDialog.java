@@ -49,20 +49,19 @@ import java.awt.Font;
 
 //todo crear checkserieselected
 
-public class Background_dialog extends JDialog {
+public class BackgroundDialog {
 
-    private static final long serialVersionUID = -5952734543185556697L;
     private static final int def_npoints = 30;
     private static final int def_degree = 12;
 
+    private JDialog bkgDialog;
     private PlotPanel plotpanel;
     private D1Dplot_main main;
-//    private DataSerie puntsFons;
-//    private DataSerie fonsCalc;
-    
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(Background_dialog.class.getName());
 
-    private final JPanel contentPanel = new JPanel();
+    private static final String className = "BKG_dialog";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+
+    private JPanel contentPanel;
     private JTextField txtNveins;
     private JTextField txtTini;
     private JTextField txtTsup;
@@ -74,7 +73,7 @@ public class Background_dialog extends JDialog {
     private JButton btnAdd;
     private JButton btnDel;
     private JCheckBox chckbxMulti;
-    private final ButtonGroup buttonGroup = new ButtonGroup();
+    private ButtonGroup buttonGroup;
     private JCheckBox chckbxShowBackground;
     private JRadioButton rdbtnNormal;
     private JRadioButton rdbtnInverse;
@@ -95,15 +94,16 @@ public class Background_dialog extends JDialog {
     /**
      * Create the dialog.
      */
-    public Background_dialog(PlotPanel p,D1Dplot_main m) {
-        setTitle("Background Estimation");
-        this.setIconImage(D1Dplot_global.getIcon());
-        this.setPlotpanel(p);
-        this.setMain(m);
-        setBounds(100, 100, 481, 646);
-        getContentPane().setLayout(new BorderLayout());
+    public BackgroundDialog(PlotPanel p,D1Dplot_main m) {
+    	this.bkgDialog = new JDialog(m.getMainFrame(),"Background Estimation",false);
+        this.contentPanel = new JPanel();
+        bkgDialog.setIconImage(D1Dplot_global.getIcon());
+        this.plotpanel=p;
+        this.main = m;
+        bkgDialog.setBounds(100, 100, 481, 646);
+        bkgDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        getContentPane().add(contentPanel, BorderLayout.CENTER);
+        bkgDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);
         contentPanel.setLayout(new MigLayout("", "[grow][]", "[][grow][grow]"));
         {
             chckbxShowBackground = new JCheckBox("Show Background");
@@ -183,6 +183,7 @@ public class Background_dialog extends JDialog {
             {
                 rdbtnNormal = new JRadioButton("Normal");
                 rdbtnNormal.setSelected(true);
+                this.buttonGroup = new ButtonGroup();
                 buttonGroup.add(rdbtnNormal);
                 panel.add(rdbtnNormal, "flowx,cell 1 3");
             }
@@ -354,7 +355,7 @@ public class Background_dialog extends JDialog {
         {
             JPanel buttonPane = new JPanel();
             buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
-            getContentPane().add(buttonPane, BorderLayout.SOUTH);
+            bkgDialog.getContentPane().add(buttonPane, BorderLayout.SOUTH);
             {
                 JButton okButton = new JButton("Close");
                 okButton.addActionListener(new ActionListener() {
@@ -364,7 +365,7 @@ public class Background_dialog extends JDialog {
                 });
                 okButton.setActionCommand("OK");
                 buttonPane.add(okButton);
-                getRootPane().setDefaultButton(okButton);
+                bkgDialog.getRootPane().setDefaultButton(okButton);
             }
         }
         
@@ -382,19 +383,51 @@ public class Background_dialog extends JDialog {
         chckbxShowBackground.setSelected(true);
         if (!isOneSerieSelected())return;
         txtTini_1.setText(String.format("%.5f", plotpanel.getSelectedSeries().get(0).getT2i()));
-//        fonsCalc = new DataSerie();
-//        puntsFons = new DataSerie();
     }
     
-    public PlotPanel getPlotpanel() {
-        return plotpanel;
-    }
+    private boolean isOneSerieSelected(){
+	    if (plotpanel.getSelectedSeries().isEmpty()){
+	        log.info("select a serie first");
+	        return false;
+	    }
+	    if (plotpanel.getSelectedSeries().size()>1){
+	        log.info("select ONE serie only");
+	        return false;
+	    }
+	    return true;
+	}
 
-    public void setPlotpanel(PlotPanel plotpanel) {
-        this.plotpanel = plotpanel;
-    }
-    
-    protected void do_chckbxMulti_itemStateChanged(ItemEvent e) {
+	private void updatePlotPanelMain(DataSerie selectedSerie, DataSerie fonsCalc, DataSerie puntsFons){
+	        
+	        if (selectedSerie==null){
+	            if (D1Dplot_global.isDebug())log.debug("Please select the serie");
+	            return;
+	        }
+	        Pattern1D selPatt = selectedSerie.getPatt1D();
+	
+	        if (fonsCalc!=null){
+	            if (fonsCalc.getNpoints()!=0){
+	                fonsCalc.setTipusSerie(DataSerie.serieType.bkg); //en teoria ja estava posat pero per si de cas
+	                selPatt.removeBkgSerie();
+	                fonsCalc.setSerieName(selectedSerie.getSerieName()+" (Background)");
+	                fonsCalc.setPatt1D(selPatt);
+	//                plotpanel.setBkgserie(fonsCalc);
+	            }
+	        }
+	        if (puntsFons!=null){
+	            if (puntsFons.getNpoints()!=0){
+	                puntsFons.setTipusSerie(DataSerie.serieType.bkgEstimP);
+	                selPatt.removeBkgEstimPSerie();
+	                puntsFons.setSerieName(selectedSerie.getSerieName()+" (Bkg estim points)");
+	                puntsFons.setPatt1D(selPatt);
+	//                plotpanel.setBkgEstimPoints(puntsFons);
+	            }
+	        }
+	        plotpanel.actualitzaPlot();
+	        main.updateTable();
+	    }
+
+	private void do_chckbxMulti_itemStateChanged(ItemEvent e) {
         if(this.chckbxMulti.isSelected()){
             btnDel.setEnabled(true);
             btnAdd.setEnabled(true);
@@ -413,11 +446,11 @@ public class Background_dialog extends JDialog {
             table.setEnabled(false);
         }
     }
-    protected void do_chckbxShowBackground_itemStateChanged(ItemEvent e) {
-        this.getPlotpanel().setShowBackground(chckbxShowBackground.isSelected());
-        plotpanel.repaint();
+    private void do_chckbxShowBackground_itemStateChanged(ItemEvent e) {
+        this.plotpanel.setShowBackground(chckbxShowBackground.isSelected());
+        plotpanel.actualitzaPlot();
     }
-    protected void do_btnAdd_actionPerformed(ActionEvent e) {
+    private void do_btnAdd_actionPerformed(ActionEvent e) {
         // afegeix els valors a la taula
         if (!txtTsup.getText().equals("")&&!txtTini.getText().equals("")&&!txtNveins.getText().equals("")){
             Object[] row = new Object[3];
@@ -434,7 +467,7 @@ public class Background_dialog extends JDialog {
             log.info("2Tinf, 2Tsup and N must be entered");
         }
     }
-    protected void do_btnDel_actionPerformed(ActionEvent e) {
+    private void do_btnDel_actionPerformed(ActionEvent e) {
         // Elimina la fila seleccionada de la taula
         int numRows = table.getSelectedRows().length;
         for(int i=0; i<numRows; i++){
@@ -442,7 +475,7 @@ public class Background_dialog extends JDialog {
         }
     }
     
-    protected void do_btnIterate_actionPerformed(ActionEvent e) {
+    private void do_btnIterate_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
         try{
             int niter = Integer.parseInt(txtNiter.getText());   
@@ -467,7 +500,7 @@ public class Background_dialog extends JDialog {
 
     }
     
-    protected void do_btnFitPolynomial_actionPerformed(ActionEvent e) {
+    private void do_btnFitPolynomial_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
         int npoints = def_npoints;
         int degree = def_degree;
@@ -488,7 +521,7 @@ public class Background_dialog extends JDialog {
         DataSerie fonsCalc = PattOps.bkg_FitPoly(plotpanel.getSelectedSeries().get(0), puntsFons, degree);
         updatePlotPanelMain(plotpanel.getSelectedSeries().get(0),fonsCalc,puntsFons);
     }
-    protected void do_btnFitSpline_actionPerformed(ActionEvent e) {
+    private void do_btnFitSpline_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
         int npoints = def_npoints;
         try{
@@ -507,7 +540,7 @@ public class Background_dialog extends JDialog {
         updatePlotPanelMain(plotpanel.getSelectedSeries().get(0),fonsCalc,puntsFons);
         
     }
-    protected void do_btnEstimate_actionPerformed(ActionEvent e) {
+    private void do_btnEstimate_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
         int npoints = def_npoints;
         try{
@@ -520,76 +553,19 @@ public class Background_dialog extends JDialog {
         updatePlotPanelMain(plotpanel.getSelectedSeries().get(0),null,puntsFons);
     }
     
-    private void updatePlotPanelMain(DataSerie selectedSerie, DataSerie fonsCalc, DataSerie puntsFons){
-        
-        if (selectedSerie==null){
-            if (D1Dplot_global.isDebug())log.debug("Please select the serie");
-            return;
-        }
-        Pattern1D selPatt = selectedSerie.getPatt1D();
-
-        if (fonsCalc!=null){
-            if (fonsCalc.getNpoints()!=0){
-                fonsCalc.setTipusSerie(DataSerie.serieType.bkg); //en teoria ja estava posat pero per si de cas
-                selPatt.removeBkgSerie();
-                fonsCalc.setSerieName(selectedSerie.getSerieName()+" (Background)");
-                fonsCalc.setPatt1D(selPatt);
-//                plotpanel.setBkgserie(fonsCalc);
-            }
-        }
-        if (puntsFons!=null){
-            if (puntsFons.getNpoints()!=0){
-                puntsFons.setTipusSerie(DataSerie.serieType.bkgEstimP);
-                selPatt.removeBkgEstimPSerie();
-                puntsFons.setSerieName(selectedSerie.getSerieName()+" (Bkg estim points)");
-                puntsFons.setPatt1D(selPatt);
-//                plotpanel.setBkgEstimPoints(puntsFons);
-            }
-        }
-        plotpanel.repaint();
-        main.updateTable();
-    }
-    
-    protected void do_btnRemoveAllBkg_actionPerformed(ActionEvent e) {
+    private void do_btnRemoveAllBkg_actionPerformed(ActionEvent e) {
         plotpanel.getSelectedSeries().get(0).getPatt1D().removeBkgEstimPSerie();
         plotpanel.getSelectedSeries().get(0).getPatt1D().removeBkgSerie();
         updatePlotPanelMain(plotpanel.getSelectedSeries().get(0),null,null);
     }
-
-    public D1Dplot_main getMain() {
-        return main;
-    }
-
-    public void setMain(D1Dplot_main main) {
-        this.main = main;
-    }
-
-//    public DataSerie getFonsCalc() {
-//        return fonsCalc;
-//    }
-//
-//    public void setFonsCalc(DataSerie fonsCalc) {
-//        this.fonsCalc = fonsCalc;
-//    }
     
-    protected void do_okButton_actionPerformed(ActionEvent e) {
-        this.dispose();
+    private void do_okButton_actionPerformed(ActionEvent e) {
+        this.tanca();
     }
-
-    @Override
-    public void dispose() {
-        // TODO Desactivar botons, i edicions mouse
-        this.btnAddPoints.setText("Add Points");
-        this.btnRemovePoints.setText("Remove Points");
-        plotpanel.setDeletingBkgPoints(false);
-        plotpanel.setSelectingBkgPoints(false);
-        this.chckbxShowBackground.setSelected(false);
-        super.dispose();
-    }
-    
+   
     
     //ARA NO CAL UPDATE PERQUE TREBALLEM SOBRE EL MATEIX PATTERN
-    protected void do_btnAddPoints_itemStateChanged(ItemEvent arg0) {
+    private void do_btnAddPoints_itemStateChanged(ItemEvent arg0) {
         if (!isOneSerieSelected())return;
         if (this.btnAddPoints.isSelected()){
             this.btnAddPoints.setText("Finish");
@@ -602,7 +578,7 @@ public class Background_dialog extends JDialog {
 //            updatePlotPanelMain(plotpanel.getSelectedSeries().get(0)); 
         }
     }
-    protected void do_btnRemovePoints_itemStateChanged(ItemEvent e) {
+    private void do_btnRemovePoints_itemStateChanged(ItemEvent e) {
 
         if (this.btnRemovePoints.isSelected()){
             this.btnRemovePoints.setText("Finish");
@@ -615,20 +591,23 @@ public class Background_dialog extends JDialog {
 //            updatePlotPanelMain(plotpanel.getSelectedSeries().get(0));
         }
     }
-    protected void do_chckbxOnTop_itemStateChanged(ItemEvent e) {
-        this.setAlwaysOnTop(chckbxOnTop.isSelected());
+    
+    private void do_chckbxOnTop_itemStateChanged(ItemEvent e) {
+		bkgDialog.setAlwaysOnTop(chckbxOnTop.isSelected());
+	}
+
+	public void tanca() {
+        // TODO Desactivar botons, i edicions mouse
+        this.btnAddPoints.setText("Add Points");
+        this.btnRemovePoints.setText("Remove Points");
+        plotpanel.setDeletingBkgPoints(false);
+        plotpanel.setSelectingBkgPoints(false);
+        this.chckbxShowBackground.setSelected(false);
+        bkgDialog.dispose();
     }
     
-    private boolean isOneSerieSelected(){
-        if (plotpanel.getSelectedSeries().isEmpty()){
-            log.info("select a serie first");
-            return false;
-        }
-        if (plotpanel.getSelectedSeries().size()>1){
-            log.info("select ONE serie only");
-            return false;
-        }
-        return true;
+    public void visible(boolean vis) {
+    	bkgDialog.setVisible(vis);
+    	if (vis)inicia();
     }
-
 }

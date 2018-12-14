@@ -1,4 +1,4 @@
-package vava33.d1dplot;
+package com.vava33.d1dplot;
 
 /**
  * D1Dplot
@@ -9,15 +9,16 @@ package vava33.d1dplot;
  * Licence: GPLv3
  * 
  */
-
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
+import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -29,18 +30,18 @@ import javax.swing.border.TitledBorder;
 import javax.swing.JCheckBox;
 import javax.swing.border.LineBorder;
 
-import vava33.d1dplot.auxi.DataSerie;
-
 import java.awt.Color;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.Font;
 
-public class Dicvol_dialog extends JDialog {
+public class DicvolDialog {
 
-    private static final long serialVersionUID = -2477751973589281718L;
-    private final JPanel contentPanel = new JPanel();
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(Dicvol_dialog.class.getName());
+    private JPanel contentPanel;
+    private static final String className = "DICVOL_dialog";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+    
+    private JDialog dicDialog;
     private JTextField txtNpeaks;
     private JTextField txtAmax;
     private JTextField txtBmax;
@@ -88,7 +89,6 @@ public class Dicvol_dialog extends JDialog {
     private int npeaks = 20;
     
     private DataSerie ds;
-    private D1Dplot_main main;
     
     private boolean everythingOK = true;
     private JCheckBox chckbxCubic;
@@ -105,16 +105,15 @@ public class Dicvol_dialog extends JDialog {
     /**
      * Create the dialog.
      */
-    public Dicvol_dialog(DataSerie ds, D1Dplot_main m) {
+    public DicvolDialog(JFrame parent, DataSerie ds) {
         this.ds=ds;
-        this.main=m;
-        this.setIconImage(D1Dplot_global.getIcon());
-        this.setModal(true);
-        setTitle("Save DICVOL file");
-        setBounds(100, 100, 700, 419);
-        getContentPane().setLayout(new BorderLayout());
+        dicDialog = new JDialog(parent,"Save DICVOL file",true);
+        this.contentPanel = new JPanel();
+        dicDialog.setIconImage(D1Dplot_global.getIcon());
+        dicDialog.setBounds(100, 100, 700, 419);
+        dicDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        getContentPane().add(contentPanel, BorderLayout.CENTER);
+        dicDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);
         contentPanel.setLayout(new MigLayout("", "[grow][grow][]", "[][][][grow]"));
         {
             JLabel lblNrPeaksTo = new JLabel("Nr. Peaks to use=");
@@ -333,7 +332,7 @@ public class Dicvol_dialog extends JDialog {
         {
             JPanel buttonPane = new JPanel();
             buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
-            getContentPane().add(buttonPane, BorderLayout.SOUTH);
+            dicDialog.getContentPane().add(buttonPane, BorderLayout.SOUTH);
             {
                 JButton okButton = new JButton("Save DIC");
                 okButton.addActionListener(new ActionListener() {
@@ -348,7 +347,7 @@ public class Dicvol_dialog extends JDialog {
                 }
                 okButton.setActionCommand("OK");
                 buttonPane.add(okButton);
-                getRootPane().setDefaultButton(okButton);
+                dicDialog.getRootPane().setDefaultButton(okButton);
             }
             {
                 JButton cancelButton = new JButton("Cancel");
@@ -408,88 +407,92 @@ public class Dicvol_dialog extends JDialog {
         inicia();
     }
     
+    public void tanca() {
+    	dicDialog.dispose();
+    }
+    
     protected void do_cancelButton_actionPerformed(ActionEvent e) {
-        this.dispose();
+        this.tanca();
     }
     protected void do_okButton_actionPerformed(ActionEvent e) {
         //PARSE ALL
         try{
             this.setAmax(Float.parseFloat(txtAmax.getText()));
         }catch(Exception ex){
-            loginfo("error reading amax");
+            log.warning("Error reading amax");
             everythingOK=false;
         }
         try{
             this.setBmax(Float.parseFloat(txtBmax.getText()));
         }catch(Exception ex){
-            loginfo("error reading bmax");
+            log.warning("Error reading bmax");
             everythingOK=false;
         }
         try{
             this.setCmax(Float.parseFloat(txtCmax.getText()));
         }catch(Exception ex){
-            loginfo("error reading cmax");
+            log.warning("Error reading cmax");
             everythingOK=false;
         }
         try{
             this.setBetamin(Float.parseFloat(txtBetamin.getText()));
         }catch(Exception ex){
-            loginfo("error reading Beta min");
+            log.warning("Error reading Beta min");
             everythingOK=false;
         }
         try{
             this.setBetamax(Float.parseFloat(txtBetamax.getText()));
         }catch(Exception ex){
-            loginfo("error reading Beta max");
+            log.warning("Error reading Beta max");
             everythingOK=false;
         }
         try{
             this.setVmin(Float.parseFloat(txtVmin.getText()));
         }catch(Exception ex){
-            loginfo("error reading vmin");
+            log.warning("Error reading vmin");
             everythingOK=false;
         }
         try{
             this.setVmax(Float.parseFloat(txtVmax.getText()));
         }catch(Exception ex){
-            loginfo("error reading vmax");
+            log.warning("Error reading vmax");
             everythingOK=false;
         }
         try{
             this.setWavel(Float.parseFloat(txtWave.getText()));
         }catch(Exception ex){
-            loginfo("error reading wavelength");
+            log.warning("Error reading wavelength");
             everythingOK=false;
         }
         
         try{
             this.setMw(Float.parseFloat(txtMw.getText()));
         }catch(Exception ex){
-            loginfo("error reading MW");
+            log.warning("Error reading MW");
             everythingOK=false;
         }
         try{
             this.setDensity(Float.parseFloat(txtDensity.getText()));
         }catch(Exception ex){
-            loginfo("error reading Density");
+            log.warning("Error reading Density");
             everythingOK=false;
         }
         try{
             this.setDensityerr(Float.parseFloat(txtDensityerr.getText()));
         }catch(Exception ex){
-            loginfo("error reading Density Desv");
+            log.warning("Error reading Density Desv");
             everythingOK=false;
         }
         try{
             this.setEps(Float.parseFloat(txtEps.getText()));
         }catch(Exception ex){
-            loginfo("error reading Eps");
+            log.warning("Error reading Eps");
             everythingOK=false;
         }
         try{
             this.setMinfom(Float.parseFloat(txtFom.getText()));
         }catch(Exception ex){
-            loginfo("error reading min FOM");
+            log.warning("Error reading min FOM");
             everythingOK=false;
         }
         
@@ -499,13 +502,13 @@ public class Dicvol_dialog extends JDialog {
                 this.setNpeaks(this.ds.getNpeaks());
             }
         }catch(Exception ex){
-            loginfo("error reading Npeaks");
+            log.warning("Error reading Npeaks");
             everythingOK=false;
         }
         try{
             this.setSpurious(Integer.parseInt(txtSpurious.getText()));
         }catch(Exception ex){
-            loginfo("error reading Spurious");
+            log.warning("Error reading Spurious");
             everythingOK=false;
         }
         
@@ -520,7 +523,7 @@ public class Dicvol_dialog extends JDialog {
         this.setPrevzero(chckbxPrevZeroSearch.isSelected());
         this.setDic06(chckbxDicvolOpt.isSelected());
         
-        this.dispose(); //TODO hide?
+        this.tanca();
     }
 
     public float getAmax() {
@@ -759,10 +762,7 @@ public class Dicvol_dialog extends JDialog {
         this.everythingOK = everythingOK;
     }
     
-    private void loginfo(String s){
-        if (D1Dplot_global.logging){
-            log.info(s);
-        }
-        if(main!=null)main.getTAOut().stat(s); //ho passem pel txtArea
+    public void visible(boolean vis) {
+    	dicDialog.setVisible(vis);
     }
 }

@@ -1,4 +1,4 @@
-package vava33.d1dplot;
+package com.vava33.d1dplot;
 
 /**
  * D1Dplot
@@ -22,7 +22,6 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
@@ -34,16 +33,16 @@ import java.io.IOException;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JEditorPane;
+import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 
 import com.vava33.jutils.FileUtils;
 
-public class About_dialog extends JDialog {
-
-    private static final long serialVersionUID = 5573831371448966498L;
-
+public class AboutDialog {
+	
+	private JDialog aboutDialog;
     private JButton btnUsersGuide;
-    private final JPanel contentPanel = new JPanel();
+    private JPanel contentPanel;
     private JLabel lblTalplogo;
     private JEditorPane textPane;
     private JScrollPane scrollPane;
@@ -52,19 +51,20 @@ public class About_dialog extends JDialog {
     /**
      * Create the dialog.
      */
-    public About_dialog() {
-        this.setIconImage(D1Dplot_global.getIcon());
-        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("About d1Dplot");
+    public AboutDialog(JFrame parent) {
+    	this.aboutDialog = new JDialog(parent,"About d1Dplot",true);
+    	this.contentPanel = new JPanel();
+    	aboutDialog.setIconImage(D1Dplot_global.getIcon());
+    	aboutDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         int width = 620;
         int height = 700;
         int x = (screen.width - width) / 2;
         int y = (screen.height - height) / 2;
-        setBounds(x, y, width, height);
-        getContentPane().setLayout(new BorderLayout());
+        aboutDialog.setBounds(x, y, width, height);
+        aboutDialog.getContentPane().setLayout(new BorderLayout());
         this.contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        getContentPane().add(this.contentPanel, BorderLayout.CENTER);
+        aboutDialog.getContentPane().add(this.contentPanel, BorderLayout.CENTER);
         contentPanel.setLayout(new MigLayout("", "[grow]", "[64px][grow][]"));
         {
             lblTalplogo = new JLabel("** LOGO **");
@@ -72,7 +72,7 @@ public class About_dialog extends JDialog {
         }
         {
             JPanel buttonPane = new JPanel();
-            getContentPane().add(buttonPane, BorderLayout.SOUTH);
+            aboutDialog.getContentPane().add(buttonPane, BorderLayout.SOUTH);
             {
                 {
                     this.btnUsersGuide = new JButton("User's Guide");
@@ -95,7 +95,7 @@ public class About_dialog extends JDialog {
             });
             okButton.setActionCommand("OK");
             buttonPane.add(okButton, "cell 1 0,alignx right,aligny top");
-            getRootPane().setDefaultButton(okButton);
+            aboutDialog.getRootPane().setDefaultButton(okButton);
         }
 
         // posem el logo escalat
@@ -140,10 +140,10 @@ public class About_dialog extends JDialog {
         });
         {
             lblLogoalba = new JLabel("");
-            lblLogoalba.setIcon(new ImageIcon(About_dialog.class.getResource("/vava33/d1dplot/img/ALBALogo.png")));
+            lblLogoalba.setIcon(new ImageIcon(AboutDialog.class.getResource("/com/vava33/d1dplot/img/ALBALogo.png")));
             contentPanel.add(lblLogoalba, "cell 0 2,alignx center");
         }
-        java.net.URL aboutURL = About_dialog.class.getResource("/vava33/d1dplot/img/about.html");
+        java.net.URL aboutURL = AboutDialog.class.getResource("/com/vava33/d1dplot/img/about.html");
         if (aboutURL != null) {
             try {
                 textPane.setPage(aboutURL);
@@ -162,7 +162,7 @@ public class About_dialog extends JDialog {
         openManual();
     }
 
-    protected void openManual(){
+    private void openManual(){
         try{
             if(Desktop.isDesktopSupported()){ // s'obre amb el programa per defecte
                 Desktop.getDesktop().open(new File(D1Dplot_global.usersGuidePath));
@@ -178,14 +178,19 @@ public class About_dialog extends JDialog {
         } catch (Exception e) {
             if(D1Dplot_global.isDebug())e.printStackTrace();
         }
-        JOptionPane.showMessageDialog(this,
-                "Sorry, unable to open user's guide with default pdf viewer. \n"
-                + "Please open it manually from the program folder",
-                "D1Dplot User's Guide",
-                JOptionPane.PLAIN_MESSAGE);
+        FileUtils.InfoDialog(aboutDialog, "Sorry, unable to open user's guide with default pdf viewer. \n"
+                + "Please open it manually from the program folder", "D1Dplot User's Guide");
     }
     
-    protected void do_okButton_actionPerformed(ActionEvent arg0) {
-        this.dispose();
+    private void do_okButton_actionPerformed(ActionEvent arg0) {
+        this.tanca();
     }
+    
+    public void tanca() {
+    	aboutDialog.dispose();
+    }
+
+	public void visible(boolean vis) {
+		aboutDialog.setVisible(vis);
+	}
 }
