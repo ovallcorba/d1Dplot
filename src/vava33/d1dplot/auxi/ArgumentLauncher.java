@@ -27,7 +27,8 @@ public final class ArgumentLauncher {
 
     private static boolean launchGraphics = true; //dira si cal mostrar o no el graphical user interface o sortir del programa directament
     
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(ArgumentLauncher.class.getName());
+    private static final String className = "ArgLauncher";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
 
     /*
      * -macro com a primer argument implica interactive
@@ -40,8 +41,12 @@ public final class ArgumentLauncher {
      * 
      */
     
+    //TODO: tabbedPanel_bottom.setSelectedIndex(2); //per evitar que es quedi mostrant el logWindow cal posar 0 despres d'obrir un?
+    
     public static void readArguments(D1Dplot_main mf, String[] args){
-        
+    	
+    	ConsoleWritter.stat(D1Dplot_global.welcomeMSG);
+    	
         if (args.length==0)return; //no hi ha res
         
         if (args[0].trim().equalsIgnoreCase("-macro")){
@@ -94,7 +99,7 @@ public final class ArgumentLauncher {
             ConsoleWritter.stat("            To change the x units of the pattern(s) (XUNITS= 2Theta, d-spacing, 1/dsp, Q)");
             ConsoleWritter.stat("");
             ConsoleWritter.stat("     -format FORMAT");
-            ConsoleWritter.stat("            Output format of the pattern(s) (FORMAT= ALBA, XYE, DAT, ASC, GSA, XRDML)");            
+            ConsoleWritter.stat("            Output format of the pattern(s) (FORMAT= DAT, XYE, ASC, GSA, XRDML, FF)");            
             ConsoleWritter.stat("");
             ConsoleWritter.stat("     -wave WAVELENGTH");
             ConsoleWritter.stat("            Wavelength (A) of the input pattern(s) to be able to perform calculations");            
@@ -229,7 +234,7 @@ public final class ArgumentLauncher {
                         continue;
                     }
                     //now we change
-                    p.getSeries().add(0, p.getSerie(0).convertToNewWL(outwavel));
+                    p.addDataSerie(0, p.getSerie(0).convertToNewWL(outwavel));
                 }
                 
                 
@@ -244,7 +249,7 @@ public final class ArgumentLauncher {
                     //now we can change
                     DataSerie newDS = changeXunits(p.getSerie(0),xunits);
                     if (newDS!=null){
-                        p.getSeries().add(0,newDS);    
+                        p.addDataSerie(0,newDS);
                     }else{
                         ConsoleWritter.stat("Error changing X-units, skipping pattern");
                         continue;
@@ -302,7 +307,7 @@ public final class ArgumentLauncher {
 //            patt.getCommentLines().add("# "+suma.getSerieName());
             patt.getCommentLines().add("#Sum of: "+sbNames.toString().trim());
             patt.setOriginal_wavelength(dss[0].getPatt1D().getOriginal_wavelength());
-            patt.AddDataSerie(suma);
+            patt.addDataSerie(suma);
 
             //OPERACIONS ADDICIONALS
                 
@@ -313,7 +318,7 @@ public final class ArgumentLauncher {
                     ConsoleWritter.stat("Original wavelength missing, skipping pattern");
                 }
                 //now we change
-                patt.getSeries().add(0, patt.getSerie(0).convertToNewWL(outwavel));
+                patt.addDataSerie(0, patt.getSerie(0).convertToNewWL(outwavel));
             }
 
 
@@ -327,7 +332,7 @@ public final class ArgumentLauncher {
                 //now we can change
                 DataSerie newDS = changeXunits(patt.getSerie(0),xunits);
                 if (newDS!=null){
-                    patt.getSeries().add(0,newDS);    
+                    patt.addDataSerie(0,newDS);    
                 }else{
                     ConsoleWritter.stat("Error changing X-units, skipping pattern");
                 }
@@ -418,7 +423,7 @@ public final class ArgumentLauncher {
                 patt.getCommentLines().addAll(ds1.getPatt1D().getCommentLines());
                 patt.getCommentLines().add(s);
                 patt.setOriginal_wavelength(ds1.getPatt1D().getOriginal_wavelength());
-                patt.AddDataSerie(result);
+                patt.addDataSerie(result);
                 
                 //OPERACIONS ADDICIONALS
                 
@@ -429,7 +434,7 @@ public final class ArgumentLauncher {
                         ConsoleWritter.stat("Original wavelength missing, skipping pattern");
                     }
                     //now we change
-                    patt.getSeries().add(0, patt.getSerie(0).convertToNewWL(outwavel));
+                    patt.addDataSerie(0, patt.getSerie(0).convertToNewWL(outwavel));
                 }
 
 
@@ -443,7 +448,7 @@ public final class ArgumentLauncher {
                     //now we can change
                     DataSerie newDS = changeXunits(patt.getSerie(0),xunits);
                     if (newDS!=null){
-                        patt.getSeries().add(0,newDS);    
+                        patt.addDataSerie(0,newDS);    
                     }else{
                         ConsoleWritter.stat("Error changing X-units, skipping pattern");
                     }
@@ -506,7 +511,7 @@ public final class ArgumentLauncher {
                         continue;
                     }
                     //now we change
-                    p.getSeries().add(0, p.getSerie(0).convertToNewWL(outwavel));
+                    p.addDataSerie(0, p.getSerie(0).convertToNewWL(outwavel));
                 }
                 
                 
@@ -521,7 +526,7 @@ public final class ArgumentLauncher {
                     //now we can change
                     DataSerie newDS = changeXunits(p.getSerie(0),xunits);
                     if (newDS!=null){
-                        p.getSeries().add(0,newDS);    
+                        p.addDataSerie(0,newDS);    
                     }else{
                         ConsoleWritter.stat("Error changing X-units, skipping pattern");
                         continue;
@@ -569,34 +574,15 @@ public final class ArgumentLauncher {
         return null;
     }
     
-    private static File writePatternS0(File outfile, Pattern1D p, String format){
-        boolean written = false;
-        File out = FileUtils.canviExtensio(outfile, format);
-        if (FileUtils.containsIgnoreCase(format, "ALBA")){
-            out = FileUtils.canviExtensio(outfile, "dat"); //aqui forcem extensio dat
-            written = DataFileUtils.writeDAT_ALBA(p, 0, out, true);
-        }
-        if (FileUtils.containsIgnoreCase(format, "xye")){
-            written = DataFileUtils.writeDAT_ALBA(p, 0, out, true);
-        }
-        if (FileUtils.containsIgnoreCase(format, "dat")){
-            written = DataFileUtils.writeDAT_FreeFormat(p, 0, out, true);
-        }
-        if (FileUtils.containsIgnoreCase(format, "asc")){
-            written = DataFileUtils.writeASC(p, 0, out, true);
-        }
-        if (FileUtils.containsIgnoreCase(format, "xrdml")){
-            written = DataFileUtils.writeXRDML(p, 0, out, true, true);
-        }
-        if (FileUtils.containsIgnoreCase(format, "gsa")){
-            written = DataFileUtils.writeGSA(p, 0, out, true);
-        }
-        if (written){
+    private static void writePatternS0(File outfile, Pattern1D p, String format){
+        
+        File out = FileUtils.canviExtensio(outfile,format); //aqui forcem extensio
+        File written = DataFileUtils.writePatternFile(out,p, 0, true);
+        
+        if (written!=null){
             ConsoleWritter.stat("File written="+out.toString());
-            return out;
         }else{
             ConsoleWritter.stat("Error writting file "+out.toString());
-            return null;
         }
 
     }

@@ -321,7 +321,7 @@ public class DataSerie {
                 Patt1D.setOriginal_wavelength(wavelength);
             }
             if (patt1d.indexOfSerie(this)<0){ //ONLY IF IT IS NOT IN THE LIST!!!
-                patt1d.AddDataSerie(this);
+                patt1d.addDataSerie(this);
             }
         }
     }
