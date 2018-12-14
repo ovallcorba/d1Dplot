@@ -1,4 +1,4 @@
-package vava33.d1dplot;
+package com.vava33.d1dplot;
 
 /**
  * D1Dplot
@@ -27,6 +27,8 @@ import java.util.Collections;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
+import com.vava33.d1dplot.auxi.DataFileUtils;
+import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -36,11 +38,9 @@ import javax.swing.JLabel;
 
 import org.apache.commons.math3.util.FastMath;
 
-import vava33.d1dplot.auxi.DataFileUtils;
-import vava33.d1dplot.auxi.DataSerie;
-
 import javax.swing.JColorChooser;
 import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JSlider;
 import javax.swing.JCheckBox;
@@ -65,10 +65,12 @@ import java.io.File;
 import java.awt.event.ItemListener;
 import java.awt.event.ItemEvent;
 
-public class PlotPanel2D extends JDialog {
+public class Plot2DPanel {
 
-    private static final long serialVersionUID = -6764605138173790197L;
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(PlotPanel2D.class.getName());
+    private static final String className = "PlotPanel2D";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+    
+    private JDialog plot2Ddialog;
     private dades2d panelImatge;
     private llegenda2D panel_llegenda;
     private BufferedImage image;
@@ -132,27 +134,25 @@ public class PlotPanel2D extends JDialog {
     private JTextField txtXposition;
     private JLabel lblColor;
     
-    private D1Dplot_main main;
     private JPanel panel_3;
     private JCheckBox chckbxInvertOrder;
     
     /**
      * Create the panel.
      */
-    public PlotPanel2D(D1Dplot_main m) {
-        setTitle("2D plot");
-        this.main = m;
-        this.setIconImage(D1Dplot_global.getIcon());
-        addComponentListener(new ComponentAdapter() {
+    public Plot2DPanel(JFrame parent) {
+    	plot2Ddialog = new JDialog(parent,"2D plot",false);
+        plot2Ddialog.setIconImage(D1Dplot_global.getIcon());
+        plot2Ddialog.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
                 do_this_componentResized(e);
             }
         });
-        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        setBounds(100, 100, 960, 567);
+        plot2Ddialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        plot2Ddialog.setBounds(100, 100, 960, 567);
 
-        getContentPane().setLayout(new MigLayout("", "[grow][]", "[][grow][]"));
+        plot2Ddialog.getContentPane().setLayout(new MigLayout("", "[grow][]", "[][grow][]"));
 
         this.setPanelImatge(new dades2d());
         this.getPanelImatge().setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
@@ -183,10 +183,10 @@ public class PlotPanel2D extends JDialog {
                 do_panelImatge_mouseMoved(e);
             }
         });
-        getContentPane().add(this.getPanelImatge(), "cell 0 1 1 1,grow");
+        plot2Ddialog.getContentPane().add(this.getPanelImatge(), "cell 0 1 1 1,grow");
         
         panel = new JPanel();
-        getContentPane().add(panel, "cell 0 0 2 1,grow");
+        plot2Ddialog.getContentPane().add(panel, "cell 0 0 2 1,grow");
         panel.setLayout(new MigLayout("", "[][][][][][][][grow]", "[][][]"));
         
         btnFitToWindow = new JButton("Fit to window");
@@ -320,7 +320,7 @@ public class PlotPanel2D extends JDialog {
         });
         
         panel_1 = new JPanel();
-        getContentPane().add(panel_1, "cell 1 1,grow");
+        plot2Ddialog.getContentPane().add(panel_1, "cell 1 1,grow");
         panel_1.setLayout(new MigLayout("", "[20:20px:20px][]", "[][grow][][grow][]"));
         
         panel_llegenda = new llegenda2D();
@@ -347,7 +347,7 @@ public class PlotPanel2D extends JDialog {
         panel_1.add(lbl_legMin, "cell 1 4,aligny bottom");
         
         panel_2 = new JPanel();
-        getContentPane().add(panel_2, "cell 0 2 2 1,grow");
+        plot2Ddialog.getContentPane().add(panel_2, "cell 0 2 2 1,grow");
         panel_2.setLayout(new MigLayout("", "[grow][]", "[]"));
         
         lblPunt = new JLabel("punt");
@@ -365,189 +365,74 @@ public class PlotPanel2D extends JDialog {
         txtMaxcontrast.setText(Integer.toString(slider_contrast.getMaximum()));
     }
 
-    protected void do_panelImatge_mouseWheelMoved(MouseWheelEvent e) {
-        Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
-        boolean zoomIn = (e.getWheelRotation() < 0);
-        this.zoom(zoomIn, p); //ja fa actualitzar
-    }
-    
-    
-    // Identificar el bot� i segons quin sigui moure o fer zoom
-    protected void do_panelImatge_mousePressed(MouseEvent arg0) {
-        this.dragPoint = new Point2D.Float(arg0.getPoint().x, arg0.getPoint().y);
-
-        if (arg0.getButton() == MOURE) {
-            this.mouseDrag = true;
-        }
-        if (arg0.getButton() == ZOOM_BORRAR) {
-            this.zoomPoint = new Point2D.Float(arg0.getPoint().x, arg0.getPoint().y);
-            this.mouseZoom = true;
-        }
-        if (arg0.getButton() == CLICAR) {
-            this.mouseBox = true;
-        }
-        actualitzarVista();
-    }
-
-    protected void do_panelImatge_mouseReleased(MouseEvent e) {
-        if (e.getButton() == MOURE)
-            this.mouseDrag = false;
-        if (e.getButton() == ZOOM_BORRAR)
-            this.mouseZoom = false;
-        if (e.getButton() == CLICAR){
-            Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
-            this.mouseBox = false;
-            //DO ZOOM considerant quadrat dragpoint i p
-            fitImageZone(dragPoint,p);
-        }
-        actualitzarVista();
-    }
-    
-    protected void do_panelImatge_mouseDragged(MouseEvent e) {
-        if (this.mouseDrag == true) { //& this.toPaint!=null cal?
-            Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
-            float incX, incY;
-            // agafem el dragpoint i l'actualitzem
-            incX = (p.x - dragPoint.x);
-            incY = (p.y - dragPoint.y);
-            this.dragPoint = p;
-            this.moveOrigin(incX, incY, true);    
-            if(isDebug())log.writeNameNumPairs("fine", true, "fX,fY,imX,imY,scfitX,scfitY,orX,orY,panw,panh", e.getPoint().x,e.getPoint().y,p.x,p.y,scalefitX,scalefitY,originX,originY,getPanelImatge().getWidth(),getPanelImatge().getHeight());
-        }
-        if (this.mouseZoom == true) {
-            Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
-            float incY;
-            incY = p.y - dragPoint.y;
-            this.dragPoint = p;
-            boolean zoomIn = (incY < 0);
-            this.zoom(zoomIn, zoomPoint);
-        }
-        if (this.mouseBox == true) {
-            this.currentMousePoint = new Point2D.Float(e.getPoint().x, e.getPoint().y);
-        }
-
-        actualitzarVista();
-
-    }
-    
-    protected void do_panelImatge_mouseMoved(MouseEvent e) {
-        // he de normalitzar les coordenades a la mida de la imatge en pixels
-        this.currentMousePoint = new Point2D.Float(e.getPoint().x, e.getPoint().y);
-        if (toPaint == null)return;
-        if (toPaint.size()==0)return;
-        
-        Point2D.Float pix = this.getPixel(currentMousePoint);
-        if (pix.x < 0 || pix.y < 0 || pix.x >= nXPoints || pix.y >= toPaint.size()) {
-            return;
-        }
-        
-        int serie = (int)pix.y;
-        int punt = (int)pix.x;
-        
-        double t2 = toPaint.get(serie).getPoint(punt).getX();
-        double inten = toPaint.get(serie).getPoint(punt).getY();
-        
-        lblPunt.setText(String.format("Pattern: %s   2"+D1Dplot_global.theta+"= %.4f   Intensity=%.2f" ,toPaint.get(serie).getSerieName(),t2,inten));
-        
-    }
-
-
-    // es mou l'origen a traves d'un increment de les coordenades
-    public void moveOrigin(float incX, float incY, boolean repaint) {
-        // assignem un nou origen de la imatge amb un increment a les coordenades anteriors
-        //  (util per moure'l fen drag del mouse)
-        if(isDebug())log.writeNameNums("fine", true, "incX,incY", incX,incY);
-        originX = originX + FastMath.round(incX);
-        originY = originY + FastMath.round(incY);
-        if (repaint) {
-            this.actualitzarVista();
-        }
-    }
-    
-    // al fer zoom es canviara l'origen i l'escala de la imatge
-    public void zoom(boolean zoomIn, Point2D.Float centre) {
-        Point2D.Float mousePosition = new Point2D.Float(centre.x, centre.y);
-        centre = getPixel(centre); // miro a quin pixel estem fent zoom
-
-        // aplico el zoom
-        if (zoomIn) {
-            scalefitX = scalefitX + (incZoom * scalefitX);
-            if (!isAlwaysFitY()){
-                scalefitY = scalefitY + (incZoom * scalefitY);                
-            }
-        } else {
-            scalefitX = scalefitX - (incZoom * scalefitX);
-            if (!isAlwaysFitY()){
-                scalefitY = scalefitY - (incZoom * scalefitY);    
-            }
-        }
-
-        // ara el pixel ja no est� al mateix lloc, mirem a quin punt del frame
-        // est� (en aquest nou scalefit)
-        centre = getFramePointFromPixel(centre);
-
-        // ara tenim el punt del jframe que ha de quedar on tenim el mouse
-        // apuntant, per tant hem de moure l'origen de
-        // la imatge conforme aix� (vector nouCentre-mousePosition)
-        originX = originX + FastMath.round(mousePosition.x - centre.x);
-        originY = originY + FastMath.round(mousePosition.y - centre.y);
-        this.actualitzarVista();
-    }
-    
-    public boolean isAlwaysFitY(){
-        return chckbxAlwaysFitY.isSelected();
-    }
-    
-    public boolean isPosaTitols(){
-        return chckbxShowPattNames.isSelected();
-    }
-    
     //S'HA D'ADAPTAR
-    public void setImagePatts(ArrayList<DataSerie> dss) {
-        if(dss == null)return;
-        if(dss.size()==0)return;
+	public void setImagePatts(ArrayList<DataSerie> dss) {
+	    if(dss == null)return;
+	    if(dss.size()==0)return;
+	
+	    this.toPaint = dss;
+	    
+	    maxY = Double.MIN_VALUE;
+	    minY = Double.MAX_VALUE;
+	    meanY = 0;
+	    
+	    //calculem la min2t, max2t
+	    for (int i=0;i<dss.size();i++){
+	        double[] vals = dss.get(i).calcYmeanYDesvYmaxYmin();
+	        if (vals[2]>maxY)maxY=vals[2];
+	        if (vals[3]<minY)minY=vals[3];
+	        meanY = meanY + vals[0];
+	    }
+	    meanY = meanY / dss.size();
+	    nXPoints = dss.get(0).getNpoints();
+	    
+	    //les x tots els patterns haurien de coincidir
+	    maxT2 = dss.get(0).getPoint(dss.get(0).getNpoints()-1).getX();
+	    minT2 = dss.get(0).getPoint(0).getX();
+	    
+	    int quarter = panelImatge.getWidth()/4;
+	    nameXPos = panelImatge.getWidth()-quarter;
+	    nameMaxWidth = quarter - 1;
+	    txtMaxwidth.setText(Integer.toString(nameMaxWidth));
+	    txtXposition.setText(Integer.toString(nameXPos));
+	    lblColor.setBackground(nameColor);
+	    lblColor.setText("");
+	    lblColor.setOpaque(true);
+	    
+	    this.pintaImatge();
+	    this.pintaLlegenda();
+	    this.actualitzarVista();
+	}
 
-        this.toPaint = dss;
-        
-        maxY = Double.MIN_VALUE;
-        minY = Double.MAX_VALUE;
-        meanY = 0;
-        
-        //calculem la min2t, max2t
-        for (int i=0;i<dss.size();i++){
-            double[] vals = dss.get(i).calcYmeanYDesvYmaxYmin();
-            if (vals[2]>maxY)maxY=vals[2];
-            if (vals[3]<minY)minY=vals[3];
-            meanY = meanY + vals[0];
-        }
-        meanY = meanY / dss.size();
-        nXPoints = dss.get(0).getNpoints();
-        
-        //les x tots els patterns haurien de coincidir
-        maxT2 = dss.get(0).getPoint(dss.get(0).getNpoints()-1).getX();
-        minT2 = dss.get(0).getPoint(0).getX();
-        
-        int quarter = panelImatge.getWidth()/4;
-        nameXPos = panelImatge.getWidth()-quarter;
-        nameMaxWidth = quarter - 1;
-        txtMaxwidth.setText(Integer.toString(nameMaxWidth));
-        txtXposition.setText(Integer.toString(nameXPos));
-        lblColor.setBackground(nameColor);
-        lblColor.setText("");
-        lblColor.setOpaque(true);
-        
-        this.pintaImatge();
-        this.pintaLlegenda();
-        this.actualitzarVista();
-    }
-    
-    protected void do_slider_contrast_stateChanged(ChangeEvent arg0) {
-        lblContrastValue.setText(Integer.toString(slider_contrast.getValue()));
-        this.pintaImatge(); //ja conte actualitzar vista
-        this.pintaLlegenda();
-   }
-    
-    protected void pintaImatge() {
+	public void actualitzarVista(){
+	    logdebug("actualitzarVista called");
+	    this.getPanelImatge().repaint();
+	}
+
+	private void resetView() {
+	    this.originX = 0;
+	    this.originY = 0;
+	    scalefitX = 0.0f;
+	    scalefitY = 0.0f;
+	    this.actualitzarVista();
+	}
+
+	// el pixel que entra est� al rang 0..n-1 donat un pixel px,py a quin punt x,y del JFrame est�
+	private Point2D.Float getFramePointFromPixel(Point2D.Float px) {
+	    float x = (px.x * scalefitX) + originX; //0.5 per posar-ho al centre del pixel
+	    float y = (px.y * scalefitY) + originY;
+	    return new Point2D.Float(x,y);
+	}
+
+	// segons la mida de la imatge actual, les coordenades d'un punt assenyalat amb el mouse correspondran a un pixel o
+	// a un altre, aquesta subrutina ho corregeix: Donat el punt p on el mouse es troba te'l torna com a pixel de la imatge
+	private Point2D.Float getPixel(Point2D.Float p) {
+	    float x = (p.x - originX) / scalefitX;
+	    float y = (p.y - originY) / scalefitY;
+	    return new Point2D.Float(x,y);
+	}
+
+	private void pintaImatge() {
         logdebug("ImagePanel pintaImatge called");
         
         if (toPaint == null)return;
@@ -574,7 +459,7 @@ public class PlotPanel2D extends JDialog {
         this.updateImage(im);
     }
     
-    protected void pintaLlegenda() {
+    private void pintaLlegenda() {
         if (toPaint == null)return;
         if (toPaint.size()==0)return;
 
@@ -631,7 +516,7 @@ public class PlotPanel2D extends JDialog {
      * grafiques RGB entre minval i maxval amb punt inflexio a (maxval-minval)/2
      * intensitat normalitzada entre minval i maxval
      */
-    protected Color intensityColor(double intensity, double maxInt, double minInt, int minVal, int maxVal) {
+    private Color intensityColor(double intensity, double maxInt, double minInt, int minVal, int maxVal) {
                 
         if (intensity < 0) {// es mascara, el pintem magenta
             return new Color(255, 0, 255);
@@ -683,7 +568,7 @@ public class PlotPanel2D extends JDialog {
     }
     
     //valor interpolat sobre una recta (fun=0) o una parabola (fun=1)
-    protected Color intensityBW(double intensity, double maxInt, double minInt,int minVal, int maxVal) {
+    private Color intensityBW(double intensity, double maxInt, double minInt,int minVal, int maxVal) {
         
         if (intensity < 0) {// es mascara, el pintem magenta
             return new Color(255, 0, 255);
@@ -727,62 +612,12 @@ public class PlotPanel2D extends JDialog {
         return new Color(ccomponent, ccomponent, ccomponent);
     }
     
-    public boolean isColor() {
-        return chckbxColor.isSelected();
-    }
-    
-    public void resetView() {
-        this.originX = 0;
-        this.originY = 0;
-        scalefitX = 0.0f;
-        scalefitY = 0.0f;
-        this.actualitzarVista();
-    }
-    
-    public BufferedImage getImage() {
-        return image;
-    }
-    
-
-    public int getOriginX() {
-        return originX;
-    }
-
-    public int getOriginY() {
-        return originY;
-    }
-
-
-    public float getScalefitX() {
-        return scalefitX;
-    }
-    public float getScalefitY() {
-        return scalefitY;
-    }
-
-    public BufferedImage getSubimage() {
-        return subimage;
-    }
-
-    public void updateImage(BufferedImage i) {
+    private void updateImage(BufferedImage i) {
         this.image = i;
         this.actualitzarVista();
     }
     
-    public void actualitzarVista(){
-        logdebug("actualitzarVista called");
-        this.repaint();
-    }
-    
-    public dades2d getPanelImatge() {
-        return panelImatge;
-    }
-    
-    public void setPanelImatge(dades2d panelImatge) {
-        this.panelImatge = panelImatge;
-    }
-    
-    public void fitImage() {
+    private void fitImage() {
         // En aquest cas hem de fer encabir-ho a la finestra
         if(isDebug())log.writeNameNums("CONFIG", true, "panelWidth, ImageWidth", getPanelImatge().getWidth(),getImage().getWidth());
         if(isDebug())log.writeNameNums("CONFIG", true, "panelHeight, Imageheigh", getPanelImatge().getHeight(),getImage().getHeight());
@@ -796,13 +631,7 @@ public class PlotPanel2D extends JDialog {
         
     }
     
-    protected void do_btnNewButton_actionPerformed(ActionEvent e) {
-        scalefitY = (float)getPanelImatge().getHeight() / (float)getImage().getHeight();
-        originY=0;
-        this.actualitzarVista();
-    }
-    
-    public void fitImageZone(Point2D.Float vertexIni, Point2D.Float vertexFin){
+    private void fitImageZone(Point2D.Float vertexIni, Point2D.Float vertexFin){
         logdebug("fit Image zone entered");
         if(isDebug())log.writeNameNumPairs("config", true, "verteIni.x,vertexIni.y,vertexFin.x,vertexFin.y", vertexIni.x,vertexIni.y,vertexFin.x,vertexFin.y);
         //com hem pintat el quadrat (hi ha quatre variants)
@@ -853,24 +682,9 @@ public class PlotPanel2D extends JDialog {
         if(isDebug())log.writeNameNumPairs("config", true, "sizeX,sizeY,scalefitX,scalefitY,verteIni.x,vertexIni.y,originX,originY", sizeX,sizeY,scalefitX,scalefitY,vertexIni.x,vertexIni.y,originX,originY);
         
     }
-    /**
-     * @return the toPaint
-     */
-    public ArrayList<DataSerie> getToPaint() {
-        return toPaint;
-    }
 
-
-    /**
-     * @param toPaint the toPaint to set
-     */
-    public void setToPaint(ArrayList<DataSerie> toPaint) {
-        this.toPaint = toPaint;
-    }
-
-    
     //prova utilitzant scalefit
-    protected Rectangle calcSubimatgeDinsFrame() {
+    private Rectangle calcSubimatgeDinsFrame() {
         Point2D.Float startCoords = getPixel(new Point2D.Float(1, 1));
         int InPixX = (int)startCoords.x; //faig int per agafar el pixel en questio des del començament
         int InPixY = (int)startCoords.y;
@@ -889,302 +703,68 @@ public class PlotPanel2D extends JDialog {
         return new Rectangle(InPixX, InPixY, OutPixX-InPixX+1, OutPixY-InPixY+1);
     }
     
-    // el pixel que entra est� al rang 0..n-1 donat un pixel px,py a quin punt x,y del JFrame est�
-    public Point2D.Float getFramePointFromPixel(Point2D.Float px) {
-        float x = (px.x * scalefitX) + originX; //0.5 per posar-ho al centre del pixel
-        float y = (px.y * scalefitY) + originY;
-        return new Point2D.Float(x,y);
-    }
-    
-    // segons la mida de la imatge actual, les coordenades d'un punt assenyalat amb el mouse correspondran a un pixel o
-    // a un altre, aquesta subrutina ho corregeix: Donat el punt p on el mouse es troba te'l torna com a pixel de la imatge
-    public Point2D.Float getPixel(Point2D.Float p) {
-        float x = (p.x - originX) / scalefitX;
-        float y = (p.y - originY) / scalefitY;
-        return new Point2D.Float(x,y);
-    }
-    
-    public class dades2d extends JPanel {
+    private BufferedImage joinBufferedImage(BufferedImage img1,BufferedImage img2, int offset) {
+	    //do some calculate first
+	    int wid = img1.getWidth()+img2.getWidth()+offset;
+	    int height = Math.max(img1.getHeight(),img2.getHeight())+offset;
+	    //create a new buffer and draw two image into the new image
+	    BufferedImage newImage = new BufferedImage(wid,height, BufferedImage.TYPE_INT_ARGB);
+	    Graphics2D g2 = newImage.createGraphics();
+	    Color oldColor = g2.getColor();
+	    //fill background
+	    g2.setPaint(Color.WHITE);
+	    g2.fillRect(0, 0, wid, height);
+	    //draw image
+	    g2.setColor(oldColor);
+	    g2.drawImage(img1, null, 0, 0);
+	    g2.drawImage(img2, null, img1.getWidth()+offset, 0);
+	    g2.dispose();
+	    return newImage;
+	}
 
-        private static final long serialVersionUID = 1L;
-        
-        public dades2d(){
-            super();
-            logdebug("constructor dades2d called");
-        }
-        
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            
-            logdebug("paint Component dades2d called");
-            
-            Graphics2D g2 = (Graphics2D) g;
-            
-            if (getImage() != null) {
+	// es mou l'origen a traves d'un increment de les coordenades
+	private void moveOrigin(float incX, float incY, boolean repaint) {
+	    // assignem un nou origen de la imatge amb un increment a les coordenades anteriors
+	    //  (util per moure'l fen drag del mouse)
+//	    if(isDebug())log.writeNameNums("fine", true, "incX,incY", incX,incY);
+	    originX = originX + FastMath.round(incX);
+	    originY = originY + FastMath.round(incY);
+	    if (repaint) {
+	        this.actualitzarVista();
+	    }
+	}
 
-                if (scalefitX <= 0) {
-                    fitImage();
-                }
-                if (scalefitY <= 0) {
-                    fitImage();
-                }
+	// al fer zoom es canviara l'origen i l'escala de la imatge
+	private void zoom(boolean zoomIn, Point2D.Float centre) {
+	    Point2D.Float mousePosition = new Point2D.Float(centre.x, centre.y);
+	    centre = getPixel(centre); // miro a quin pixel estem fent zoom
+	
+	    // aplico el zoom
+	    if (zoomIn) {
+	        scalefitX = scalefitX + (incZoom * scalefitX);
+	        if (!isAlwaysFitY()){
+	            scalefitY = scalefitY + (incZoom * scalefitY);                
+	        }
+	    } else {
+	        scalefitX = scalefitX - (incZoom * scalefitX);
+	        if (!isAlwaysFitY()){
+	            scalefitY = scalefitY - (incZoom * scalefitY);    
+	        }
+	    }
+	
+	    // ara el pixel ja no est� al mateix lloc, mirem a quin punt del frame
+	    // est� (en aquest nou scalefit)
+	    centre = getFramePointFromPixel(centre);
+	
+	    // ara tenim el punt del jframe que ha de quedar on tenim el mouse
+	    // apuntant, per tant hem de moure l'origen de
+	    // la imatge conforme aix� (vector nouCentre-mousePosition)
+	    originX = originX + FastMath.round(mousePosition.x - centre.x);
+	    originY = originY + FastMath.round(mousePosition.y - centre.y);
+	    this.actualitzarVista();
+	}
 
-                Rectangle rect = calcSubimatgeDinsFrame();
-                if (rect == null || rect.width == 0 || rect.height == 0) {
-                    // no part of image is displayed in the panel
-                    return;
-                }
-                try {
-                    subimage = getImage().getSubimage(rect.x, rect.y, rect.width, rect.height);
-                    //log.writeNameNumPairs("fine", true, "rect.x, rect.y,", rect.x, rect.y);
-                } catch (Exception e) {
-                    if (D1Dplot_global.isDebug())e.printStackTrace();
-                    log.warning("error getting the subImage");
-                }
-                AffineTransform t = new AffineTransform();
-                float offsetX = originX % scalefitX;
-                if (originX>0)offsetX = originX;
-                float offsetY = originY % scalefitY;
-                if (originY>0)offsetY = originY;
-                t.translate(offsetX, offsetY);
-                t.scale(scalefitX, scalefitY);
-                g2.drawImage(getSubimage(), t, null);
-                final Graphics2D g1 = (Graphics2D) g2.create();
-                
-                if (mouseBox) {
-                    if(isSquareSection()){
-                        //un quadrat
-                        dibuixarQuadrat(g1);
-                    }else{
-                        //dibueixem amb fitY
-                        dibuixarSemiQuadrat(g1);
-                    }
-                }
-                
-                if (isPosaTitols()){
-                    writeTitles(g1);
-                }
-                
-                g1.dispose();
-                g2.dispose();
-                
-            }
-        }
-        private void writeTitles(Graphics2D g1) {
-            Font font = g1.getFont(); //font inicial
-            float strokewidth = 3;
-            g1.setColor(nameColor);
-            int currentPatt = -99;
-            int nPixPerPat = 0;
-            int pixInicialPatt = 0;
-
-            for (int i=0; i<this.getHeight(); i++){
-                //mirarem pixel del centre
-                double pattD = getPixel(new Point2D.Float(this.getWidth()/2,i)).getY();
-                //potser esta fora...
-                if ((pattD<0)||(pattD>=toPaint.size())){
-                    continue;
-                }
-                int patt = (int)pattD;
-                if (patt!=currentPatt){
-                    //això vol dir que començem un nou pattern, hem d'escriure el titol de l'anterior
-                    if (currentPatt==-99){
-                        //era el primer
-                        currentPatt=patt;
-                        nPixPerPat=1;
-                        pixInicialPatt=i;
-                        continue;
-                    }
-                    //si no era el primer pattern dibuixem el nom
-                    int llocY = pixInicialPatt+(nPixPerPat/2);
-                    String s =  toPaint.get(currentPatt).getSerieName();
-                    
-                    double[] swh = getWidthHeighString(g1,s);
-                    while (swh[0]>nameMaxWidth){
-                        g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
-                        swh = getWidthHeighString(g1,s);
-                    }
-                    int t_Y = (int) (llocY-strokewidth+(swh[1]/2.));
-                    g1.drawString(s, nameXPos,t_Y);
-                    g1.setFont(font);                //recuperem font inicial
-
-                    //i ara reiniciem 
-                    currentPatt = patt;
-                    nPixPerPat=1;
-                    pixInicialPatt=i;
-                }else{
-                    //seguim al mateix pattern, cal incrementar
-                    nPixPerPat++;
-                }
-            }
-            //caldra escriure l'ultim pattern
-            int llocY = pixInicialPatt+(nPixPerPat/2); 
-            String s =  toPaint.get(currentPatt).getSerieName();
-            
-            double[] swh = getWidthHeighString(g1,s);
-            while (swh[0]>nameMaxWidth){
-                g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
-                swh = getWidthHeighString(g1,s);
-            }
-            int t_Y = (int) (llocY-strokewidth+(swh[1]/2.));
-            g1.drawString(s, nameXPos,t_Y);
-            g1.setFont(font);                //recuperem font inicial
-        }
-        
-        private double[] getWidthHeighString(Graphics2D g1, String s){
-            double[] w_h = new double[2];
-            Font font = g1.getFont();
-            FontRenderContext frc = g1.getFontRenderContext();
-            w_h[0] = font.getStringBounds(s, frc).getWidth();
-            w_h[1] =  font.getStringBounds(s, frc).getHeight();
-            return w_h;
-        }
-        private void dibuixarQuadrat(Graphics2D g1) {
-            //tenim els vertexs oposats del quadrat (dragPoint i currentPoint) que seran v1 i v3 respectivament numerant els vertexs del quadrat en sentit horari
-            //cal fer linies v1-v2-v4-v3-v1
-            int v1x = (int) dragPoint.x;
-            int v1y = (int) dragPoint.y;
-            int v3x = (int) currentMousePoint.x;
-            int v3y = (int) currentMousePoint.y;
-            g1.setColor(Color.BLACK);
-            g1.setStroke(new BasicStroke(1.0f));
-            //v1-v2
-            g1.drawLine(v1x,v1y, v3x, v1y);
-            //v2-v4
-            g1.drawLine(v3x, v1y, v3x, v3y);
-            //v4-v3
-            g1.drawLine(v3x, v3y, v1x, v3y);
-            //v3-v1
-            g1.drawLine(v1x, v3y, v1x, v1y);
-        }
-        
-        private void dibuixarSemiQuadrat(Graphics2D g1) {
-            //igual que a dalt però Y1 sera 0 i Y3 sera panelheight
-            int v1x = (int) dragPoint.x;
-            int v1y = 0;
-            int v3x = (int) currentMousePoint.x;
-            int v3y = this.getHeight();
-            g1.setColor(Color.BLACK);
-            g1.setStroke(new BasicStroke(1.0f));
-            //v1-v2
-            g1.drawLine(v1x,v1y, v3x, v1y);
-            //v2-v4
-            g1.drawLine(v3x, v1y, v3x, v3y);
-            //v4-v3
-            g1.drawLine(v3x, v3y, v1x, v3y);
-            //v3-v1
-            g1.drawLine(v1x, v3y, v1x, v1y);
-        }
-
-    }
-
-    public boolean isSquareSection(){
-        return chckbxSquareSelection.isSelected();
-    }
-    
-    protected void do_btnFitToWindow_actionPerformed(ActionEvent arg0) {
-        this.fitImage();
-        this.pintaLlegenda();
-    }
-    protected void do_txtMaxcontrast_actionPerformed(ActionEvent e) {
-        try{
-            int val = Integer.parseInt(txtMaxcontrast.getText());
-            slider_contrast.setMaximum(val);
-        }catch(Exception ex){
-            ex.printStackTrace();
-        }
-    }
-    protected void do_txtMincontrast_actionPerformed(ActionEvent e) {
-        try{
-            int val = Integer.parseInt(txtMincontrast.getText());
-            slider_contrast.setMinimum(val);
-        }catch(Exception ex){
-            ex.printStackTrace();
-        }
-    }
-    
-    public class llegenda2D extends JPanel {
-
-        private static final long serialVersionUID = 1L;
-        
-        public llegenda2D(){
-            super();
-            logdebug("constructor llegenda called");
-        }
-        
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            
-            logdebug("paint Component llegenda called");
-            
-            Graphics2D g2 = (Graphics2D) g;
-            
-            if (getLlegenda() != null) {
-                
-                AffineTransform t = new AffineTransform();
-                
-                if(isDebug())log.writeNameNumPairs("config", true, "widthPanelLLeg,scalefitYllegenda", panel_llegenda.getWidth(),scalefitYllegenda);
-                
-                t.scale(panel_llegenda.getWidth(), scalefitYllegenda);
-                g2.drawImage(getLlegenda(), t, null);
-                
-//                g2.drawImage(getLlegenda(), 0, 0, null);
-                g2.dispose();
-                
-            }
-        }
-    }
-
-
-    public BufferedImage getLlegenda() {
-        return llegenda;
-    }
-
-    public void setLlegenda(BufferedImage llegenda) {
-        this.llegenda = llegenda;
-    }
-    
-    protected void do_this_componentResized(ComponentEvent e) {
-        this.btnFitToWindow.doClick();
-    }
-    
-    protected void do_btnSaveAsPng_actionPerformed(ActionEvent e) {
-        File fpng = FileUtils.fchooserSaveNoAsk(this, new File(D1Dplot_global.getWorkdir()), null); //ja preguntem despres
-        if (fpng!=null){
-            fpng = FileUtils.canviExtensio(fpng, "png");
-            if (fpng.exists()){
-                int actionDialog = JOptionPane.showConfirmDialog(this,
-                        "Replace existing file?");
-                if (actionDialog == JOptionPane.NO_OPTION)return;
-            }
-            int w = panelImatge.getSize().width+panel_llegenda.getSize().width;
-            int h = panelImatge.getSize().height;
-            String s = (String)JOptionPane.showInputDialog(
-                    this,
-                    "Current plot size (Width x Heigth) is "+Integer.toString(w)+" x "+Integer.toString(h)+"pixels\n"
-                            + "Scale factor to apply=",
-                    "Apply scale factor",
-                    JOptionPane.PLAIN_MESSAGE,
-                    null,
-                    null,
-                    "1.0");
-            
-            if ((s != null) && (s.length() > 0)) {
-                float factor = 1.0f;
-                try{
-                    factor=Float.parseFloat(s);
-                }catch(Exception ex){
-                    ex.printStackTrace();
-                }
-                if(isDebug())log.writeNameNumPairs("config", true, "factor", factor);
-                this.savePNG(fpng,factor);
-            }
-        }
-    }
-    
-    private void savePNG(File fpng, float factor){
+	private void savePNG(File fpng, float factor){
 
       double pageWidth = panelImatge.getSize().width*factor;
       double pageHeight = panelImatge.getSize().height*factor;
@@ -1228,93 +808,206 @@ public class PlotPanel2D extends JDialog {
       } catch (Exception ex) {
           ex.printStackTrace();
       }
-      logdebug(fpng.toString()+" written");
+      log.info(fpng.toString()+" written");
   }
     
-    public static BufferedImage joinBufferedImage(BufferedImage img1,BufferedImage img2, int offset) {
-        //do some calculate first
-        int wid = img1.getWidth()+img2.getWidth()+offset;
-        int height = Math.max(img1.getHeight(),img2.getHeight())+offset;
-        //create a new buffer and draw two image into the new image
-        BufferedImage newImage = new BufferedImage(wid,height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2 = newImage.createGraphics();
-        Color oldColor = g2.getColor();
-        //fill background
-        g2.setPaint(Color.WHITE);
-        g2.fillRect(0, 0, wid, height);
-        //draw image
-        g2.setColor(oldColor);
-        g2.drawImage(img1, null, 0, 0);
-        g2.drawImage(img2, null, img1.getWidth()+offset, 0);
-        g2.dispose();
-        return newImage;
-    }
-    protected void do_chckbxShowPattNames_itemStateChanged(ItemEvent arg0) {
-        this.actualitzarVista();
-    }
-    protected void do_txtMaxwidth_actionPerformed(ActionEvent e) {
-        try{
-            nameMaxWidth = Integer.parseInt(txtMaxwidth.getText());
-            this.actualitzarVista();
-        }catch(Exception ex){
-            loginfo("error reading maxwidth");
-        }
-    }
-    protected void do_txtXposition_actionPerformed(ActionEvent e) {
-        try{
-            nameXPos = Integer.parseInt(txtXposition.getText()); 
-            this.actualitzarVista();
-        }catch(Exception ex){
-            loginfo("error reading maxwidth");
-        }
-    }
-    protected void do_lblColor_mouseClicked(MouseEvent e) {
-        Color newColor = JColorChooser.showDialog(
-                this,
-                "Choose Pattern Names Color",
-                getNameColor());
-           if(newColor != null){
-               setNameColor(newColor);
-               lblColor.setBackground(newColor);
-           }
-    }
+    private void do_panelImatge_mouseWheelMoved(MouseWheelEvent e) {
+	    Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
+	    boolean zoomIn = (e.getWheelRotation() < 0);
+	    this.zoom(zoomIn, p); //ja fa actualitzar
+	}
 
-    /**
-     * @return the nameColor
-     */
-    public Color getNameColor() {
-        return nameColor;
-    }
+	// Identificar el bot� i segons quin sigui moure o fer zoom
+	private void do_panelImatge_mousePressed(MouseEvent arg0) {
+	    this.dragPoint = new Point2D.Float(arg0.getPoint().x, arg0.getPoint().y);
+	
+	    if (arg0.getButton() == MOURE) {
+	        this.mouseDrag = true;
+	    }
+	    if (arg0.getButton() == ZOOM_BORRAR) {
+	        this.zoomPoint = new Point2D.Float(arg0.getPoint().x, arg0.getPoint().y);
+	        this.mouseZoom = true;
+	    }
+	    if (arg0.getButton() == CLICAR) {
+	        this.mouseBox = true;
+	    }
+	    actualitzarVista();
+	}
 
-    /**
-     * @param nameColor the nameColor to set
-     */
-    public void setNameColor(Color nColor) {
-        nameColor = nColor;
-    }
-    
-    private void logdebug(String s){
-        if (D1Dplot_global.isDebug()){
-            log.debug(s);
-        }
-    }
-    private void loginfo(String s){
-        if (D1Dplot_global.logging){
-            log.info(s);
-        }
-        main.getTAOut().stat(s); //ho passem pel txtArea
-    }
-    
-    private boolean isDebug(){
-        return D1Dplot_global.isDebug();
-    }
-    
-    protected void do_chckbxColor_itemStateChanged(ItemEvent arg0) {
+	private void do_panelImatge_mouseReleased(MouseEvent e) {
+	    if (e.getButton() == MOURE)
+	        this.mouseDrag = false;
+	    if (e.getButton() == ZOOM_BORRAR)
+	        this.mouseZoom = false;
+	    if (e.getButton() == CLICAR){
+	        Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
+	        this.mouseBox = false;
+	        //DO ZOOM considerant quadrat dragpoint i p
+	        fitImageZone(dragPoint,p);
+	    }
+	    actualitzarVista();
+	}
+
+	private void do_panelImatge_mouseDragged(MouseEvent e) {
+	    if (this.mouseDrag == true) { //& this.toPaint!=null cal?
+	        Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
+	        float incX, incY;
+	        // agafem el dragpoint i l'actualitzem
+	        incX = (p.x - dragPoint.x);
+	        incY = (p.y - dragPoint.y);
+	        this.dragPoint = p;
+	        this.moveOrigin(incX, incY, true);    
+//	        if(isDebug())log.writeNameNumPairs("fine", true, "fX,fY,imX,imY,scfitX,scfitY,orX,orY,panw,panh", e.getPoint().x,e.getPoint().y,p.x,p.y,scalefitX,scalefitY,originX,originY,getPanelImatge().getWidth(),getPanelImatge().getHeight());
+	    }
+	    if (this.mouseZoom == true) {
+	        Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
+	        float incY;
+	        incY = p.y - dragPoint.y;
+	        this.dragPoint = p;
+	        boolean zoomIn = (incY < 0);
+	        this.zoom(zoomIn, zoomPoint);
+	    }
+	    if (this.mouseBox == true) {
+	        this.currentMousePoint = new Point2D.Float(e.getPoint().x, e.getPoint().y);
+	    }
+	
+	    actualitzarVista();
+	
+	}
+
+	private void do_panelImatge_mouseMoved(MouseEvent e) {
+	    // he de normalitzar les coordenades a la mida de la imatge en pixels
+	    this.currentMousePoint = new Point2D.Float(e.getPoint().x, e.getPoint().y);
+	    if (toPaint == null)return;
+	    if (toPaint.size()==0)return;
+	    
+	    Point2D.Float pix = this.getPixel(currentMousePoint);
+	    if (pix.x < 0 || pix.y < 0 || pix.x >= nXPoints || pix.y >= toPaint.size()) {
+	        return;
+	    }
+	    
+	    int serie = (int)pix.y;
+	    int punt = (int)pix.x;
+	    
+	    double t2 = toPaint.get(serie).getPoint(punt).getX();
+	    double inten = toPaint.get(serie).getPoint(punt).getY();
+	    
+	    lblPunt.setText(String.format("Pattern: %s   2"+D1Dplot_global.theta+"= %.4f   Intensity=%.2f" ,toPaint.get(serie).getSerieName(),t2,inten));
+	    
+	}
+
+	private void do_slider_contrast_stateChanged(ChangeEvent arg0) {
+	        lblContrastValue.setText(Integer.toString(slider_contrast.getValue()));
+	        this.pintaImatge(); //ja conte actualitzar vista
+	        this.pintaLlegenda();
+	   }
+
+	private void do_btnNewButton_actionPerformed(ActionEvent e) {
+	    scalefitY = (float)getPanelImatge().getHeight() / (float)getImage().getHeight();
+	    originY=0;
+	    this.actualitzarVista();
+	}
+
+	private void do_btnFitToWindow_actionPerformed(ActionEvent arg0) {
+	    this.fitImage();
+	    this.pintaLlegenda();
+	}
+
+	private void do_txtMaxcontrast_actionPerformed(ActionEvent e) {
+	    try{
+	        int val = Integer.parseInt(txtMaxcontrast.getText());
+	        slider_contrast.setMaximum(val);
+	    }catch(Exception ex){
+	        ex.printStackTrace();
+	    }
+	}
+
+	private void do_txtMincontrast_actionPerformed(ActionEvent e) {
+	    try{
+	        int val = Integer.parseInt(txtMincontrast.getText());
+	        slider_contrast.setMinimum(val);
+	    }catch(Exception ex){
+	        ex.printStackTrace();
+	    }
+	}
+
+	private void do_this_componentResized(ComponentEvent e) {
+	    this.btnFitToWindow.doClick();
+	}
+
+	private void do_btnSaveAsPng_actionPerformed(ActionEvent e) {
+	        File fpng = FileUtils.fchooserSaveNoAsk(plot2Ddialog, new File(D1Dplot_global.getWorkdir()), null,"png"); //ja preguntem despres
+	        if (fpng!=null){
+	//            fpng = FileUtils.canviExtensio(fpng, "png");
+	//            if (fpng.exists()){
+	//                int actionDialog = JOptionPane.showConfirmDialog(this,
+	//                        "Replace existing file?");
+	//                if (actionDialog == JOptionPane.NO_OPTION)return;
+	//            }
+	            int w = panelImatge.getSize().width+panel_llegenda.getSize().width;
+	            int h = panelImatge.getSize().height;
+	            String s = (String)JOptionPane.showInputDialog(
+	            		plot2Ddialog,
+	                    "Current plot size (Width x Heigth) is "+Integer.toString(w)+" x "+Integer.toString(h)+"pixels\n"
+	                            + "Scale factor to apply=",
+	                    "Apply scale factor",
+	                    JOptionPane.PLAIN_MESSAGE,
+	                    null,
+	                    null,
+	                    "1.0");
+	            
+	            if ((s != null) && (s.length() > 0)) {
+	                float factor = 1.0f;
+	                try{
+	                    factor=Float.parseFloat(s);
+	                }catch(Exception ex){
+	                    ex.printStackTrace();
+	                }
+	                if(isDebug())log.writeNameNumPairs("config", true, "factor", factor);
+	                this.savePNG(fpng,factor);
+	            }
+	        }
+	    }
+
+	private void do_chckbxShowPattNames_itemStateChanged(ItemEvent arg0) {
+	    this.actualitzarVista();
+	}
+
+	private void do_txtMaxwidth_actionPerformed(ActionEvent e) {
+	    try{
+	        nameMaxWidth = Integer.parseInt(txtMaxwidth.getText());
+	        this.actualitzarVista();
+	    }catch(Exception ex){
+	        log.warning("Error reading maxwidth");
+	    }
+	}
+
+	private void do_txtXposition_actionPerformed(ActionEvent e) {
+	    try{
+	        nameXPos = Integer.parseInt(txtXposition.getText()); 
+	        this.actualitzarVista();
+	    }catch(Exception ex){
+	        log.warning("Error reading maxwidth");
+	    }
+	}
+
+	private void do_lblColor_mouseClicked(MouseEvent e) {
+	    Color newColor = JColorChooser.showDialog(
+	    		plot2Ddialog,
+	            "Choose Pattern Names Color",
+	            getNameColor());
+	       if(newColor != null){
+	           setNameColor(newColor);
+	           lblColor.setBackground(newColor);
+	       }
+	}
+
+	private void do_chckbxColor_itemStateChanged(ItemEvent arg0) {
         this.pintaImatge();
         this.pintaLlegenda();
     }
     
-    protected void do_chckbxInvertOrder_itemStateChanged(ItemEvent arg0) {
+    private void do_chckbxInvertOrder_itemStateChanged(ItemEvent arg0) {
         if (chckbxInvertOrder.isSelected() && !reversed){
             Collections.reverse(toPaint);
             reversed = true;
@@ -1327,7 +1020,308 @@ public class PlotPanel2D extends JDialog {
         }
         
     }
-    protected void do_chckbxAlwaysFitY_itemStateChanged(ItemEvent e) {
+    private void do_chckbxAlwaysFitY_itemStateChanged(ItemEvent e) {
         if (chckbxAlwaysFitY.isSelected()) btnFitY.doClick();
     }
+    
+    public boolean isAlwaysFitY(){
+	    return chckbxAlwaysFitY.isSelected();
+	}
+
+	public boolean isPosaTitols(){
+	    return chckbxShowPattNames.isSelected();
+	}
+
+	public boolean isColor() {
+	    return chckbxColor.isSelected();
+	}
+
+	public BufferedImage getImage() {
+	    return image;
+	}
+
+	public int getOriginX() {
+	    return originX;
+	}
+
+	public int getOriginY() {
+	    return originY;
+	}
+
+	public float getScalefitX() {
+	    return scalefitX;
+	}
+
+	public float getScalefitY() {
+	    return scalefitY;
+	}
+
+	public BufferedImage getSubimage() {
+	    return subimage;
+	}
+
+	public dades2d getPanelImatge() {
+	    return panelImatge;
+	}
+
+	public void setPanelImatge(dades2d panelImatge) {
+	    this.panelImatge = panelImatge;
+	}
+
+	public ArrayList<DataSerie> getToPaint() {
+	    return toPaint;
+	}
+
+	public void setToPaint(ArrayList<DataSerie> toPaint) {
+	    this.toPaint = toPaint;
+	}
+
+	public boolean isSquareSection(){
+	    return chckbxSquareSelection.isSelected();
+	}
+
+	public BufferedImage getLlegenda() {
+	    return llegenda;
+	}
+
+	public void setLlegenda(BufferedImage llegenda) {
+	    this.llegenda = llegenda;
+	}
+
+	/**
+	 * @return the nameColor
+	 */
+	public Color getNameColor() {
+	    return nameColor;
+	}
+
+	/**
+	 * @param nameColor the nameColor to set
+	 */
+	public void setNameColor(Color nColor) {
+	    nameColor = nColor;
+	}
+
+	private void logdebug(String s){
+	    if (D1Dplot_global.isDebug()){
+	        log.debug(s);
+	    }
+	}
+
+	private boolean isDebug(){
+	    return D1Dplot_global.isDebug();
+	}
+
+	public void visible(boolean vis) {
+    	this.plot2Ddialog.setVisible(vis);
+    	
+    }
+
+	public class dades2d extends JPanel {
+	
+	    private static final long serialVersionUID = 1L;
+	    
+	    public dades2d(){
+	        super();
+//	        logdebug("constructor dades2d called");
+	    }
+	    
+	    @Override
+	    protected void paintComponent(Graphics g) {
+	        super.paintComponent(g);
+	        
+//	        logdebug("paint Component dades2d called");
+	        
+	        Graphics2D g2 = (Graphics2D) g;
+	        
+	        if (getImage() != null) {
+	
+	            if (scalefitX <= 0) {
+	                fitImage();
+	            }
+	            if (scalefitY <= 0) {
+	                fitImage();
+	            }
+	
+	            Rectangle rect = calcSubimatgeDinsFrame();
+	            if (rect == null || rect.width == 0 || rect.height == 0) {
+	                // no part of image is displayed in the panel
+	                return;
+	            }
+	            try {
+	                subimage = getImage().getSubimage(rect.x, rect.y, rect.width, rect.height);
+	                //log.writeNameNumPairs("fine", true, "rect.x, rect.y,", rect.x, rect.y);
+	            } catch (Exception e) {
+	                if (D1Dplot_global.isDebug())e.printStackTrace();
+	                log.warning("Error getting the subImage");
+	            }
+	            AffineTransform t = new AffineTransform();
+	            float offsetX = originX % scalefitX;
+	            if (originX>0)offsetX = originX;
+	            float offsetY = originY % scalefitY;
+	            if (originY>0)offsetY = originY;
+	            t.translate(offsetX, offsetY);
+	            t.scale(scalefitX, scalefitY);
+	            g2.drawImage(getSubimage(), t, null);
+	            final Graphics2D g1 = (Graphics2D) g2.create();
+	            
+	            if (mouseBox) {
+	                if(isSquareSection()){
+	                    //un quadrat
+	                    dibuixarQuadrat(g1);
+	                }else{
+	                    //dibueixem amb fitY
+	                    dibuixarSemiQuadrat(g1);
+	                }
+	            }
+	            
+	            if (isPosaTitols()){
+	                writeTitles(g1);
+	            }
+	            
+	            g1.dispose();
+	            g2.dispose();
+	            
+	        }
+	    }
+	    private void writeTitles(Graphics2D g1) {
+	        Font font = g1.getFont(); //font inicial
+	        float strokewidth = 3;
+	        g1.setColor(nameColor);
+	        int currentPatt = -99;
+	        int nPixPerPat = 0;
+	        int pixInicialPatt = 0;
+	
+	        for (int i=0; i<this.getHeight(); i++){
+	            //mirarem pixel del centre
+	            double pattD = getPixel(new Point2D.Float(this.getWidth()/2,i)).getY();
+	            //potser esta fora...
+	            if ((pattD<0)||(pattD>=toPaint.size())){
+	                continue;
+	            }
+	            int patt = (int)pattD;
+	            if (patt!=currentPatt){
+	                //això vol dir que començem un nou pattern, hem d'escriure el titol de l'anterior
+	                if (currentPatt==-99){
+	                    //era el primer
+	                    currentPatt=patt;
+	                    nPixPerPat=1;
+	                    pixInicialPatt=i;
+	                    continue;
+	                }
+	                //si no era el primer pattern dibuixem el nom
+	                int llocY = pixInicialPatt+(nPixPerPat/2);
+	                String s =  toPaint.get(currentPatt).getSerieName();
+	                
+	                double[] swh = getWidthHeighString(g1,s);
+	                while (swh[0]>nameMaxWidth){
+	                    g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
+	                    swh = getWidthHeighString(g1,s);
+	                }
+	                int t_Y = (int) (llocY-strokewidth+(swh[1]/2.));
+	                g1.drawString(s, nameXPos,t_Y);
+	                g1.setFont(font);                //recuperem font inicial
+	
+	                //i ara reiniciem 
+	                currentPatt = patt;
+	                nPixPerPat=1;
+	                pixInicialPatt=i;
+	            }else{
+	                //seguim al mateix pattern, cal incrementar
+	                nPixPerPat++;
+	            }
+	        }
+	        //caldra escriure l'ultim pattern
+	        int llocY = pixInicialPatt+(nPixPerPat/2); 
+	        String s =  toPaint.get(currentPatt).getSerieName();
+	        
+	        double[] swh = getWidthHeighString(g1,s);
+	        while (swh[0]>nameMaxWidth){
+	            g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
+	            swh = getWidthHeighString(g1,s);
+	        }
+	        int t_Y = (int) (llocY-strokewidth+(swh[1]/2.));
+	        g1.drawString(s, nameXPos,t_Y);
+	        g1.setFont(font);                //recuperem font inicial
+	    }
+	    
+	    private double[] getWidthHeighString(Graphics2D g1, String s){
+	        double[] w_h = new double[2];
+	        Font font = g1.getFont();
+	        FontRenderContext frc = g1.getFontRenderContext();
+	        w_h[0] = font.getStringBounds(s, frc).getWidth();
+	        w_h[1] =  font.getStringBounds(s, frc).getHeight();
+	        return w_h;
+	    }
+	    private void dibuixarQuadrat(Graphics2D g1) {
+	        //tenim els vertexs oposats del quadrat (dragPoint i currentPoint) que seran v1 i v3 respectivament numerant els vertexs del quadrat en sentit horari
+	        //cal fer linies v1-v2-v4-v3-v1
+	        int v1x = (int) dragPoint.x;
+	        int v1y = (int) dragPoint.y;
+	        int v3x = (int) currentMousePoint.x;
+	        int v3y = (int) currentMousePoint.y;
+	        g1.setColor(Color.BLACK);
+	        g1.setStroke(new BasicStroke(1.0f));
+	        //v1-v2
+	        g1.drawLine(v1x,v1y, v3x, v1y);
+	        //v2-v4
+	        g1.drawLine(v3x, v1y, v3x, v3y);
+	        //v4-v3
+	        g1.drawLine(v3x, v3y, v1x, v3y);
+	        //v3-v1
+	        g1.drawLine(v1x, v3y, v1x, v1y);
+	    }
+	    
+	    private void dibuixarSemiQuadrat(Graphics2D g1) {
+	        //igual que a dalt però Y1 sera 0 i Y3 sera panelheight
+	        int v1x = (int) dragPoint.x;
+	        int v1y = 0;
+	        int v3x = (int) currentMousePoint.x;
+	        int v3y = this.getHeight();
+	        g1.setColor(Color.BLACK);
+	        g1.setStroke(new BasicStroke(1.0f));
+	        //v1-v2
+	        g1.drawLine(v1x,v1y, v3x, v1y);
+	        //v2-v4
+	        g1.drawLine(v3x, v1y, v3x, v3y);
+	        //v4-v3
+	        g1.drawLine(v3x, v3y, v1x, v3y);
+	        //v3-v1
+	        g1.drawLine(v1x, v3y, v1x, v1y);
+	    }
+	
+	}
+
+	public class llegenda2D extends JPanel {
+	
+	        private static final long serialVersionUID = 1L;
+	        
+	        public llegenda2D(){
+	            super();
+	            logdebug("constructor llegenda called");
+	        }
+	        
+	        @Override
+	        protected void paintComponent(Graphics g) {
+	            super.paintComponent(g);
+	            
+	            logdebug("paint Component llegenda called");
+	            
+	            Graphics2D g2 = (Graphics2D) g;
+	            
+	            if (getLlegenda() != null) {
+	                
+	                AffineTransform t = new AffineTransform();
+	                
+//	                if(isDebug())log.writeNameNumPairs("config", true, "widthPanelLLeg,scalefitYllegenda", panel_llegenda.getWidth(),scalefitYllegenda);
+	                
+	                t.scale(panel_llegenda.getWidth(), scalefitYllegenda);
+	                g2.drawImage(getLlegenda(), t, null);
+	                
+	//                g2.drawImage(getLlegenda(), 0, 0, null);
+	                g2.dispose();
+	                
+	            }
+	        }
+	    }
 }
