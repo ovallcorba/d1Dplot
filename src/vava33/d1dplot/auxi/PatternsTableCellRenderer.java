@@ -23,7 +23,8 @@ import com.vava33.jutils.VavaLogger;
 public class PatternsTableCellRenderer extends DefaultTableCellRenderer {
 
     private static final long serialVersionUID = -2112120096650934116L;
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(PatternsTableCellRenderer.class.getName());
+    private static final String className = "PatternsTableCellRenderer";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
 
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value,
@@ -62,16 +63,29 @@ public class PatternsTableCellRenderer extends DefaultTableCellRenderer {
 
         this.setHorizontalAlignment(JLabel.CENTER);
 
-        
+        //recover standard colors
+        try {
+            c.setForeground(UIManager.getColor("Table.foreground"));
+            c.setBackground(UIManager.getColor("Table.background"));        	
+        }catch(NullPointerException nex) {
+        	c.setForeground(Color.BLACK);
+        	c.setBackground(Color.WHITE);
+        }
+
         if (table.isCellSelected(row, col)){
             Color celsel = UIManager.getColor("Table.selectionBackground");
+            Color celselF = UIManager.getColor("Table.selectionForeground");
+            celsel = FileUtils.getComplementary(celsel);
+            celselF = FileUtils.getComplementary(celselF);
             if (celsel==null) {
                 log.debug("celsel is null");
                 celsel = Color.LIGHT_GRAY;
             }
             c.setBackground(celsel);
+            c.setForeground(celselF);
+ 
         }else if (table.isRowSelected(row)){
-            Color rowsel = UIManager.getColor("Table.selectionBackground").darker();
+            Color rowsel = UIManager.getColor("Table.selectionBackground");
             if (rowsel == null){
                 log.debug("rowsel is null");
                 rowsel = Color.GRAY.brighter();

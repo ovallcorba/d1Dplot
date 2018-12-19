@@ -38,16 +38,6 @@ import java.util.Iterator;
 
 import javax.swing.JPanel;
 
-//import org.apache.commons.math3.util.FastMath;
-
-
-
-
-
-
-
-
-
 import com.vava33.d1dplot.auxi.DataHKL;
 import com.vava33.d1dplot.auxi.DataPoint;
 import com.vava33.d1dplot.auxi.DataSerie;
@@ -72,15 +62,12 @@ import org.apache.commons.math3.util.FastMath;
 
 import javax.swing.border.TitledBorder;
 
-public class PlotPanel extends JPanel {
-
-    private static final long serialVersionUID = 7016088580538090346L;
+public class PlotPanel {
 
     private ArrayList<Pattern1D> patterns; //data to plot (series inside pattern1d)
 
     //TEMES
     private static final Color Dark_bkg = Color.BLACK;
-//    private static final Color Dark_bkg = Color.BLUE.darker().darker();
     private static final Color Dark_frg = Color.WHITE;
     private static final Color Light_bkg = Color.WHITE;
     private static final Color Light_frg = Color.BLACK;
@@ -99,6 +86,11 @@ public class PlotPanel extends JPanel {
     private static int AxisLabelsPadding = 2;
     private String xlabel = "2"+D1Dplot_global.theta+" (º)";
     private String ylabel = "Intensity";
+    private static int def_nDecimalsX = 3;
+    private static int def_nDecimalsY = 1;
+    //sizes relative to default one (12?)
+    private static float def_axis_fsize = 0.f;
+    private static float def_axisL_fsize = 0.f;
     
     //CONVENI DEFECTE:
     //cada 100 pixels una linia principal i cada 25 una secundaria
@@ -121,7 +113,8 @@ public class PlotPanel extends JPanel {
     private static boolean verticalYlabel = false;
     private static boolean verticalYAxe = true;
 
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(PlotPanel.class.getName());
+    private static final String className = "PlotPanel";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
 
     private double xMin = 0;
     private double xMax = 60;
@@ -136,6 +129,7 @@ public class PlotPanel extends JPanel {
     private double yrangeMin = -1;
     private double yrangeMax = -1;
     private Plot1d graphPanel;
+    
     //parametres interaccio/contrast
     private boolean mouseBox = false;
     private boolean sqSelect = false;
@@ -146,19 +140,19 @@ public class PlotPanel extends JPanel {
     private Rectangle2D.Double zoomRect;
     private Point2D.Double dragPoint;
     private Point2D.Double clickPoint;
+    
     //LINIES DIVISIO
     double div_incXPrim, div_incXSec, div_incYPrim, div_incYSec;
     double div_startValX, div_startValY;
     boolean fixAxes = false;
     boolean autoDiv = true;
     boolean negativeYAxisLabels = false;
+    
     //llegenda
     boolean showLegend = true;
     boolean autoPosLegend = true;
     int legendX = -99;
     int legendY = -99;
-    //paint triggers
-//    private boolean continuousRepaint = false;
     private boolean hkllabels = true;
     private boolean showGridY = false;
     private boolean showGridX = false;
@@ -169,8 +163,6 @@ public class PlotPanel extends JPanel {
     boolean deletingBkgPoints = false;
     boolean selectingPeaks = false;
     boolean deletingPeaks = false;
-//    DataSerie bkgserie;
-//    DataSerie bkgEstimPoints;
     DataSerie bkgseriePeakSearch;
     public ArrayList<DataSerie> selectedSeries;
     
@@ -197,21 +189,23 @@ public class PlotPanel extends JPanel {
     private JLabel lblDsp;
     private JLabel lblHkl;
 
-    private D1Dplot_main mainframe;
+//    private D1Dplot_main mainframe;
     private JPanel panel;
     private JPanel panel_1;
+    private JPanel plotPanel;
     
-    /**
+	/**
      * Create the panel.
      */
-    public PlotPanel(D1Dplot_main mf) {
-        this.mainframe = mf;
-        setBackground(Color.WHITE);
-        setLayout(new MigLayout("insets 0", "[grow]", "[][grow][]"));
+    public PlotPanel() {
+//        this.mainframe = mf;
+        this.plotPanel = new JPanel();
+        this.plotPanel.setBackground(Color.WHITE);
+        this.plotPanel.setLayout(new MigLayout("insets 0", "[grow]", "[][grow][]"));
         
         JPanel buttons_panel = new JPanel();
         buttons_panel.setBorder(null);
-        add(buttons_panel, "cell 0 0,grow");
+        this.plotPanel.add(buttons_panel, "cell 0 0,grow");
         buttons_panel.setLayout(new MigLayout("insets 2", "[grow][grow][][]", "[grow]"));
         
         panel = new JPanel();
@@ -381,10 +375,10 @@ public class PlotPanel extends JPanel {
             }
         });
         
-        add(graphPanel, "cell 0 1,grow");
+        this.plotPanel.add(graphPanel, "cell 0 1,grow");
         
         statusPanel = new JPanel();
-        add(statusPanel, "cell 0 2,grow");
+        this.plotPanel.add(statusPanel, "cell 0 2,grow");
         statusPanel.setLayout(new MigLayout("insets 2", "[][][grow]", "[]"));
         
         lblTthInten = new JLabel("X,Y");
@@ -404,9 +398,7 @@ public class PlotPanel extends JPanel {
     private void inicia(){
         this.patterns = new ArrayList<Pattern1D>();
         this.selectedSeries = new ArrayList<DataSerie>();
-//        this.bkgserie = new DataSerie(DataSerie.serieType.bkg);
         this.bkgseriePeakSearch = new DataSerie(DataSerie.serieType.bkgEstimP); //la faig estimP perque no em dibuixi linia... TODO
-//        bkgEstimPoints = new DataSerie(DataSerie.serieType.bkgEstimP);//new ArrayList<DataPoint>();
         div_incXPrim = 0;
         div_incXSec = 0;
         div_incYPrim = 0;
@@ -439,14 +431,14 @@ public class PlotPanel extends JPanel {
                     case KeyEvent.KEY_PRESSED:
                         if (ke.getKeyCode() == KeyEvent.VK_SHIFT) {
                             shiftPressed = true;
-                            log.debug("now shift is PRESSED");
+                            logdebug("now shift is PRESSED");
                         }
                         break;
 
                     case KeyEvent.KEY_RELEASED:
                         if (ke.getKeyCode() == KeyEvent.VK_SHIFT) {
                             shiftPressed = false;
-                            log.debug("now shift is NOT pressed");
+                            logdebug("now shift is NOT pressed");
                         }
                         break;
                     }
@@ -456,346 +448,58 @@ public class PlotPanel extends JPanel {
         
     }
     
-    protected void do_graphPanel_mouseDragged(MouseEvent e) {
-        log.fine("mouseDragged!!");
-        log.fine(Boolean.toString(this.mouseDrag));
-        log.fine(Boolean.toString(e.getButton() == MOURE));
+	public JPanel getPlotPanel() {
+		return plotPanel;
+	}
+	
+	public DataSerie getFirstPlottedSerie() {
+		try {
+			return this.getPatterns().get(0).getSerie(0);
+		}catch(Exception ex) {
+			if (isDebug())ex.printStackTrace();
+		}
+		return null;
+	}
+	
+    public void actualitzaPlot() {
+		this.getGraphPanel().repaint();
+	}
+	    
+	    // ajusta la imatge al panell, mostrant-la tota sencera (calcula l'scalefit inicial)
+	public void fitGraph() {
+	    this.resetView(false);
+	}
 
-        Point2D.Double currentPoint = new Point2D.Double(e.getPoint().x, e.getPoint().y);
+		private void resetView(boolean resetAxes) {
+	        this.calcMaxMinXY();
+	        this.setXrangeMax(this.getxMax());
+	        this.setXrangeMin(this.getxMin());
+	        this.setYrangeMax(this.getyMax());
+	        this.setYrangeMin(this.getyMin());
+	        
+	        this.calcScaleFitX();
+	        this.calcScaleFitY();
+	        
+	        if (!checkIfDiv() || resetAxes){
+	            this.autoDivLines();
+	        }
 
-        if (this.mouseDrag == true && this.mouseMove) {
-            double incX, incY;
-            // agafem el dragpoint i l'actualitzem
-            incX = currentPoint.x - dragPoint.x;
-            incY = currentPoint.y - dragPoint.y;
-            this.dragPoint = currentPoint;
-            this.movePattern(incX, incY);
-        }
-        
-        //WE DO SCROLL OR ZOOMOUT DEPENDING
-        if (this.mouseDrag == true && this.mouseZoom) {
-            double incY,incX;
-            // agafem el dragpoint i l'actualitzem
-            incX = currentPoint.x - dragPoint.x;
-            incY = currentPoint.y - dragPoint.y;
-            this.dragPoint = currentPoint;
-            
-            if (FastMath.abs(incX)>FastMath.abs(incY)){
-                //fem scrolling
-                boolean direction = (incX < 0);
-                logdebug("incY"+incY+" zoomIn"+Boolean.toString(direction));
-                this.scrollX(-incX);
-            }else{
-                //fem unzoom
-                boolean zoomIn = (incY < 0);
-                logdebug("incY"+incY+" zoomIn"+Boolean.toString(zoomIn));
-                this.zoomX(zoomIn, FastMath.abs(incY));
-            }
-        }
-        
-        if (this.mouseDrag == true && this.mouseBox == true){
-            Rectangle2D.Double rarea = getRectangleGraphArea();
-            double rwidth = FastMath.abs(dragPoint.x-currentPoint.x);
-            if (rwidth<minZoomPixels)return;
-            double rheight = rarea.height;
-            double yrect = rarea.y;
-            if (sqSelect){ //afecta a x i a y
-                rheight = FastMath.abs(dragPoint.y-currentPoint.y);
-            }
-            //drag
-            //defecte drag cap a la dreta
-            double xrect = dragPoint.x;
-            if (dragPoint.x > currentPoint.x){
-                //estem fent el drag cap a la esquerra, corregim vertex
-                xrect = currentPoint.x;
-            }
-            if (sqSelect){ //afecta a x i a y
-                //defecte drag cap avall
-                yrect = dragPoint.y;
-                if (dragPoint.y > currentPoint.y){
-                    //drag cap amunt, corregim vertex
-                    yrect = currentPoint.y;
-                }
-            }
-            zoomRect = new Rectangle2D.Double(xrect,yrect,rwidth,rheight);
-        }
-        this.repaint();
-    }
+	        this.actualitzaPlot();
+	    }
 
-    //es mouen en consonancia els limits de rang x i y
-    public void movePattern(double incX, double incY){//, boolean repaint) {
-        this.setXrangeMin(this.getXrangeMin()-(incX/scalefitX));
-        this.setXrangeMax(this.getXrangeMax()-(incX/scalefitX));
-        this.setYrangeMin(this.getYrangeMin()+(incY/scalefitY));
-        this.setYrangeMax(this.getYrangeMax()+(incY/scalefitY));
-        this.calcScaleFitX();
-        this.calcScaleFitY();
-        
-        if(isDebug())log.writeNameNums("fine", true, "ranges x y min max", getXrangeMin(),getXrangeMax(),getYrangeMin(),getYrangeMax());
-    }
-    
-
-    protected void do_graphPanel_mouseMoved(MouseEvent e) {
-        log.fine("mouseMoved!!");
-        if (arePatterns()){
-            Point2D.Double dp = getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
-            if (dp!=null){
-                
-                //get the units from first pattern
-                DataSerie ds = this.getPatterns().get(0).getSerie(0);
-                String Xpref = "X=";
-                String Ypref = "Y(Intensity)=";
-                String Xunit = "";
-                String Yunit = "";
-                switch(ds.getxUnits()){
-                    case tth:
-                        Xpref = "X(2"+D1Dplot_global.theta+")=";
-                        Xunit = "º";
-                        break;
-                    case dsp:
-                        Xpref = "X(dsp)=";
-                        Xunit = D1Dplot_global.angstrom;
-                        break;
-                    case dspInv:
-                        Xpref = "X(1/dsp)=";
-                        Xunit = D1Dplot_global.angstrom+"-1";
-                        break;
-                    case Q:
-                        Xpref = "X(Q)=";
-                        Xunit = D1Dplot_global.angstrom+"-1";
-                        break;
-                    case G:
-                        Xpref = "X(G)=";
-                        Xunit = D1Dplot_global.angstrom;
-                        break;
-                    default:
-                        Xpref = "X=";
-                        Xunit = "";
-                        break;
-                }
-                
-                
-                double dtth = dp.getX();
-                lblTthInten.setText(String.format(" %s%.4f%s %s%.1f%s", Xpref,dtth,Xunit,Ypref,dp.getY(),Yunit));
-                double wl = ds.getWavelength();
-                if((wl>0)&&(ds.getxUnits()==DataSerie.xunits.tth)){
-                    //mirem si hi ha wavelength i les unitats del primer son tth
-                    double dsp = wl/(2*FastMath.sin(FastMath.toRadians(dtth/2.)));
-                    lblDsp.setText(String.format(" [dsp=%.4f"+D1Dplot_global.angstrom+"]", dsp));
-                }else{
-                    lblDsp.setText("");
-                }
-                
-                if (hkllabels){
-                    Iterator<Pattern1D> itrPt = this.getPatterns().iterator();
-                    while (itrPt.hasNext()){
-                        Pattern1D p = itrPt.next();
-                        if (!p.isPrf())continue;
-                        Iterator<DataSerie> ids = p.getSeriesIterator();
-                        while (ids.hasNext()){
-                            ds = ids.next();
-                            ArrayList<DataHKL> dhkl = new ArrayList<DataHKL>();
-                            if (ds.getTipusSerie()==DataSerie.serieType.hkl){
-                                double tol = FastMath.min(10*getXunitsPerPixel(), 0.025); //provem el minim entre 10 pixels o 0.025º 2th
-                                dhkl = ds.getClosestReflections(dtth,tol);
-                            }
-                            if (dhkl.size()>0){
-                                Iterator<DataHKL> itrhkl = dhkl.iterator();
-                                StringBuilder shkl = new StringBuilder();
-                                shkl.append("hkl(s)= ");
-                                while (itrhkl.hasNext()){
-                                    DataHKL hkl = itrhkl.next();
-                                    shkl.append(hkl.toString()).append(" ; ");
-                                }
-                                lblHkl.setText(shkl.substring(0, shkl.length()-2));
-                            }
-                        }
-                    }
-                }else{
-                    lblHkl.setText("");
-                }
-            }
-        }else{
-//            lblTthInten.setText("");
-//            lblDsp.setText("");
-//            lblHkl.setText("");
-        }
-    }
-
-    
-    // Identificar el bot� i segons quin sigui moure o fer zoom
-    protected void do_graphPanel_mousePressed(MouseEvent arg0) {
-        if (!arePatterns())return;
-        this.dragPoint = new Point2D.Double(arg0.getPoint().x, arg0.getPoint().y);
-
-        if (arg0.getButton() == MOURE) {
-            logdebug("button MOURE");
-            this.clickPoint = new Point2D.Double(arg0.getPoint().x, arg0.getPoint().y);
-            this.mouseDrag = true;
-            this.mouseMove = true;
-        }
-        if (arg0.getButton() == ZOOM_BORRAR) {
-            this.mouseDrag = true;
-            this.mouseZoom = true;
-        }
-        if (arg0.getButton() == CLICAR) {
-            //abans d'aplicar el moure mirem si s'està fent alguna cosa
-            if(this.isSelectingBkgPoints()){
-                DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
-                DataSerie bkgEstimPoints = this.getSelectedSeries().get(0).getPatt1D().getBkgEstimPSerie(); //AQUESTA LINIA ES NOVA!!
-                if (bkgEstimPoints==null)return;
-                bkgEstimPoints.addPoint(dp);
-            }else if(this.isDeletingBkgPoints()){
-                DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
-                DataSerie bkgEstimPoints = this.getSelectedSeries().get(0).getPatt1D().getBkgEstimPSerie(); //AQUESTA LINIA ES NOVA!!
-                if (bkgEstimPoints==null)return;
-                DataPoint toDelete = bkgEstimPoints.getClosestDP(dp,-1,-1);
-                if (toDelete!=null){
-                    if(isDebug())log.writeNameNums("config", true, "toDelete X,Y",toDelete.getX(),toDelete.getY());
-                    logdebug("bkgEstimPoints N = "+bkgEstimPoints.getNpoints());
-                    bkgEstimPoints.removePoint(toDelete);
-                    logdebug("bkgEstimPoints N = "+bkgEstimPoints.getNpoints());
-                }else{
-                    logdebug("toDelete is null");
-                }
-                
-            }else if(this.isSelectingPeaks()){
-                if(isOneSerieSelected()){
-                    //agafar com a pic la 2theta clicada pero amb la intensitat del punt mes proper
-                    DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
-                    this.getSelectedSeries().get(0).addPeak(dp.getX());
-                }
-            }else if(this.isDeletingPeaks()){
-                if(isOneSerieSelected()){
-                    DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
-                    DataPoint toDelete = this.getSelectedSeries().get(0).getClosestPeak(dp,-1);
-                    if (toDelete!=null){
-                        if(isDebug())log.writeNameNums("config", true, "toDelete X,Y",toDelete.getX(),toDelete.getY());
-                        this.getSelectedSeries().get(0).removePeak(toDelete);
-                    }else{
-                        logdebug("toDelete is null");
-                    }
-                }
-            }else{
-                if(this.shiftPressed){
-                    this.sqSelect=true;
-                }else{
-                    this.sqSelect=false;
-                }
-                this.mouseDrag = true;
-                this.zoomRect = null; //reiniciem rectangle
-                this.setMouseBox(true);
-            }
-        }
-//        continuousRepaint=true;
-        this.repaint();
-
-    }
-    
-    private boolean isOneSerieSelected(){
+	private boolean isOneSerieSelected(){
         if (this.getSelectedSeries().isEmpty()){
-            loginfo("select a serie first");
+            log.warning("Select a serie first");
             return false;
         }
         if (this.getSelectedSeries().size()>1){
-            loginfo("select ONE serie only");
+            log.warning("Select ONE serie only");
             return false;
         }
         return true;
     }
 
-    protected void do_graphPanel_mouseReleased(MouseEvent e) {
-//        continuousRepaint=false;
-        if (e.getButton() == MOURE){
-            this.mouseDrag = false;
-            this.mouseMove = false;
-            Point2D.Double currentPoint = new Point2D.Double(e.getPoint().x, e.getPoint().y);
-            if ((FastMath.abs(this.clickPoint.x-currentPoint.x)<0.5) && (FastMath.abs(this.clickPoint.y-currentPoint.y)<0.5)){
-                this.fitGraph();
-            }
-        }
-        if (e.getButton() == ZOOM_BORRAR){
-            this.mouseDrag = false;
-            this.mouseZoom = false;            
-        }
-        if (e.getButton() == CLICAR){
-            this.setMouseBox(false);
-        }
-        if (!arePatterns())return;
-        
-        if (e.getButton() == CLICAR) {
-            //comprovem que no s'estigui fent una altra cosa          
-            if(this.isSelectingBkgPoints()||this.isDeletingBkgPoints())return;
-            if(this.isSelectingPeaks()||this.isDeletingPeaks())return;
-
-            //COMPROVEM QUE HI HAGI UN MINIM D'AREA ENTREMIG (per evitar un click sol)
-            if (FastMath.abs(e.getPoint().x-dragPoint.x)<minZoomPixels)return;
-            if (this.sqSelect)if (FastMath.abs(e.getPoint().y-dragPoint.y)<minZoomPixels)return;
-            
-            Point2D.Double dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
-            Point2D.Double dataPointInicial = this.getDataPointFromFramePoint(dragPoint);
-            if(isDebug()){
-                if (dataPointFinal!=null)log.writeNameNums("CONFIG", true, "dataPointFinal", dataPointFinal.x,dataPointFinal.y);
-                log.writeNameNums("CONFIG", true, "e.getPoint", e.getPoint().x, e.getPoint().y);
-                if (dataPointInicial!=null)log.writeNameNums("CONFIG", true, "dataPointInicial", dataPointInicial.x,dataPointInicial.y);
-                log.writeNameNums("CONFIG", true, "dragPoint", dragPoint.x, dragPoint.y);
-            }
-            
-            if (dataPointFinal == null && dataPointInicial==null){
-                logdebug("els dos punts a fora!");
-                return;
-            }
-            
-            if (dataPointFinal == null){
-                log.debug("dataPoint final is null");
-                dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(e.getPoint().x),checkFrameYValue(e.getPoint().y)));
-
-              if (dataPointFinal!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointFinal (after)", dataPointFinal.x,dataPointFinal.y);
-                
-                
-            }
-            if (dataPointInicial==null){
-                log.debug("dataPoint inicial is null");
-                dataPointInicial = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(dragPoint.x),checkFrameYValue(dragPoint.y)));
-                if (dataPointInicial!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointInicial (after)", dataPointInicial.x,dataPointInicial.y);
-            }
-            
-            if (dataPointFinal == null || dataPointInicial==null){
-                logdebug("algun punt final encara a fora!");
-                return;
-            }
-
-            double xrmin = FastMath.min(dataPointFinal.x, dataPointInicial.x);
-            double xrmax = FastMath.max(dataPointFinal.x, dataPointInicial.x);
-            if(isDebug())log.writeNameNums("config", true, "xrangeMin xrangeMax", xrmin,xrmax);
-            this.setXrangeMin(xrmin);
-            this.setXrangeMax(xrmax);
-            this.calcScaleFitX();
-            
-            if (this.sqSelect){
-                double yrmin = FastMath.min(dataPointFinal.y, dataPointInicial.y);
-                double yrmax = FastMath.max(dataPointFinal.y, dataPointInicial.y);
-                if(isDebug())log.writeNameNums("config", true, "yrangeMin yrangeMax", yrmin,yrmax);
-                this.setYrangeMin(yrmin);
-                this.setYrangeMax(yrmax);
-                this.calcScaleFitY();
-              }
-            
-            this.repaint();
-        }
-//        continuousRepaint=false;
-        this.sqSelect=false;
-    }
-    
-
-    protected void do_graphPanel_mouseWheelMoved(MouseWheelEvent e) {
-        Point2D.Double p = new Point2D.Double(e.getPoint().x, e.getPoint().y);
-        boolean zoomIn = (e.getWheelRotation() < 0);
-        this.zoomY(zoomIn, p);
-        this.repaint();
-    }
-    
-    public boolean arePatterns(){
+    private boolean arePatterns(){
         return !this.getPatterns().isEmpty();
     }
     
@@ -881,23 +585,13 @@ public class PlotPanel extends JPanel {
         return yval;
     }
     
-    
-    private void resetView(boolean resetAxes) {
-        this.calcMaxMinXY();
-        this.setXrangeMax(this.getxMax());
-        this.setXrangeMin(this.getxMin());
-        this.setYrangeMax(this.getyMax());
-        this.setYrangeMin(this.getyMin());
-        
-        this.calcScaleFitX();
-        this.calcScaleFitY();
-        
-        if (!checkIfDiv() || resetAxes){
-            this.autoDivLines();
-        }
-        
-        this.repaint();
-    }
+//    private boolean isDataPointInsidePlotRange(DataPoint dp){
+//        if (dp.getX()>this.getXrangeMin() && dp.getX()<this.getXrangeMax() && dp.getY()>this.getYrangeMin() && dp.getY()<this.getYrangeMax()){
+//            return true;
+//        }else{
+//            return false;
+//        }
+//    }
     
     //NOMES S'HAURIA DE CRIDAR QUAN OBRIM UN PATTERN (per aixo private)
     private void autoDivLines(){
@@ -908,7 +602,7 @@ public class PlotPanel extends JPanel {
         double xppix = this.getXunitsPerPixel();
         double yppix = this.getYunitsPerPixel();
         
-        if(isDebug())log.writeNameNumPairs("config", true, "xppix,yppix",xppix,yppix);
+//        if(isDebug())log.writeNameNumPairs("fine", true, "xppix,yppix",xppix,yppix);
         
         txtNdivx.setText(String.valueOf(incXPrimPIXELS/incXSecPIXELS));
         txtNdivy.setText(String.valueOf(incYPrimPIXELS/incYSecPIXELS));
@@ -922,7 +616,10 @@ public class PlotPanel extends JPanel {
         this.txtXdiv.setText(FileUtils.dfX_3.format(this.getDiv_incXPrim()));
         this.txtYdiv.setText(FileUtils.dfX_3.format(this.getDiv_incYPrim()));
 
-        if(isDebug())log.writeNameNumPairs("config", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
+//        this.txtXdiv.setText(String.valueOf(this.getDiv_incXPrim()));
+//        this.txtYdiv.setText(String.valueOf(this.getDiv_incYPrim()));
+        
+//        if(isDebug())log.writeNameNumPairs("fine", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
 
     }
     
@@ -932,6 +629,9 @@ public class PlotPanel extends JPanel {
         
         double currentXIni = this.getXrangeMin();
         
+//        this.setXrangeMin((int)this.getxMin());
+
+//        this.setDiv_startValX(this.getXrangeMin());
         this.setDiv_startValX(currentXIni);
         this.setXrangeMin(currentXIni);
         
@@ -939,18 +639,23 @@ public class PlotPanel extends JPanel {
         this.setDiv_incXSec(incrPrincipals/nDivisionsSecund);
         
         this.txtXdiv.setText(FileUtils.dfX_3.format(this.getDiv_incXPrim()));
+//        this.txtXdiv.setText(String.valueOf(this.getDiv_incXPrim()));
         
    }
     
     private void customDivLinesY(double incrPrincipals, double nDivisionsSecund){
         double currentYIni = this.getYrangeMin();
         
+//        this.setYrangeMin(0); //TODO REVISAR SI ES EL COMPORTAMENT QUE VOLEM
+        
+//        this.setDiv_startValY(this.getYrangeMin());
         this.setDiv_startValY(currentYIni);
         this.setYrangeMin(currentYIni);
         
         this.setDiv_incYPrim(incrPrincipals);
         this.setDiv_incYSec(incrPrincipals/nDivisionsSecund);
         
+//        this.txtYdiv.setText(String.valueOf(this.getDiv_incYPrim()));
         this.txtYdiv.setText(FileUtils.dfX_3.format(this.getDiv_incYPrim()));
         
         if(isDebug())log.writeNameNumPairs("config", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
@@ -964,11 +669,6 @@ public class PlotPanel extends JPanel {
         if (this.div_incYPrim == 0) return false;
         if (this.div_incYSec == 0) return false;
         return true;
-    }
-    
-    // ajusta la imatge al panell, mostrant-la tota sencera (calcula l'scalefit inicial)
-    public void fitGraph() {
-        this.resetView(false);
     }
     
     private void calcMaxMinXY(){
@@ -1024,7 +724,7 @@ public class PlotPanel extends JPanel {
             this.setYrangeMax(this.getYrangeMax()*(facZoom));
         }
         calcScaleFitY();
-        this.repaint();
+        this.actualitzaPlot();
     }
 
     private void zoomX(boolean zoomIn, double inc) {
@@ -1046,7 +746,19 @@ public class PlotPanel extends JPanel {
       calcScaleFitX();
     }
     
-    public Point2D.Double getIntersectionPoint(Line2D.Double line1, Line2D.Double line2) {
+    //es mouen en consonancia els limits de rang x i y
+	private void movePattern(double incX, double incY){//, boolean repaint) {
+	    this.setXrangeMin(this.getXrangeMin()-(incX/scalefitX));
+	    this.setXrangeMax(this.getXrangeMax()-(incX/scalefitX));
+	    this.setYrangeMin(this.getYrangeMin()+(incY/scalefitY));
+	    this.setYrangeMax(this.getYrangeMax()+(incY/scalefitY));
+	    this.calcScaleFitX();
+	    this.calcScaleFitY();
+	    
+//	    if(isDebug())log.writeNameNums("fine", true, "ranges x y min max", getXrangeMin(),getXrangeMax(),getYrangeMin(),getYrangeMax());
+	}
+
+	private Point2D.Double getIntersectionPoint(Line2D.Double line1, Line2D.Double line2) {
         if (! line1.intersectsLine(line2) ) return null;
           double px = line1.getX1(),
                 py = line1.getY1(),
@@ -1067,7 +779,7 @@ public class PlotPanel extends JPanel {
           }
      } // end intersection line-line
     
-    public Point2D.Double[] getIntersectionPoint(Line2D.Double line, Rectangle2D rectangle) {
+    private Point2D.Double[] getIntersectionPoint(Line2D.Double line, Rectangle2D rectangle) {
 
         Point2D.Double[] p = new Point2D.Double[4];
 
@@ -1103,22 +815,6 @@ public class PlotPanel extends JPanel {
         return p;
 
     }
-    protected void do_chckbxFixedAxis_itemStateChanged(ItemEvent e) {
-        this.fixAxes=chckbxFixedAxis.isSelected();
-        if (fixAxes==true){
-            txtNdivx.setEditable(false);
-            txtNdivy.setEditable(false);
-            txtXdiv.setEditable(false);
-            txtYdiv.setEditable(false);
-        }else{
-            txtNdivx.setEditable(true);
-            txtNdivy.setEditable(true);
-            txtXdiv.setEditable(true);
-            txtYdiv.setEditable(true);            
-        }
-        this.repaint();
-    }
-    
     private void applyWindow(){
         this.setXrangeMin(Double.parseDouble(txtXmin.getText()));
         this.setXrangeMax(Double.parseDouble(txtXmax.getText()));
@@ -1126,10 +822,10 @@ public class PlotPanel extends JPanel {
         this.setYrangeMax(Double.parseDouble(txtYmax.getText()));
         this.calcScaleFitX();
         this.calcScaleFitY();
-        this.repaint();
+        this.actualitzaPlot();
     }
     
-    protected void fillWindowValues(){
+    private void fillWindowValues(){
         this.txtXmax.setText(FileUtils.dfX_3.format(this.getXrangeMax()));
         this.txtXmin.setText(FileUtils.dfX_3.format(this.getXrangeMin()));
         this.txtYmax.setText(FileUtils.dfX_3.format(this.getYrangeMax()));
@@ -1139,556 +835,383 @@ public class PlotPanel extends JPanel {
     private void applyDivisions(){
         this.customDivLinesX(Double.parseDouble(txtXdiv.getText()), Double.parseDouble(txtNdivx.getText()));
         this.customDivLinesY(Double.parseDouble(txtYdiv.getText()), Double.parseDouble(txtNdivy.getText()));
-        this.repaint();        
+        this.actualitzaPlot();        
     }
     
-    
-    //SETTERS AND GETTERS
-    public double getXrangeMin() {
-        return xrangeMin;
-    }
-
-    public void setXrangeMin(double xrangeMin) {
-        this.xrangeMin = xrangeMin;
-    }
-
-    public double getXrangeMax() {
-        return xrangeMax;
-    }
-
-    public void setXrangeMax(double xrangeMax) {
-        this.xrangeMax = xrangeMax;
-    }
-
-    public double getYrangeMin() {
-        return yrangeMin;
-    }
-
-    public void setYrangeMin(double yrangeMin) {
-        this.yrangeMin = yrangeMin;
-    }
-
-    public double getYrangeMax() {
-        return yrangeMax;
-    }
-
-    public void setYrangeMax(double yrangeMax) {
-        this.yrangeMax = yrangeMax;
-    }
-    
-    public ArrayList<Pattern1D> getPatterns(){
-        return this.patterns;
-    }
-    
-    public static int getGapAxisTop() {
-        return gapAxisTop;
-    }
-
-    public static void setGapAxisTop(int gapAxisTop) {
-        PlotPanel.gapAxisTop = gapAxisTop;
-    }
-
-    public static int getGapAxisBottom() {
-        return gapAxisBottom;
-    }
-
-    public static void setGapAxisBottom(int gapAxisBottom) {
-        PlotPanel.gapAxisBottom = gapAxisBottom;
-    }
-
-    public static int getGapAxisRight() {
-        return gapAxisRight;
-    }
-
-    public static void setGapAxisRight(int gapAxisRight) {
-        PlotPanel.gapAxisRight = gapAxisRight;
-    }
-
-    public static int getGapAxisLeft() {
-        return gapAxisLeft;
-    }
-
-    public static void setGapAxisLeft(int gapAxisLeft) {
-        PlotPanel.gapAxisLeft = gapAxisLeft;
-    }
-    
-    public double getxMin() {
-        return xMin;
-    }
-
-    public void setxMin(double xMin) {
-        this.xMin = xMin;
-    }
-
-    public double getxMax() {
-        return xMax;
-    }
-
-    public void setxMax(double xMax) {
-        this.xMax = xMax;
-    }
-
-    public double getyMin() {
-        return yMin;
-    }
-
-    public void setyMin(double yMin) {
-        this.yMin = yMin;
-    }
-
-    public double getyMax() {
-        return yMax;
-    }
-
-    public void setyMax(double yMax) {
-        this.yMax = yMax;
-    }
-
-    public double getScalefitX() {
-        return scalefitX;
-    }
-
-    public void setScalefitX(double scalefitX) {
-        this.scalefitX = scalefitX;
-    }
-
-    public double getScalefitY() {
-        return scalefitY;
-    }
-
-    public void setScalefitY(double scalefitY) {
-        this.scalefitY = scalefitY;
-    }
-
-    public boolean isMouseBox() {
-        return mouseBox;
-    }
-
-    public void setMouseBox(boolean mouseBox) {
-        this.mouseBox = mouseBox;
-    }
-
-    public double getIncX() {
-        return incX;
-    }
-
-    public void setIncX(double incX) {
-        this.incX = incX;
-    }
-
-    public double getIncY() {
-        return incY;
-    }
-
-    public void setIncY(double incY) {
-        this.incY = incY;
-    }
-
-    public double getDiv_incXPrim() {
-        return div_incXPrim;
-    }
-
-    public void setDiv_incXPrim(double div_incXPrim) {
-        this.div_incXPrim = div_incXPrim;
-    }
-
-    public double getDiv_incXSec() {
-        return div_incXSec;
-    }
-
-    public void setDiv_incXSec(double div_incXSec) {
-        this.div_incXSec = div_incXSec;
-    }
-
-    public double getDiv_incYPrim() {
-        return div_incYPrim;
-    }
-
-    public void setDiv_incYPrim(double div_incYPrim) {
-        this.div_incYPrim = div_incYPrim;
-    }
-
-    public double getDiv_incYSec() {
-        return div_incYSec;
-    }
-
-    public void setDiv_incYSec(double div_incYSec) {
-        this.div_incYSec = div_incYSec;
-    }
-
-    public double getDiv_startValX() {
-        return div_startValX;
-    }
-
-    public void setDiv_startValX(double div_startValX) {
-        this.div_startValX = div_startValX;
-    }
-
-    public double getDiv_startValY() {
-        return div_startValY;
-    }
-
-    public void setDiv_startValY(double div_startValY) {
-        this.div_startValY = div_startValY;
-    }
-
-    public String getXlabel() {
-        return xlabel;
-    }
-
-    public void setXlabel(String xlabel) {
-        this.xlabel = xlabel;
-        this.repaint();
-    }
-
-    public String getYlabel() {
-        return ylabel;
-    }
-
-    public void setYlabel(String ylabel) {
-        this.ylabel = ylabel;
-        this.repaint();
-    }
-    public boolean isShowLegend() {
-        return showLegend;
-    }
-
-    public void setShowLegend(boolean showLegend) {
-        this.showLegend = showLegend;
-    }
-
-    public boolean isAutoPosLegend() {
-        return autoPosLegend;
-    }
-
-    public void setAutoPosLegend(boolean autoPosLegend) {
-        this.autoPosLegend = autoPosLegend;
-    }
-
-    public int getLegendX() {
-        return legendX;
-    }
-
-    public void setLegendX(int legendX) {
-        this.legendX = legendX;
-    }
-
-    public int getLegendY() {
-        return legendY;
-    }
-
-    public void setLegendY(int legendY) {
-        this.legendY = legendY;
-    }
-
-    public boolean isHkllabels() {
-        return hkllabels;
-    }
-
-    public void setHkllabels(boolean hkllabels) {
-        this.hkllabels = hkllabels;
-    }
-
-    public static boolean isLightTheme() {
-        return lightTheme;
-    }
-
-    public static void setLightTheme(boolean lightTheme) {
-        PlotPanel.lightTheme = lightTheme;
-    }
-
-    public boolean isShowGridY() {
-        return showGridY;
-    }
-
-    public void setShowGridY(boolean showGrid) {
-        this.showGridY = showGrid;
-    }
-    
-    public boolean isShowGridX() {
-        return showGridX;
-    }
-
-    public void setShowGridX(boolean showGrid) {
-        this.showGridX = showGrid;
-    }
-
-    public static int getPadding() {
-        return padding;
-    }
-
-    public static void setPadding(int padding) {
-        PlotPanel.padding = padding;
-    }
-
-    public static int getAxisLabelsPadding() {
-        return AxisLabelsPadding;
-    }
-
-    public static void setAxisLabelsPadding(int axisLabelsPadding) {
-        AxisLabelsPadding = axisLabelsPadding;
-    }
-
-    public static double getIncXPrimPIXELS() {
-        return incXPrimPIXELS;
-    }
-
-    public static void setIncXPrimPIXELS(double incXPrimPIXELS) {
-        PlotPanel.incXPrimPIXELS = incXPrimPIXELS;
-    }
-
-    public static double getIncXSecPIXELS() {
-        return incXSecPIXELS;
-    }
-
-    public static void setIncXSecPIXELS(double incXSecPIXELS) {
-        PlotPanel.incXSecPIXELS = incXSecPIXELS;
-    }
-
-    public static double getIncYPrimPIXELS() {
-        return incYPrimPIXELS;
-    }
-
-    public static void setIncYPrimPIXELS(double incYPrimPIXELS) {
-        PlotPanel.incYPrimPIXELS = incYPrimPIXELS;
-    }
-
-    public static double getIncYSecPIXELS() {
-        return incYSecPIXELS;
-    }
-
-    public static void setIncYSecPIXELS(double incYSecPIXELS) {
-        PlotPanel.incYSecPIXELS = incYSecPIXELS;
-    }
-
-    public static int getMinZoomPixels() {
-        return minZoomPixels;
-    }
-
-    public static void setMinZoomPixels(int minZoomPixels) {
-        PlotPanel.minZoomPixels = minZoomPixels;
-    }
-
-    public static double getFacZoom() {
-        return facZoom;
-    }
-
-    public static void setFacZoom(double facZoom) {
-        PlotPanel.facZoom = facZoom;
-    }
-
-    public static int getMOURE() {
-        return MOURE;
-    }
-
-    public static void setMOURE(int mOURE) {
-        MOURE = mOURE;
-    }
-
-    public static int getCLICAR() {
-        return CLICAR;
-    }
-
-    public static void setCLICAR(int cLICAR) {
-        CLICAR = cLICAR;
-    }
-
-    public static int getZOOM_BORRAR() {
-        return ZOOM_BORRAR;
-    }
-
-    public static void setZOOM_BORRAR(int zOOM_BORRAR) {
-        ZOOM_BORRAR = zOOM_BORRAR;
-    }
-
-    public static boolean isVerticalYlabel() {
-        return verticalYlabel;
-    }
-
-    public static void setVerticalYlabel(boolean verticalYlabel) {
-        PlotPanel.verticalYlabel = verticalYlabel;
-    }
-
-    public static int getDiv_PrimPixSize() {
-        return div_PrimPixSize;
-    }
-
-    public static void setDiv_PrimPixSize(int div_PrimPixSize) {
-        PlotPanel.div_PrimPixSize = div_PrimPixSize;
-    }
-
-    public static int getDiv_SecPixSize() {
-        return div_SecPixSize;
-    }
-
-    public static void setDiv_SecPixSize(int div_SecPixSize) {
-        PlotPanel.div_SecPixSize = div_SecPixSize;
-    }
-
-    public Plot1d getGraphPanel() {
-        return graphPanel;
-    }
-
-    public void setGraphPanel(Plot1d graphPanel) {
-        this.graphPanel = graphPanel;
-    }
-
-    protected void do_btnResetView_actionPerformed(ActionEvent e) {
-        this.fitGraph();
-    }
-
-    public boolean isNegativeYAxisLabels() {
-        return negativeYAxisLabels;
-    }
-
-    public void setNegativeYAxisLabels(boolean negativeYAxisLabels) {
-        this.negativeYAxisLabels = negativeYAxisLabels;
-    }
-
-    /**
-     * @return the verticalYAxe
-     */
-    public static boolean isVerticalYAxe() {
-        return verticalYAxe;
-    }
-
-    /**
-     * @param verticalYAxe the verticalYAxe to set
-     */
-    public static void setVerticalYAxe(boolean verticalYAxe) {
-        PlotPanel.verticalYAxe = verticalYAxe;
-    }
-
-    public boolean isShowPeaks() {
-        return showPeaks;
-    }
-
-    public void setShowPeaks(boolean showPeaks) {
-        this.showPeaks = showPeaks;
-    }
-
-    public ArrayList<DataSerie> getSelectedSeries() {
-        return selectedSeries;
-    }
-
-    public void setSelectedSerie(ArrayList<DataSerie> selectedSeries) {
-        this.selectedSeries = selectedSeries;
-    }
-
-    public boolean isShowBackground() {
-        return showBackground;
-    }
-
-    public void setShowBackground(boolean showBackground) {
-        this.showBackground = showBackground;
-    }
-
-//    public DataSerie getBkgserie() {
-//        return bkgserie;
-//    }
-//
-//    public void setBkgserie(DataSerie bkgserie) {
-//        this.bkgserie = bkgserie;
-//    }
-//
-//    public DataSerie getBkgEstimPoints() {
-//        return bkgEstimPoints;
-//    }
-//
-//    public void setBkgEstimPoints(DataSerie bkgEstimPoints) {
-//        this.bkgEstimPoints = bkgEstimPoints;
-//    }
-
-    public boolean isSelectingBkgPoints() {
-        return selectingBkgPoints;
-    }
-
-    public void setSelectingBkgPoints(boolean selectingBkgPoints) {
-        this.selectingBkgPoints = selectingBkgPoints;
-    }
-
-    public boolean isDeletingBkgPoints() {
-        return deletingBkgPoints;
-    }
-
-    public void setDeletingBkgPoints(boolean deletingBkgPoints) {
-        this.deletingBkgPoints = deletingBkgPoints;
-    }
-
-    public DataSerie getBkgseriePeakSearch() {
-        return bkgseriePeakSearch;
-    }
-
-    public void setBkgseriePeakSearch(DataSerie bkgseriePeakSearch) {
-        this.bkgseriePeakSearch = bkgseriePeakSearch;
-    }
-
-    public boolean isSelectingPeaks() {
-        return selectingPeaks;
-    }
-
-    public void setSelectingPeaks(boolean selectingPeaks) {
-        this.selectingPeaks = selectingPeaks;
-    }
-
-    public boolean isDeletingPeaks() {
-        return deletingPeaks;
-    }
-
-    public void setDeletingPeaks(boolean deletingPeaks) {
-        this.deletingPeaks = deletingPeaks;
-    }
     
     private void logdebug(String s){
         if (D1Dplot_global.isDebug()){
             log.debug(s);
         }
     }
-    private void loginfo(String s){
-        if (D1Dplot_global.logging){
-            log.info(s);
-        }
-        mainframe.getTAOut().stat(s); //ho passem pel txtArea
-    }
     
     private boolean isDebug(){
         return D1Dplot_global.isDebug();
     }
-    protected void do_txtNdivy_actionPerformed(ActionEvent e) {
+    private void do_graphPanel_mouseDragged(MouseEvent e) {
+//    	log.fine("mouseDragged!!");
+//    	log.fine(Boolean.toString(this.mouseDrag));
+//    	log.fine(Boolean.toString(e.getButton() == MOURE));
+	
+	    Point2D.Double currentPoint = new Point2D.Double(e.getPoint().x, e.getPoint().y);
+	
+	    if (this.mouseDrag == true && this.mouseMove) {
+	        double incX, incY;
+	        // agafem el dragpoint i l'actualitzem
+	        incX = currentPoint.x - dragPoint.x;
+	        incY = currentPoint.y - dragPoint.y;
+	        this.dragPoint = currentPoint;
+	        this.movePattern(incX, incY);
+	    }
+	    
+	    //WE DO SCROLL OR ZOOMOUT DEPENDING
+	    if (this.mouseDrag == true && this.mouseZoom) {
+	        double incY,incX;
+	        // agafem el dragpoint i l'actualitzem
+	        incX = currentPoint.x - dragPoint.x;
+	        incY = currentPoint.y - dragPoint.y;
+	        this.dragPoint = currentPoint;
+	        
+	        if (FastMath.abs(incX)>FastMath.abs(incY)){
+	            //fem scrolling
+	            boolean direction = (incX < 0);
+	            logdebug("incY"+incY+" zoomIn"+Boolean.toString(direction));
+	            this.scrollX(-incX);
+	        }else{
+	            //fem unzoom
+	            boolean zoomIn = (incY < 0);
+	            logdebug("incY"+incY+" zoomIn"+Boolean.toString(zoomIn));
+	            this.zoomX(zoomIn, FastMath.abs(incY));
+	        }
+	    }
+	    
+	    if (this.mouseDrag == true && this.mouseBox == true){
+	        Rectangle2D.Double rarea = getRectangleGraphArea();
+	        double rwidth = FastMath.abs(dragPoint.x-currentPoint.x);
+	        if (rwidth<minZoomPixels)return;
+	        double rheight = rarea.height;
+	        double yrect = rarea.y;
+	        if (sqSelect){ //afecta a x i a y
+	            rheight = FastMath.abs(dragPoint.y-currentPoint.y);
+	        }
+	        //drag
+	        //defecte drag cap a la dreta
+	        double xrect = dragPoint.x;
+	        if (dragPoint.x > currentPoint.x){
+	            //estem fent el drag cap a la esquerra, corregim vertex
+	            xrect = currentPoint.x;
+	        }
+	        if (sqSelect){ //afecta a x i a y
+	            //defecte drag cap avall
+	            yrect = dragPoint.y;
+	            if (dragPoint.y > currentPoint.y){
+	                //drag cap amunt, corregim vertex
+	                yrect = currentPoint.y;
+	            }
+	        }
+	        zoomRect = new Rectangle2D.Double(xrect,yrect,rwidth,rheight);
+	    }
+	    this.actualitzaPlot();
+	}
+
+	private void do_graphPanel_mouseMoved(MouseEvent e) {
+//	        log.fine("mouseMoved!!");
+	        if (arePatterns()){
+	            Point2D.Double dp = getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
+	            if (dp!=null){
+	                
+	                //get the units from first pattern
+	                DataSerie ds = this.getPatterns().get(0).getSerie(0);
+	                String Xpref = "X=";
+	                String Ypref = "Y(Intensity)=";
+	                String Xunit = "";
+	                String Yunit = "";
+	                switch(ds.getxUnits()){
+	                    case tth:
+	                        Xpref = "X(2"+D1Dplot_global.theta+")=";
+	                        Xunit = "º";
+	                        break;
+	                    case dsp:
+	                        Xpref = "X(dsp)=";
+	                        Xunit = D1Dplot_global.angstrom;
+	                        break;
+	                    case dspInv:
+	                        Xpref = "X(1/dsp)=";
+	                        Xunit = D1Dplot_global.angstrom+"-1";
+	                        break;
+	                    case Q:
+	                        Xpref = "X(Q)=";
+	                        Xunit = D1Dplot_global.angstrom+"-1";
+	                        break;
+	                    case G:
+	                        Xpref = "X(G)=";
+	                        Xunit = D1Dplot_global.angstrom;
+	                        break;
+	                    default:
+	                        Xpref = "X=";
+	                        Xunit = "";
+	                        break;
+	                }
+	                
+	                
+	                double dtth = dp.getX();
+	                lblTthInten.setText(String.format(" %s%.4f%s %s%.1f%s", Xpref,dtth,Xunit,Ypref,dp.getY(),Yunit));
+	                double wl = ds.getWavelength();
+	                if((wl>0)&&(ds.getxUnits()==DataSerie.xunits.tth)){
+	                    //mirem si hi ha wavelength i les unitats del primer son tth
+	                    double dsp = wl/(2*FastMath.sin(FastMath.toRadians(dtth/2.)));
+	                    lblDsp.setText(String.format(" [dsp=%.4f"+D1Dplot_global.angstrom+"]", dsp));
+	                }else{
+	                    lblDsp.setText("");
+	                }
+	                
+	                if (hkllabels){
+	                    Iterator<Pattern1D> itrPt = this.getPatterns().iterator();
+	                    while (itrPt.hasNext()){
+	                        Pattern1D p = itrPt.next();
+	                        if (!p.isPrf())continue;
+	                        Iterator<DataSerie> ids = p.getSeriesIterator();
+	                        while (ids.hasNext()){
+	                            ds = ids.next();
+	                            ArrayList<DataHKL> dhkl = new ArrayList<DataHKL>();
+	                            if (ds.getTipusSerie()==DataSerie.serieType.hkl){
+	                                double tol = FastMath.min(10*getXunitsPerPixel(), 0.025); //provem el minim entre 10 pixels o 0.025º 2th
+	                                dhkl = ds.getClosestReflections(dtth,tol);
+	                            }
+	                            if (dhkl.size()>0){
+	                                Iterator<DataHKL> itrhkl = dhkl.iterator();
+	                                StringBuilder shkl = new StringBuilder();
+	                                shkl.append("hkl(s)= ");
+	                                while (itrhkl.hasNext()){
+	                                    DataHKL hkl = itrhkl.next();
+	                                    shkl.append(hkl.toString()).append(" ; ");
+	                                }
+	                                lblHkl.setText(shkl.substring(0, shkl.length()-2));
+	                            }
+	                        }
+	                    }
+	                }else{
+	                    lblHkl.setText("");
+	                }
+	            }
+	        }else{
+	//            lblTthInten.setText("");
+	//            lblDsp.setText("");
+	//            lblHkl.setText("");
+	        }
+	    }
+
+	// Identificar el bot� i segons quin sigui moure o fer zoom
+	    private void do_graphPanel_mousePressed(MouseEvent arg0) {
+	        if (!arePatterns())return;
+	        this.dragPoint = new Point2D.Double(arg0.getPoint().x, arg0.getPoint().y);
+	
+	        if (arg0.getButton() == MOURE) {
+	            logdebug("Mouse button="+Integer.toString(MOURE));
+	            this.clickPoint = new Point2D.Double(arg0.getPoint().x, arg0.getPoint().y);
+	            this.mouseDrag = true;
+	            this.mouseMove = true;
+	        }
+	        if (arg0.getButton() == ZOOM_BORRAR) {
+	            logdebug("Mouse button="+Integer.toString(ZOOM_BORRAR));
+	            this.mouseDrag = true;
+	            this.mouseZoom = true;
+	        }
+	        if (arg0.getButton() == CLICAR) {
+	            logdebug("Mouse button="+Integer.toString(CLICAR));
+	            //abans d'aplicar el moure mirem si s'està fent alguna cosa
+	            if(this.isSelectingBkgPoints()){
+	                DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
+	                DataSerie bkgEstimPoints = this.getSelectedSeries().get(0).getPatt1D().getBkgEstimPSerie(); //AQUESTA LINIA ES NOVA!!
+	                if (bkgEstimPoints==null)return;
+	                bkgEstimPoints.addPoint(dp);
+	            }else if(this.isDeletingBkgPoints()){
+	                DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
+	                DataSerie bkgEstimPoints = this.getSelectedSeries().get(0).getPatt1D().getBkgEstimPSerie(); //AQUESTA LINIA ES NOVA!!
+	                if (bkgEstimPoints==null)return;
+	                DataPoint toDelete = bkgEstimPoints.getClosestDP(dp,-1,-1);
+	                if (toDelete!=null){
+	                    if(isDebug())log.writeNameNums("config", true, "toDelete X,Y",toDelete.getX(),toDelete.getY());
+	                    logdebug("bkgEstimPoints N = "+bkgEstimPoints.getNpoints());
+	                    bkgEstimPoints.removePoint(toDelete);
+	                    logdebug("bkgEstimPoints N = "+bkgEstimPoints.getNpoints());
+	                }else{
+	                    logdebug("toDelete is null");
+	                }
+	                
+	            }else if(this.isSelectingPeaks()){
+	                if(isOneSerieSelected()){
+	                    //agafar com a pic la 2theta clicada pero amb la intensitat del punt mes proper
+	                    DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
+	                    this.getSelectedSeries().get(0).addPeak(dp.getX());
+	                }
+	            }else if(this.isDeletingPeaks()){
+	                if(isOneSerieSelected()){
+	                    DataPoint dp = this.getDataPointDPFromFramePoint(this.dragPoint);
+	                    DataPoint toDelete = this.getSelectedSeries().get(0).getClosestPeak(dp,-1);
+	                    if (toDelete!=null){
+	                        if(isDebug())log.writeNameNums("config", true, "toDelete X,Y",toDelete.getX(),toDelete.getY());
+	                        this.getSelectedSeries().get(0).removePeak(toDelete);
+	                    }else{
+	                        logdebug("toDelete is null");
+	                    }
+	                }
+	            }else{
+	                if(this.shiftPressed){
+	                    this.sqSelect=true;
+	                }else{
+	                    this.sqSelect=false;
+	                }
+	                this.mouseDrag = true;
+	                this.zoomRect = null; //reiniciem rectangle
+	                this.setMouseBox(true);
+	            }
+	        }
+	//        continuousRepaint=true;
+	        this.actualitzaPlot();
+	
+	    }
+
+	private void do_graphPanel_mouseReleased(MouseEvent e) {
+	//        continuousRepaint=false;
+	        if (e.getButton() == MOURE){
+	            logdebug("Mouse button="+Integer.toString(MOURE));
+	            this.mouseDrag = false;
+	            this.mouseMove = false;
+	            Point2D.Double currentPoint = new Point2D.Double(e.getPoint().x, e.getPoint().y);
+	            if ((FastMath.abs(this.clickPoint.x-currentPoint.x)<0.5) && (FastMath.abs(this.clickPoint.y-currentPoint.y)<0.5)){
+	                this.fitGraph();
+	            }
+	        }
+	        if (e.getButton() == ZOOM_BORRAR){
+	            logdebug("Mouse button="+Integer.toString(ZOOM_BORRAR));
+	            this.mouseDrag = false;
+	            this.mouseZoom = false;            
+	        }
+	        if (e.getButton() == CLICAR){
+	            logdebug("Mouse button="+Integer.toString(CLICAR));
+	            this.setMouseBox(false);
+	        }
+	        if (!arePatterns())return;
+	        
+	        if (e.getButton() == CLICAR) {
+	            logdebug("Mouse button="+Integer.toString(CLICAR));
+	            //comprovem que no s'estigui fent una altra cosa          
+	            if(this.isSelectingBkgPoints()||this.isDeletingBkgPoints())return;
+	            if(this.isSelectingPeaks()||this.isDeletingPeaks())return;
+	
+	            //COMPROVEM QUE HI HAGI UN MINIM D'AREA ENTREMIG (per evitar un click sol)
+	            if (FastMath.abs(e.getPoint().x-dragPoint.x)<minZoomPixels)return;
+	            if (this.sqSelect)if (FastMath.abs(e.getPoint().y-dragPoint.y)<minZoomPixels)return;
+	            
+	            Point2D.Double dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
+	            Point2D.Double dataPointInicial = this.getDataPointFromFramePoint(dragPoint);
+	            if(isDebug()){
+	                if (dataPointFinal!=null)log.writeNameNums("CONFIG", true, "dataPointFinal", dataPointFinal.x,dataPointFinal.y);
+	                log.writeNameNums("CONFIG", true, "e.getPoint", e.getPoint().x, e.getPoint().y);
+	                if (dataPointInicial!=null)log.writeNameNums("CONFIG", true, "dataPointInicial", dataPointInicial.x,dataPointInicial.y);
+	                log.writeNameNums("CONFIG", true, "dragPoint", dragPoint.x, dragPoint.y);
+	            }
+	            
+	            if (dataPointFinal == null && dataPointInicial==null){
+	                logdebug("els dos punts a fora!");
+	                return;
+	            }
+	            
+	            if (dataPointFinal == null){
+	                logdebug("dataPoint final is null");
+	                dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(e.getPoint().x),checkFrameYValue(e.getPoint().y)));
+	
+	              if (dataPointFinal!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointFinal (after)", dataPointFinal.x,dataPointFinal.y);
+	                
+	                
+	            }
+	            if (dataPointInicial==null){
+	                logdebug("dataPoint inicial is null");
+	                dataPointInicial = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(dragPoint.x),checkFrameYValue(dragPoint.y)));
+	                if (dataPointInicial!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointInicial (after)", dataPointInicial.x,dataPointInicial.y);
+	            }
+	            
+	            if (dataPointFinal == null || dataPointInicial==null){
+	                logdebug("algun punt final encara a fora!");
+	                return;
+	            }
+	
+	            double xrmin = FastMath.min(dataPointFinal.x, dataPointInicial.x);
+	            double xrmax = FastMath.max(dataPointFinal.x, dataPointInicial.x);
+	            if(isDebug())log.writeNameNums("config", true, "xrangeMin xrangeMax", xrmin,xrmax);
+	            this.setXrangeMin(xrmin);
+	            this.setXrangeMax(xrmax);
+	            this.calcScaleFitX();
+	            
+	            if (this.sqSelect){
+	                double yrmin = FastMath.min(dataPointFinal.y, dataPointInicial.y);
+	                double yrmax = FastMath.max(dataPointFinal.y, dataPointInicial.y);
+	                if(isDebug())log.writeNameNums("config", true, "yrangeMin yrangeMax", yrmin,yrmax);
+	                this.setYrangeMin(yrmin);
+	                this.setYrangeMax(yrmax);
+	                this.calcScaleFitY();
+	              }
+	            
+	            this.actualitzaPlot();
+	        }
+	//        continuousRepaint=false;
+	        this.sqSelect=false;
+	    }
+
+	private void do_graphPanel_mouseWheelMoved(MouseWheelEvent e) {
+	    Point2D.Double p = new Point2D.Double(e.getPoint().x, e.getPoint().y);
+	    boolean zoomIn = (e.getWheelRotation() < 0);
+	    this.zoomY(zoomIn, p);
+	    this.actualitzaPlot();
+	}
+
+	private void do_btnResetView_actionPerformed(ActionEvent e) {
+	    this.fitGraph();
+	}
+
+	private void do_chckbxFixedAxis_itemStateChanged(ItemEvent e) {
+	    this.fixAxes=chckbxFixedAxis.isSelected();
+	    if (fixAxes==true){
+	        txtNdivx.setEditable(false);
+	        txtNdivy.setEditable(false);
+	        txtXdiv.setEditable(false);
+	        txtYdiv.setEditable(false);
+	    }else{
+	        txtNdivx.setEditable(true);
+	        txtNdivy.setEditable(true);
+	        txtXdiv.setEditable(true);
+	        txtYdiv.setEditable(true);            
+	    }
+	    this.actualitzaPlot();
+	}
+
+	private void do_txtNdivy_actionPerformed(ActionEvent e) {
          this.applyDivisions();
     }
-    protected void do_txtYdiv_actionPerformed(ActionEvent e) {
+    private void do_txtYdiv_actionPerformed(ActionEvent e) {
         this.applyDivisions();
     }
-    protected void do_txtNdivx_actionPerformed(ActionEvent e) {
+    private void do_txtNdivx_actionPerformed(ActionEvent e) {
         this.applyDivisions();
     }
-    protected void do_txtXdiv_actionPerformed(ActionEvent e) {
+    private void do_txtXdiv_actionPerformed(ActionEvent e) {
         this.applyDivisions();
     }
-    protected void do_txtYmax_actionPerformed(ActionEvent e) {
+    private void do_txtYmax_actionPerformed(ActionEvent e) {
         this.applyWindow();
     }
-    protected void do_txtXmax_actionPerformed(ActionEvent e) {
+    private void do_txtXmax_actionPerformed(ActionEvent e) {
         this.applyWindow();
     }
-    protected void do_txtYmin_actionPerformed(ActionEvent e) {
+    private void do_txtYmin_actionPerformed(ActionEvent e) {
         this.applyWindow();
     }
-    protected void do_txtXmin_actionPerformed(ActionEvent e) {
+    private void do_txtXmin_actionPerformed(ActionEvent e) {
         this.applyWindow();
     }
-    
-    
-    private static int def_nDecimalsX = 3;
-    private static int def_nDecimalsY = 1;
-    //sizes relative to default one (12?)
-    private static float def_axis_fsize = 0.f;
-//    private float def_yaxis_fsize = 2.f;
-    private static float def_axisL_fsize = 0.f;
-    
 
-    public static float getDef_axis_fsize() {
+	public static float getDef_axis_fsize() {
         return PlotPanel.def_axis_fsize;
     }
 
@@ -1718,6 +1241,476 @@ public class PlotPanel extends JPanel {
         PlotPanel.def_nDecimalsY=ndec;
     }
     
+public static int getGapAxisTop() {
+	    return gapAxisTop;
+	}
+
+	public static void setGapAxisTop(int gapAxisTop) {
+	    PlotPanel.gapAxisTop = gapAxisTop;
+	}
+
+	public static int getGapAxisBottom() {
+	    return gapAxisBottom;
+	}
+
+	public static void setGapAxisBottom(int gapAxisBottom) {
+	    PlotPanel.gapAxisBottom = gapAxisBottom;
+	}
+
+	public static int getGapAxisRight() {
+	    return gapAxisRight;
+	}
+
+	public static void setGapAxisRight(int gapAxisRight) {
+	    PlotPanel.gapAxisRight = gapAxisRight;
+	}
+
+	public static int getGapAxisLeft() {
+	    return gapAxisLeft;
+	}
+
+	public static void setGapAxisLeft(int gapAxisLeft) {
+	    PlotPanel.gapAxisLeft = gapAxisLeft;
+	}
+
+	public static boolean isLightTheme() {
+	    return lightTheme;
+	}
+
+	public static void setLightTheme(boolean lightTheme) {
+	    PlotPanel.lightTheme = lightTheme;
+	}
+
+	public static int getPadding() {
+	    return padding;
+	}
+
+	public static void setPadding(int padding) {
+	    PlotPanel.padding = padding;
+	}
+
+	public static int getAxisLabelsPadding() {
+	    return AxisLabelsPadding;
+	}
+
+	public static void setAxisLabelsPadding(int axisLabelsPadding) {
+	    AxisLabelsPadding = axisLabelsPadding;
+	}
+
+	public static double getIncXPrimPIXELS() {
+	    return incXPrimPIXELS;
+	}
+
+	public static void setIncXPrimPIXELS(double incXPrimPIXELS) {
+	    PlotPanel.incXPrimPIXELS = incXPrimPIXELS;
+	}
+
+	public static double getIncXSecPIXELS() {
+	    return incXSecPIXELS;
+	}
+
+	public static void setIncXSecPIXELS(double incXSecPIXELS) {
+	    PlotPanel.incXSecPIXELS = incXSecPIXELS;
+	}
+
+	public static double getIncYPrimPIXELS() {
+	    return incYPrimPIXELS;
+	}
+
+	public static void setIncYPrimPIXELS(double incYPrimPIXELS) {
+	    PlotPanel.incYPrimPIXELS = incYPrimPIXELS;
+	}
+
+	public static double getIncYSecPIXELS() {
+	    return incYSecPIXELS;
+	}
+
+	public static void setIncYSecPIXELS(double incYSecPIXELS) {
+	    PlotPanel.incYSecPIXELS = incYSecPIXELS;
+	}
+
+	public static int getMinZoomPixels() {
+	    return minZoomPixels;
+	}
+
+	public static void setMinZoomPixels(int minZoomPixels) {
+	    PlotPanel.minZoomPixels = minZoomPixels;
+	}
+
+	public static double getFacZoom() {
+	    return facZoom;
+	}
+
+	public static void setFacZoom(double facZoom) {
+	    PlotPanel.facZoom = facZoom;
+	}
+
+	public static int getMOURE() {
+	    return MOURE;
+	}
+
+	public static void setMOURE(int mOURE) {
+	    MOURE = mOURE;
+	}
+
+	public static int getCLICAR() {
+	    return CLICAR;
+	}
+
+	public static void setCLICAR(int cLICAR) {
+	    CLICAR = cLICAR;
+	}
+
+	public static int getZOOM_BORRAR() {
+	    return ZOOM_BORRAR;
+	}
+
+	public static void setZOOM_BORRAR(int zOOM_BORRAR) {
+	    ZOOM_BORRAR = zOOM_BORRAR;
+	}
+
+	public static boolean isVerticalYlabel() {
+	    return verticalYlabel;
+	}
+
+	public static void setVerticalYlabel(boolean verticalYlabel) {
+	    PlotPanel.verticalYlabel = verticalYlabel;
+	}
+
+	public static int getDiv_PrimPixSize() {
+	    return div_PrimPixSize;
+	}
+
+	public static void setDiv_PrimPixSize(int div_PrimPixSize) {
+	    PlotPanel.div_PrimPixSize = div_PrimPixSize;
+	}
+
+	public static int getDiv_SecPixSize() {
+	    return div_SecPixSize;
+	}
+
+	public static void setDiv_SecPixSize(int div_SecPixSize) {
+	    PlotPanel.div_SecPixSize = div_SecPixSize;
+	}
+
+	public static boolean isVerticalYAxe() {
+	    return verticalYAxe;
+	}
+
+	public static void setVerticalYAxe(boolean verticalYAxe) {
+	    PlotPanel.verticalYAxe = verticalYAxe;
+	}
+
+	public double getXrangeMin() {
+	    return xrangeMin;
+	}
+
+	public void setXrangeMin(double xrangeMin) {
+	    this.xrangeMin = xrangeMin;
+	}
+
+	public double getXrangeMax() {
+	    return xrangeMax;
+	}
+
+	public void setXrangeMax(double xrangeMax) {
+	    this.xrangeMax = xrangeMax;
+	}
+
+	public double getYrangeMin() {
+	    return yrangeMin;
+	}
+
+	public void setYrangeMin(double yrangeMin) {
+	    this.yrangeMin = yrangeMin;
+	}
+
+	public double getYrangeMax() {
+	    return yrangeMax;
+	}
+
+	public void setYrangeMax(double yrangeMax) {
+	    this.yrangeMax = yrangeMax;
+	}
+
+	public ArrayList<Pattern1D> getPatterns(){
+	    return this.patterns;
+	}
+
+	public double getxMin() {
+	    return xMin;
+	}
+
+	public void setxMin(double xMin) {
+	    this.xMin = xMin;
+	}
+
+	public double getxMax() {
+	    return xMax;
+	}
+
+	public void setxMax(double xMax) {
+	    this.xMax = xMax;
+	}
+
+	public double getyMin() {
+	    return yMin;
+	}
+
+	public void setyMin(double yMin) {
+	    this.yMin = yMin;
+	}
+
+	public double getyMax() {
+	    return yMax;
+	}
+
+	public void setyMax(double yMax) {
+	    this.yMax = yMax;
+	}
+
+	public double getScalefitX() {
+	    return scalefitX;
+	}
+
+	public void setScalefitX(double scalefitX) {
+	    this.scalefitX = scalefitX;
+	}
+
+	public double getScalefitY() {
+	    return scalefitY;
+	}
+
+	public void setScalefitY(double scalefitY) {
+	    this.scalefitY = scalefitY;
+	}
+
+	public boolean isMouseBox() {
+	    return mouseBox;
+	}
+
+	public void setMouseBox(boolean mouseBox) {
+	    this.mouseBox = mouseBox;
+	}
+
+	public double getIncX() {
+	    return incX;
+	}
+
+	public void setIncX(double incX) {
+	    this.incX = incX;
+	}
+
+	public double getIncY() {
+	    return incY;
+	}
+
+	public void setIncY(double incY) {
+	    this.incY = incY;
+	}
+
+	public double getDiv_incXPrim() {
+	    return div_incXPrim;
+	}
+
+	public void setDiv_incXPrim(double div_incXPrim) {
+	    this.div_incXPrim = div_incXPrim;
+	}
+
+	public double getDiv_incXSec() {
+	    return div_incXSec;
+	}
+
+	public void setDiv_incXSec(double div_incXSec) {
+	    this.div_incXSec = div_incXSec;
+	}
+
+	public double getDiv_incYPrim() {
+	    return div_incYPrim;
+	}
+
+	public void setDiv_incYPrim(double div_incYPrim) {
+	    this.div_incYPrim = div_incYPrim;
+	}
+
+	public double getDiv_incYSec() {
+	    return div_incYSec;
+	}
+
+	public void setDiv_incYSec(double div_incYSec) {
+	    this.div_incYSec = div_incYSec;
+	}
+
+	public double getDiv_startValX() {
+	    return div_startValX;
+	}
+
+	public void setDiv_startValX(double div_startValX) {
+	    this.div_startValX = div_startValX;
+	}
+
+	public double getDiv_startValY() {
+	    return div_startValY;
+	}
+
+	public void setDiv_startValY(double div_startValY) {
+	    this.div_startValY = div_startValY;
+	}
+
+	public String getXlabel() {
+	    return xlabel;
+	}
+
+	public void setXlabel(String xlabel) {
+	    this.xlabel = xlabel;
+	    this.actualitzaPlot();
+	}
+
+	public String getYlabel() {
+	    return ylabel;
+	}
+
+	public void setYlabel(String ylabel) {
+	    this.ylabel = ylabel;
+	    this.actualitzaPlot();
+	}
+
+	public boolean isShowLegend() {
+	    return showLegend;
+	}
+
+	public void setShowLegend(boolean showLegend) {
+	    this.showLegend = showLegend;
+	}
+
+	public boolean isAutoPosLegend() {
+	    return autoPosLegend;
+	}
+
+	public void setAutoPosLegend(boolean autoPosLegend) {
+	    this.autoPosLegend = autoPosLegend;
+	}
+
+	public int getLegendX() {
+	    return legendX;
+	}
+
+	public void setLegendX(int legendX) {
+	    this.legendX = legendX;
+	}
+
+	public int getLegendY() {
+	    return legendY;
+	}
+
+	public void setLegendY(int legendY) {
+	    this.legendY = legendY;
+	}
+
+	public boolean isHkllabels() {
+	    return hkllabels;
+	}
+
+	public void setHkllabels(boolean hkllabels) {
+	    this.hkllabels = hkllabels;
+	}
+
+	public boolean isShowGridY() {
+	    return showGridY;
+	}
+
+	public void setShowGridY(boolean showGrid) {
+	    this.showGridY = showGrid;
+	}
+
+	public boolean isShowGridX() {
+	    return showGridX;
+	}
+
+	public void setShowGridX(boolean showGrid) {
+	    this.showGridX = showGrid;
+	}
+
+	public Plot1d getGraphPanel() {
+	    return graphPanel;
+	}
+
+	public void setGraphPanel(Plot1d graphPanel) {
+	    this.graphPanel = graphPanel;
+	}
+
+	public boolean isNegativeYAxisLabels() {
+	    return negativeYAxisLabels;
+	}
+
+	public void setNegativeYAxisLabels(boolean negativeYAxisLabels) {
+	    this.negativeYAxisLabels = negativeYAxisLabels;
+	}
+
+	public boolean isShowPeaks() {
+	    return showPeaks;
+	}
+
+	public void setShowPeaks(boolean showPeaks) {
+	    this.showPeaks = showPeaks;
+	}
+
+	public ArrayList<DataSerie> getSelectedSeries() {
+	    return selectedSeries;
+	}
+
+	public void setSelectedSerie(ArrayList<DataSerie> selectedSeries) {
+	    this.selectedSeries = selectedSeries;
+	}
+
+	public boolean isShowBackground() {
+	    return showBackground;
+	}
+
+	public void setShowBackground(boolean showBackground) {
+	    this.showBackground = showBackground;
+	}
+
+	public boolean isSelectingBkgPoints() {
+	    return selectingBkgPoints;
+	}
+
+	public void setSelectingBkgPoints(boolean selectingBkgPoints) {
+	    this.selectingBkgPoints = selectingBkgPoints;
+	}
+
+	public boolean isDeletingBkgPoints() {
+	    return deletingBkgPoints;
+	}
+
+	public void setDeletingBkgPoints(boolean deletingBkgPoints) {
+	    this.deletingBkgPoints = deletingBkgPoints;
+	}
+
+	public DataSerie getBkgseriePeakSearch() {
+	    return bkgseriePeakSearch;
+	}
+
+	public void setBkgseriePeakSearch(DataSerie bkgseriePeakSearch) {
+	    this.bkgseriePeakSearch = bkgseriePeakSearch;
+	}
+
+	public boolean isSelectingPeaks() {
+	    return selectingPeaks;
+	}
+
+	public void setSelectingPeaks(boolean selectingPeaks) {
+	    this.selectingPeaks = selectingPeaks;
+	}
+
+	public boolean isDeletingPeaks() {
+	    return deletingPeaks;
+	}
+
+	public void setDeletingPeaks(boolean deletingPeaks) {
+	    this.deletingPeaks = deletingPeaks;
+	}
+
 //  ------------------------------------ PANELL DE DIBUIX
     class Plot1d extends JPanel {
 
@@ -1726,7 +1719,7 @@ public class PlotPanel extends JPanel {
         private int panelW, panelH;
         private Graphics2D g2;
         private boolean saveTransp = false;
-        private int svgFontSize= 30;
+//        private int svgFontSize= 30;
         private boolean saveSVG = false;
         
         private DecimalFormat def_xaxis_format = FileUtils.dfX_3;
@@ -1821,8 +1814,7 @@ public class PlotPanel extends JPanel {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            log.debug("paintComponent PlotPanel");
-            
+//            logdebug("paintComponent PlotPanel");
 
             if (!this.saveTransp){
                 if (lightTheme){
@@ -1832,19 +1824,14 @@ public class PlotPanel extends JPanel {
                 }
             }
             
-//            final Graphics2D g1 = (Graphics2D) g2.create();
-
             if (getPatterns().size() > 0) {
 
                 panelW = this.getWidth();
                 panelH = this.getHeight();
                 
                 BufferedImage off_Image = null;
-//                int fsz = this.getFont().getSize();
-//                int diff = svgFontSize-fsz;
+
                 if (isSaveSVG()) {
-//                    PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()+diff);
-//                    PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()+diff);
                     g2 = (Graphics2D) g;
                     g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
                             RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
@@ -1858,10 +1845,6 @@ public class PlotPanel extends JPanel {
                         RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
                   }
                 
-
-                
-                //primer caculem els limits -- ho trec, no crec que faci falta...
-//                calcMaxMinXY();
                 if (getScalefitY()<0){
                     calcScaleFitY();    
                 }
@@ -1869,29 +1852,14 @@ public class PlotPanel extends JPanel {
                     calcScaleFitX();    
                 }
 
-
-//                if (mouseBox == true && zoomRect != null) {
-//                    //dibuixem el rectangle
-//                    g2.setColor(Color.darkGray);
-//                    BasicStroke stroke = new BasicStroke(3f);
-//                    g2.setStroke(stroke);
-//                    g2.draw(zoomRect);
-//                    Color gristransp = new Color(Color.LIGHT_GRAY.getRed(), Color.LIGHT_GRAY.getGreen(),Color.LIGHT_GRAY.getBlue(), 128 );
-//                    g2.setColor(gristransp);
-//                    g2.fill(zoomRect);
-//                    return; //no cal seguir pintant...
-//                }
-//                if (continuousRepaint)this.repaint();
-
-
                 //1st draw axes (and optionally grid)
                 this.drawAxes(g2,showGridY,showGridX);
 
                 Iterator<Pattern1D> itrp = getPatterns().iterator();
-                int npatt = getPatterns().size();
+//                int npatt = getPatterns().size();
                 int ipatt = 0;
                 while (itrp.hasNext()){
-                    log.debug(String.format("Patt %d of %d", ipatt,npatt));
+//                    log.fine(String.format("Drawing patt %d of %d", ipatt,npatt));
                     Pattern1D patt = itrp.next();
                     for (int i=0; i<patt.getNseries(); i++){
                         DataSerie ds = patt.getSerie(i);
@@ -1909,6 +1877,7 @@ public class PlotPanel extends JPanel {
                                 if(ds.getMarkerSize()>0)drawPatternPoints(g2,ds,ds.getColor());
                                 break;
                         }
+                        
                         if (patt.getSerie(i).isShowErrBars()){
                             drawErrorBars(g2,patt.getSerie(i),patt.getSerie(i).getColor());
                         }
@@ -1916,9 +1885,9 @@ public class PlotPanel extends JPanel {
                     ipatt=ipatt+1;
                 }
 
-                log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
-                log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
-                log.debug(Boolean.toString(isSaveSVG()));
+//                logdebug(Float.toString(PlotPanel.getDef_axis_fsize()));
+//                logdebug(Float.toString(PlotPanel.getDef_axis_fsize()));
+//                logdebug(Boolean.toString(isSaveSVG()));
                 
                 if(showLegend){
                     drawLegend(g2);
@@ -1930,20 +1899,6 @@ public class PlotPanel extends JPanel {
                         drawPatternLine(g2,bkgseriePeakSearch,bkgseriePeakSearch.getColor());
                     }
                 }
-
-//                if (isShowBackground()){
-//                    logdebug("showbackground");
-//                    if (bkgserie.getNpoints()!=0){
-//                        drawPatternLine(g2,bkgserie,bkgserie.getColor()); 
-//                        drawPatternPoints(g2,bkgserie,bkgserie.getColor());
-//                    }
-//                    if (bkgEstimPoints.getNpoints()!=0){
-//                        drawPatternPoints(g2,bkgEstimPoints,bkgEstimPoints.getColor());
-//                    }
-//                }
-
-//                g1.dispose();
-//                g2.dispose();
 
                 fillWindowValues();
                 
@@ -1961,16 +1916,13 @@ public class PlotPanel extends JPanel {
                 if (!isSaveSVG()) {
                     g.drawImage(off_Image, 0, 0, null);
                   }else {
-                    //   PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()-diff);
-                    //   PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()-diff);
+                	  //TODO:aixo estava buit...
                   }
-//                g2.dispose();
-//                if(continuousRepaint)this.repaint();
             }
         }
 
         private void drawAxes(Graphics2D g1, boolean gridY, boolean gridX){
-            log.debug("drawAxes entered");
+//            logdebug("drawAxes entered");
 
             //provem de fer linia a 60 pixels de l'esquerra i a 60 pixels de baix (40 i 40 de dalt i a la dreta com a marges)
 
@@ -1982,7 +1934,7 @@ public class PlotPanel extends JPanel {
             Point2D.Double vxleft = vybot;
             Point2D.Double vxright = new Point2D.Double(panelW-getGapAxisRight()-padding,coordYeixX);
 
-            if(isDebug())log.writeNameNums("fine", true, "(axes) vy vx", vytop.x,vytop.y,vybot.x,vybot.y,vxleft.x,vxleft.y,vxright.x,vxright.y);
+//            if(isDebug())log.writeNameNums("fine", true, "(axes) vy vx", vytop.x,vytop.y,vybot.x,vybot.y,vxleft.x,vxleft.y,vxright.x,vxright.y);
 
             if(lightTheme){
                 g1.setColor(Light_frg);
@@ -2001,8 +1953,7 @@ public class PlotPanel extends JPanel {
             //PINTEM ELS TITOLS DELS EIXOS
             Font font = g1.getFont();
             FontRenderContext frc = g1.getFontRenderContext();
-            log.fine("default font size="+font.getSize());
-
+//            if(isDebug())log.fine("default font size="+font.getSize());
 
             // X-axis (abcissa) label.
             String s = getXlabel();
@@ -2010,7 +1961,7 @@ public class PlotPanel extends JPanel {
             g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
             double sw = g1.getFont().getStringBounds(s, frc).getWidth();
             double sx = (panelW - sw)/2;
-            log.fine("Xaxis label font size="+g1.getFont().getSize());
+//            log.fine("Xaxis label font size="+g1.getFont().getSize());
             g1.drawString(s, (float)sx,(float)sy);
             g1.setFont(font); //recuperem font defecte
 
@@ -2037,7 +1988,7 @@ public class PlotPanel extends JPanel {
                 //                    s = String.format("%.3f", xval);
                 s = this.def_xaxis_format.format(xval);
                 g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
-                log.fine("Xaxis font size="+g1.getFont().getSize());
+//                log.fine("Xaxis font size="+g1.getFont().getSize());
                 sw = g1.getFont().getStringBounds(s, frc).getWidth();
                 double sh = g1.getFont().getStringBounds(s, frc).getHeight();
                 double xLabel = xvalPix - sw/2f; //el posem centrat a la linia
@@ -2085,7 +2036,7 @@ public class PlotPanel extends JPanel {
                 sx = AxisLabelsPadding;
                 sy = sh + AxisLabelsPadding;
                 g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
-                log.fine("Yaxis label font size="+g1.getFont().getSize());
+//                log.fine("Yaxis label font size="+g1.getFont().getSize());
                 if (verticalYlabel){
                     sy = (panelH - sw)/2;
                     sx = (ylabelheight/2)+padding;
@@ -2121,7 +2072,7 @@ public class PlotPanel extends JPanel {
                     //                s = String.format("%.1f", yval);
                     s = this.def_yaxis_format.format(yval);
                     g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
-                    log.fine("Yaxis font size="+g1.getFont().getSize());
+//                    log.fine("Yaxis font size="+g1.getFont().getSize());
                     sw = g1.getFont().getStringBounds(s, frc).getWidth();
                     sh = g1.getFont().getStringBounds(s, frc).getHeight();
                     double xLabel = xiniPrim - AxisLabelsPadding - sw; 
@@ -2171,11 +2122,11 @@ public class PlotPanel extends JPanel {
 
                 }
             }
-            log.debug("drawAxes exit");
+//            log.debug("drawAxes exit");
         }
 
         private void drawPatternLine(Graphics2D g1, DataSerie serie, Color col){
-            log.debug("drawPatternLine entered");
+//            log.debug("drawPatternLine entered");
             g1.setColor(col);
             BasicStroke stroke = new BasicStroke(serie.getLineWidth());
             g1.setStroke(stroke);
@@ -2197,8 +2148,10 @@ public class PlotPanel extends JPanel {
 
                 boolean isP1 = isFramePointInsideGraphArea(p1);
                 boolean isP2 = isFramePointInsideGraphArea(p2);
-                boolean trobat = false;
+//                boolean trobat = false;
 
+//                if (!isP1 ||!isP2)continue;
+                
                 if (!isP1){
                     if (!isP2){
                         continue;
@@ -2208,15 +2161,15 @@ public class PlotPanel extends JPanel {
                         for (int j=0;j<p.length;j++){
                             if (p[j]!=null){
                                 p1 = p[j];
-                                trobat = true;
+//                                trobat = true;
                             }
                         }
                     }
-                    if (trobat) {
-                        log.fine("P1 redefinit");
-                    }else{
-                        log.fine("P1 NO redefinit");
-                    }
+//                    if (trobat) {
+//                        log.fine("P1 redefinit");
+//                    }else{
+//                        log.fine("P1 NO redefinit");
+//                    }
                 }
 
                 if (!isP2){
@@ -2228,15 +2181,15 @@ public class PlotPanel extends JPanel {
                         for (int j=0;j<p.length;j++){
                             if (p[j]!=null){
                                 p2 = p[j];
-                                trobat = true;
+//                                trobat = true;
                             }
                         }
                     }
-                    if (trobat){
-                        log.fine("P2 redefinit");
-                    }else{
-                        log.fine("P2 NO redefinit");
-                    }
+//                    if (trobat){
+//                        log.fine("P2 redefinit");
+//                    }else{
+//                        log.fine("P2 NO redefinit");
+//                    }
                 }                
 
                 //ARA JA PODEM DIBUIXAR LA LINIA
@@ -2244,12 +2197,12 @@ public class PlotPanel extends JPanel {
                 g1.draw(l);
 
             }
-            log.debug("drawPatternLine exit");
+//            log.debug("drawPatternLine exit");
         }
 
         //separo linia i punts per si volem canviar l'ordre de dibuix
         private void drawPatternPoints(Graphics2D g1, DataSerie serie, Color col){
-            log.debug("drawPatternPoints entered");
+//            log.debug("drawPatternPoints entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(0.0f);
@@ -2264,13 +2217,13 @@ public class PlotPanel extends JPanel {
                     g1.drawOval((int)FastMath.round(p1.x-radiPunt), (int)FastMath.round(p1.y-radiPunt), FastMath.round(serie.getMarkerSize()), FastMath.round(serie.getMarkerSize()));
                 }
             }
-            log.debug("drawPatternPoints exit");
+//            log.debug("drawPatternPoints exit");
         }
 
 
         //separo linia i punts per si volem canviar l'ordre de dibuix
         private void drawErrorBars(Graphics2D g1, DataSerie serie, Color col){
-            log.debug("drawErrorBars entered");
+//            log.debug("drawErrorBars entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(1.0f);
@@ -2311,11 +2264,11 @@ public class PlotPanel extends JPanel {
                 g1.draw(new Line2D.Double(pbotl.x,pbotl.y,pbotr.x,pbotr.y));
 
             }
-            log.debug("drawErrorBars exit");
+//            log.debug("drawErrorBars exit");
         }
 
         private void drawHKL(Graphics2D g1, DataSerie serie, Color col){
-            log.fine("drawHKL entered");
+//            log.fine("drawHKL entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(serie.getLineWidth());
@@ -2341,12 +2294,12 @@ public class PlotPanel extends JPanel {
                 g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
 
             }
-            log.debug("drawHKL exit");
+//            log.debug("drawHKL exit");
         }
         
         //draw vertical lines
         private void drawREF(Graphics2D g1, DataSerie serie, Color col){
-            log.fine("drawREF entered");
+//            log.fine("drawREF entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(serie.getLineWidth());
@@ -2388,7 +2341,7 @@ public class PlotPanel extends JPanel {
                 g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
 
             }
-            log.debug("drawREF exit");
+//            log.debug("drawREF exit");
         }
 
         private void drawLegend(Graphics2D g1){
@@ -2404,13 +2357,13 @@ public class PlotPanel extends JPanel {
             if (autoPosLegend){
                 legendX = panelW-padding-rectMaxWidth;
                 legendY = padding;
-                mainframe.setTxtLegendFromPanel();
+//                mainframe.setTxtLegendFromPanel();
             }else{
                 if (legendX>panelW-padding-2*margin) legendX=panelW-padding-2*margin;
                 if (legendX<padding) legendX=padding;
                 if (legendY<padding) legendY=padding;
                 if (legendY>panelH-padding-2*margin) legendY=panelH-padding-2*margin;
-                mainframe.setTxtLegendFromPanel();
+//                mainframe.setTxtLegendFromPanel();
             }
 
             Iterator<Pattern1D> itrp = getPatterns().iterator();
@@ -2549,7 +2502,7 @@ public class PlotPanel extends JPanel {
                 }
             } catch (Exception e) {
                 if(isDebug())e.printStackTrace();
-                log.debug("error writting legend");
+                logdebug("error writting legend");
                 legendX = legendX - 10;
                 repaint();
             }
@@ -2564,7 +2517,7 @@ public class PlotPanel extends JPanel {
             while(itrds.hasNext()){
                 DataSerie ds = itrds.next();
                 if (ds.getNpeaks()==0){
-                    logdebug("no peaks on serie "+ds.getPatt1D().indexOfSerie(ds)+" (patt "+getPatterns().indexOf(ds.getPatt1D())+")");
+//                    logdebug("no peaks on serie "+ds.getPatt1D().indexOfSerie(ds)+" (patt "+getPatterns().indexOf(ds.getPatt1D())+")");
                     return;
                 }
                 for (int i=0; i<ds.getNpeaks();i++){
@@ -2594,7 +2547,7 @@ public class PlotPanel extends JPanel {
 
         
         //TODO: TEST PER FER UN ESCALAT REAL
-        protected void paintPNG(Graphics g, int w, int h) {
+        private void paintPNG(Graphics g, int w, int h) {
 //          if (g2 == null) {
 //              super.paintComponent(g);
 //          }else {

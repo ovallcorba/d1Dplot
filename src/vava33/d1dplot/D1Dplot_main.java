@@ -3,19 +3,19 @@ package com.vava33.d1dplot;
 /**    
  * D1Dplot
  * Program to plot 1D X-ray Powder Diffraction Patterns
- *       
+ *
  * It uses the following libraries from the same author:
  *  - com.vava33.jutils
- *  
+ *
  * And the following 3rd party libraries: 
  *  - net.miginfocom.swing.MigLayout
  *  - org.apache.commons.math3.util.FastMath
  *  - org.apache.batik
  *  - org.w3c.dom
- *  
+ *   
  * @author Oriol Vallcorba
  * Licence: GPLv3
- *  
+ *   
  */
 
 import java.awt.Color;
@@ -33,10 +33,13 @@ import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -67,7 +70,6 @@ import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
-import javax.swing.border.BevelBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
@@ -76,6 +78,11 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
+
+//import org.apache.batik.dom.GenericDOMImplementation;
+//import org.apache.batik.svggen.SVGGraphics2D;
+//import org.w3c.dom.DOMImplementation;
+//import org.w3c.dom.Document;
 
 import net.miginfocom.swing.MigLayout;
 
@@ -100,17 +107,23 @@ import java.awt.image.BufferedImage;
 
 public class D1Dplot_main {
 
+    private static final String className = "d1Dplot_main";
+
     private static float tAoutFsize = 12.0f;
     private static int def_Width=1024;
     private static int def_Height=768;
+    private static boolean keepSize = false;
     private static String LandF = "system";
+    private static boolean askForDeleteOriginals = true;
     
-    private Background_dialog bkgDiag;
-    private FindPeaks_dialog FindPksDiag;
-    private Subtract_dialog subDiag;
-    private PlotPanel2D p2;
-    private About_dialog aboutDiag;
+    private BackgroundDialog bkgDiag;
+    private FindPeaksDialog FindPksDiag;
+    private SubtractDialog subDiag;
+    private HKLreferenceDialog refDiag;
+    private Plot2DPanel p2;
+    private AboutDialog aboutDiag;
     private boolean customXtitle = false;
+    private boolean firstTime = true;
     
     private JFrame mainFrame;
     private static VavaLogger log;
@@ -169,7 +182,9 @@ public class D1Dplot_main {
     private JMenuItem mntmUsersGuide;
     private JCheckBox chckbxShowGridX;
     private JCheckBox chckbxVerticalYAxis;
-    private JMenuItem mntmExportAsPng_1;
+    private JMenuItem mntmCheckForUpdates;
+    private JButton btnReassignColors;
+    private JMenuItem mntmReferenceReflectionPositions;
     
     /**
      * Launch the application.
@@ -177,23 +192,23 @@ public class D1Dplot_main {
     public static void main(final String[] args) {
         
         //first thing to do is read PAR files if exist
-        FileUtils.detectOS();
-        FileUtils.setLocale();
+        FileUtils.getOS();
+        FileUtils.setLocale(null);
         D1Dplot_global.readParFile();
         D1Dplot_global.initPars();
         
         //LOGGER
-        log = D1Dplot_global.getVavaLogger(D1Dplot_main.class.getName());
+        log = D1Dplot_global.getVavaLogger(className);
         System.out.println(log.logStatus());
                 
         try {
-            if (FileUtils.containsIgnoreCase(D1Dplot_global.LandF, "system")){
+            if (FileUtils.containsIgnoreCase(D1Dplot_global.getLandF(), "system")){
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             }
-            if (FileUtils.containsIgnoreCase(D1Dplot_global.LandF, "gtk")){
+            if (FileUtils.containsIgnoreCase(D1Dplot_global.getLandF(), "gtk")){
                 UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel");
             }
-            if (FileUtils.containsIgnoreCase(D1Dplot_global.LandF, "metal")){
+            if (FileUtils.containsIgnoreCase(D1Dplot_global.getLandF(), "metal")){
                 UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
             }
         } catch (Throwable e) {
@@ -207,12 +222,11 @@ public class D1Dplot_main {
             public void run() {
                 try {
                     D1Dplot_main frame = new D1Dplot_main();
-                    D1Dplot_global.printAllOptions("info");
+                    D1Dplot_global.printAllOptions("config");
                     ArgumentLauncher.readArguments(frame, args);
                     if (ArgumentLauncher.isLaunchGraphics()){
                         frame.showMainFrame();
                     }else{
-//                        frame.disposeMainFrame();
                         System.exit(0);
                     }
                 } catch (Exception e) {
@@ -237,17 +251,6 @@ public class D1Dplot_main {
         mainFrame.dispose();
     }
     
-    protected void do_mainFrame_windowClosing(WindowEvent e) {
-        boolean ok = D1Dplot_global.writeParFile();
-        logdebug("par file written (method returned "+Boolean.toString(ok)+")");
-        mainFrame.dispose();
-        System.exit(0);
-    }
-    protected void do_mntmQuit_actionPerformed(ActionEvent e) {
-        do_mainFrame_windowClosing(null);
-    }
-    
-    
     /**
      * Initialize the contents of the frame.
      */
@@ -263,7 +266,7 @@ public class D1Dplot_main {
         mainFrame.setIconImage(D1Dplot_global.getIcon());
         mainFrame.setBounds(100, 100, 1024, 768);
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        mainFrame.getContentPane().setLayout(new MigLayout("insets 2", "[grow]", "[grow]"));
+        mainFrame.getContentPane().setLayout(new MigLayout("insets 3", "[grow]", "[grow]"));
         
         splitPane = new JSplitPane();
         splitPane.setResizeWeight(0.85);
@@ -424,7 +427,7 @@ public class D1Dplot_main {
         JPanel panel = new JPanel();
         scrollPane_1.setViewportView(panel);
         panel.setBorder(null);
-        panel.setLayout(new MigLayout("", "[][grow][][][][][][][][]", "[][][][]"));
+        panel.setLayout(new MigLayout("", "[][grow][][][][][][][][][]", "[][][][]"));
         
         JLabel lblXTitle = new JLabel("X title");
         panel.add(lblXTitle, "cell 0 0,alignx trailing");
@@ -436,7 +439,7 @@ public class D1Dplot_main {
             }
         });
         txtXtitle.setText("xtitle");
-        panel.add(txtXtitle, "cell 1 0,growx");
+        panel.add(txtXtitle, "cell 1 0 2 1,growx");
         txtXtitle.setColumns(10);
         
         txtXtitle.getDocument().addDocumentListener(new DocumentListener() {
@@ -459,7 +462,7 @@ public class D1Dplot_main {
         
         separator = new JSeparator();
         separator.setOrientation(SwingConstants.VERTICAL);
-        panel.add(separator, "cell 2 0 1 3,growy");
+        panel.add(separator, "cell 3 0 1 3,growy");
         
         chckbxShowLegend = new JCheckBox("Legend");
         chckbxShowLegend.setSelected(true);
@@ -468,23 +471,23 @@ public class D1Dplot_main {
                 do_chckbxShowLegend_itemStateChanged(arg0);
             }
         });
-        panel.add(chckbxShowLegend, "cell 3 0 2 1");
+        panel.add(chckbxShowLegend, "cell 4 0 2 1");
         
         separator_1 = new JSeparator();
         separator_1.setOrientation(SwingConstants.VERTICAL);
-        panel.add(separator_1, "cell 5 0 1 3,growy");
+        panel.add(separator_1, "cell 6 0 1 3,growy");
         
         JLabel lblHklTickSize = new JLabel("HKL tick size (PRF)");
-        panel.add(lblHklTickSize, "cell 6 0");
+        panel.add(lblHklTickSize, "cell 7 0");
         
         txtHklTickSize = new JTextField();
         txtHklTickSize.setText(Integer.toString(Pattern1D.getHklticksize()));
-        panel.add(txtHklTickSize, "cell 7 0,growx");
+        panel.add(txtHklTickSize, "cell 8 0,growx");
         txtHklTickSize.setColumns(3);
         
         separator_3 = new JSeparator();
         separator_3.setOrientation(SwingConstants.VERTICAL);
-        panel.add(separator_3, "cell 8 0 1 3,growy");
+        panel.add(separator_3, "cell 9 0 1 3,growy");
         
         chckbxShowGridY = new JCheckBox("Grid Y");
         chckbxShowGridY.addItemListener(new ItemListener() {
@@ -492,7 +495,7 @@ public class D1Dplot_main {
                 do_chckbxShowGridLines_itemStateChanged(e);
             }
         });
-        panel.add(chckbxShowGridY, "flowx,cell 9 0");
+        panel.add(chckbxShowGridY, "flowx,cell 10 0");
         
         JLabel lblYTitle = new JLabel("Y title");
         panel.add(lblYTitle, "cell 0 1,alignx trailing");
@@ -520,7 +523,7 @@ public class D1Dplot_main {
             }
         });
         txtYtitle.setText("ytitle");
-        panel.add(txtYtitle, "cell 1 1,growx");
+        panel.add(txtYtitle, "cell 1 1 2 1,growx");
         txtYtitle.setColumns(10);
         
         chckbxIntensityWithBackground = new JCheckBox("Bkg Inten (PRF)");
@@ -537,8 +540,8 @@ public class D1Dplot_main {
                 do_chckbxAutopos_itemStateChanged(e);
             }
         });
-        panel.add(chckbxAutopos, "cell 3 1 2 1");
-        panel.add(chckbxIntensityWithBackground, "cell 6 1 2 1");
+        panel.add(chckbxAutopos, "cell 4 1 2 1");
+        panel.add(chckbxIntensityWithBackground, "cell 7 1 2 1");
         
         chckbxShowNegativeLabels = new JCheckBox("Negative Yaxis labels");
         chckbxShowNegativeLabels.addItemListener(new ItemListener() {
@@ -546,7 +549,7 @@ public class D1Dplot_main {
                 do_chckbxShowNegativeLabels_itemStateChanged(arg0);
             }
         });
-        panel.add(chckbxShowNegativeLabels, "cell 9 1");
+        panel.add(chckbxShowNegativeLabels, "cell 10 1");
         
         JLabel lbltheme = new JLabel("Theme");
         panel.add(lbltheme, "cell 0 2,alignx trailing");
@@ -574,8 +577,16 @@ public class D1Dplot_main {
                 do_txtLegendx_actionPerformed(e);
             }
         });
+        
+        btnReassignColors = new JButton("Reassign colors");
+        btnReassignColors.addActionListener(new ActionListener() {
+        	public void actionPerformed(ActionEvent e) {
+        		do_btnReassignColors_actionPerformed(e);
+        	}
+        });
+        panel.add(btnReassignColors, "cell 2 2");
         txtLegendx.setText("legendX");
-        panel.add(txtLegendx, "cell 3 2,growx");
+        panel.add(txtLegendx, "cell 4 2,growx");
         txtLegendx.setColumns(5);
         
         txtLegendy = new JTextField();
@@ -586,10 +597,10 @@ public class D1Dplot_main {
             }
         });
         txtLegendy.setText("legendY");
-        panel.add(txtLegendy, "cell 4 2,growx");
+        panel.add(txtLegendy, "cell 5 2,growx");
         txtLegendy.setColumns(5);
         chckbxHklLabels.setSelected(true);
-        panel.add(chckbxHklLabels, "cell 6 2 2 1");
+        panel.add(chckbxHklLabels, "cell 7 2 2 1");
         
         chckbxVerticalYLabel = new JCheckBox("Vertical Y label");
         chckbxVerticalYLabel.addItemListener(new ItemListener() {
@@ -597,7 +608,7 @@ public class D1Dplot_main {
                 do_chckbxVerticalYLabel_itemStateChanged(e);
             }
         });
-        panel.add(chckbxVerticalYLabel, "cell 9 2");
+        panel.add(chckbxVerticalYLabel, "cell 10 2");
         
         chckbxShowGridX = new JCheckBox("Grid X");
         chckbxShowGridX.addItemListener(new ItemListener() {
@@ -605,7 +616,7 @@ public class D1Dplot_main {
                 do_chckbxShowGridX_itemStateChanged(arg0);
             }
         });
-        panel.add(chckbxShowGridX, "cell 9 0");
+        panel.add(chckbxShowGridX, "cell 10 0");
         
         chckbxVerticalYAxis = new JCheckBox("Vertical Y axis");
         chckbxVerticalYAxis.addItemListener(new ItemListener() {
@@ -614,7 +625,7 @@ public class D1Dplot_main {
             }
         });
         chckbxVerticalYAxis.setSelected(true);
-        panel.add(chckbxVerticalYAxis, "cell 9 3");
+        panel.add(chckbxVerticalYAxis, "cell 10 3");
 
         
         scrollPane_2 = new JScrollPane();
@@ -622,10 +633,10 @@ public class D1Dplot_main {
         tAOut = new LogJTextArea();
         scrollPane_2.setViewportView(tAOut);
 
-        panel_plot = new PlotPanel(this);
-        splitPane.setLeftComponent(panel_plot);
+        panel_plot = new PlotPanel();
+        splitPane.setLeftComponent(panel_plot.getPlotPanel());
         //        panel_plot = (PlotPanel) new JPanel();
-        panel_plot.setBorder(new BevelBorder(BevelBorder.LOWERED, null, null, null, null));
+//        panel_plot.getGraphPanel().setBorder(new BevelBorder(EtchedBorder.LOWERED, null, null, null, null));
         
         menuBar = new JMenuBar();
         mainFrame.setJMenuBar(menuBar);
@@ -666,14 +677,6 @@ public class D1Dplot_main {
                 do_mntmExportAsPng_actionPerformed(e);
             }
         });
-        
-        mntmExportAsPng_1 = new JMenuItem("Export as PNG (individual)...");
-        mntmExportAsPng_1.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent arg0) {
-                do_mntmExportAsPng_1_actionPerformed(arg0);
-            }
-        });
-        mnFile.add(mntmExportAsPng_1);
         
         mntmExportAsSvg = new JMenuItem("Export as SVG...");
         mnFile.add(mntmExportAsSvg);
@@ -716,6 +719,14 @@ public class D1Dplot_main {
             }
         });
         mnPlot.add(mntmSequentialyOffset);
+        
+        mntmReferenceReflectionPositions = new JMenuItem("Reference hkl");
+        mntmReferenceReflectionPositions.addActionListener(new ActionListener() {
+        	public void actionPerformed(ActionEvent e) {
+        		do_mntmReferenceReflectionPositions_actionPerformed(e);
+        	}
+        });
+        mnPlot.add(mntmReferenceReflectionPositions);
         mntm2Dplot.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntm2Dplot_actionPerformed(e);
@@ -799,13 +810,426 @@ public class D1Dplot_main {
             }
         });
         mnHelp.add(mntmUsersGuide);
+        
+        mntmCheckForUpdates = new JMenuItem("Check for updates");
+        mntmCheckForUpdates.addActionListener(new ActionListener() {
+        	public void actionPerformed(ActionEvent e) {
+        		do_mntmCheckForUpdates_actionPerformed(e);
+        	}
+        });
+        mnHelp.add(mntmCheckForUpdates);
                 
         inicia();
     }
 
     //=========================================================
     
-    private void sumPatterns(ActionEvent e){
+    private void inicia(){
+	
+	    	if (D1Dplot_global.isLoggingTA())VavaLogger.setTArea(tAOut);
+	    	
+	        //HO FEM CABRE
+	        mainFrame.setSize(D1Dplot_main.getDef_Width(), D1Dplot_main.getDef_Height()); //ho centra el metode main
+	        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+	        while(mainFrame.getWidth()>screenSize.width){
+	            mainFrame.setSize(mainFrame.getWidth()-100, mainFrame.getHeight());
+	        }
+	        while(mainFrame.getHeight()>screenSize.height){
+	            mainFrame.setSize(mainFrame.getWidth(), mainFrame.getHeight()-100);
+	        }
+	
+	        //split and divider loc
+	        Dimension minimumSize = new Dimension(0, 0);
+	        tabbedPanel_bottom.setMinimumSize(minimumSize);
+	        tabbedPanel_bottom.setPreferredSize(new Dimension(900,20));
+	        splitPane.resetToPreferredSizes();
+	
+	        
+	//        FileUtils.setLocale();
+	        this.tAOut.setMidaLletra(tAoutFsize);
+	        log.info(D1Dplot_global.welcomeMSG);
+	
+	        if(D1Dplot_global.getConfigFileReaded()==null){
+	            log.info(String.format("No config file found on: %s, it will be created on exit!",D1Dplot_global.configFilePath));
+	        }else{
+	            if(D1Dplot_global.getConfigFileReaded()==true){
+	                log.info(String.format("Config file readed: %s",D1Dplot_global.configFilePath));    
+	            }else{
+	                log.warning(String.format("Error reading config file: %s",D1Dplot_global.configFilePath));
+	            }
+	        }
+	        
+	        this.txtXtitle.setText(panel_plot.getXlabel());
+	        this.txtYtitle.setText(panel_plot.getYlabel());
+	        
+	        int iconwidth = 18;
+	        Image MU = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/fletxa_amunt.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+	        buttonUp.setText("");
+	        buttonUp.setIcon(new ImageIcon(MU));
+	        Image MD = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/fletxa_avall.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+	        buttonDown.setText("");
+	        buttonDown.setIcon(new ImageIcon(MD));
+	        Image ADD = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/afegir.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+	        buttonAdd.setText("");
+	        buttonAdd.setIcon(new ImageIcon(ADD));
+	        Image REM = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/borrar.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
+	        buttonRemove.setText("");
+	        buttonRemove.setIcon(new ImageIcon(REM));
+	        
+	
+	        //columnes mides
+	        
+	        PatternsTableModel model = (PatternsTableModel) table_files.getModel();
+	        for (int i=0; i<table_files.getColumnCount(); i++){
+	            table_files.getColumnModel().getColumn(i).setPreferredWidth(model.getColumnPrefSize(i));
+	            table_files.getColumnModel().getColumn(i).setMaxWidth(model.getColumnMaxSize(i));
+	            table_files.getColumnModel().getColumn(i).setMinWidth(model.getColumnMinSize(i));
+//	            logdebug("columna "+i+" Min="+model.getColumnMinSize(i)+" Max="+model.getColumnMaxSize(i)+" pref="+model.getColumnPrefSize(i));
+	        }
+	
+	        if(D1Dplot_global.isDebug()) {
+		        for (int i=0; i<table_files.getColumnCount(); i++){
+		            log.fine("col="+i+" Min="+table_files.getColumnModel().getColumn(i).getMinWidth()+" Max="+table_files.getColumnModel().getColumn(i).getMaxWidth()+" pref="+table_files.getColumnModel().getColumn(i).getPreferredWidth());
+		        }	        	
+	        }
+
+	        
+	        //botons taula
+	        buttonAdd.setPreferredSize(new Dimension(40,28));
+	        buttonRemove.setPreferredSize(new Dimension(40,28));
+	        buttonUp.setPreferredSize(new Dimension(40,28));
+	        buttonDown.setPreferredSize(new Dimension(40,28));
+	        buttonAdd.setMaximumSize(new Dimension(45,28));
+	        buttonRemove.setMaximumSize(new Dimension(45,28));
+	        buttonUp.setMaximumSize(new Dimension(45,28));
+	        buttonDown.setMaximumSize(new Dimension(45,28));
+	        buttonAdd.setMinimumSize(new Dimension(40,28));
+	        buttonRemove.setMinimumSize(new Dimension(40,28));
+	        buttonUp.setMinimumSize(new Dimension(40,28));
+	        buttonDown.setMinimumSize(new Dimension(40,28));
+	        buttonAdd.setMargin(new Insets(2, 2, 2, 2));
+	        buttonRemove.setMargin(new Insets(2, 2, 2, 2));
+	        buttonUp.setMargin(new Insets(2, 2, 2, 2));
+	        buttonDown.setMargin(new Insets(2, 2, 2, 2));
+	        
+	        //seleccionem el log panel as default
+	        tabbedPanel_bottom.setSelectedIndex(2);
+	        
+	    }
+
+	private void openDataFile(){
+	    logdebug("openDataFile entered");
+	    FileNameExtensionFilter filt[] = DataFileUtils.getExtensionFilterRead();
+	    File[] datFile = FileUtils.fchooserMultiple(mainFrame, new File(getWorkdir()), filt,  filt.length-1, "Select PDD files to open");
+	    if (datFile == null){
+	        log.warning("No data file selected");
+	        return;
+	    }
+	    //if (datFile.length>8)DataSerie.setDef_markerSize(0); //perque vagi mes fluid -- 05/12 ja no crec que faci falta
+	    for (int i=0; i<datFile.length;i++){
+	        readDataFile(datFile[i]);    
+	    }
+	    logdebug("openDataFile exited");
+	    this.updateData(true);
+	    
+	    //per panell log
+	    if(firstTime) {
+	        tabbedPanel_bottom.setSelectedIndex(0);
+	        firstTime=false;
+	    }
+	}
+
+	//creem aquest per l'argument launcher
+	public Pattern1D readDataFile(File datfile){
+	    Pattern1D patt = new Pattern1D();
+	    boolean ok = DataFileUtils.readPatternFile(datfile,patt);
+	    if (!ok){
+	        log.warning("Error reading data file");
+	        return null;
+	    }
+	    panel_plot.getPatterns().add(patt);
+	    D1Dplot_global.setWorkdir(datfile);
+	    return patt;
+	}
+
+	public void updateData(boolean fitgraph){
+	        logdebug("updateData entered");
+	        //check the current selection
+	        int selRow = -1;
+	        if (table_files.getRowCount()>0 && table_files.getSelectedRow()>=0){
+	            selRow = table_files.getSelectedRow();
+	        }
+	        
+	        updateTable();
+	        
+	        //seleccionem l'anterior o be la ultima afegida
+	        if (selRow >= 0 && table_files.getRowCount()>selRow){
+	            table_files.setRowSelectionInterval(selRow,selRow);
+	        }else{
+	            if (table_files.getRowCount()>0){
+	                table_files.setRowSelectionInterval(table_files.getRowCount()-1, table_files.getRowCount()-1);    
+	            }
+	         }
+	        
+	        if(fitgraph)panel_plot.fitGraph();
+	        panel_plot.actualitzaPlot();
+	//        mainFrame.repaint();
+	        logdebug("updateData exited");
+	
+	    }
+
+	protected void updateTable(){
+	    DefaultTableModel model = (DefaultTableModel) table_files.getModel();
+	    model.setRowCount(0);
+	    
+	    Iterator<Pattern1D> itrP = panel_plot.getPatterns().iterator();
+	    boolean first = true;
+	    while (itrP.hasNext()){
+	        Pattern1D p = itrP.next();
+	        int numP = panel_plot.getPatterns().indexOf(p);
+	        Iterator<DataSerie> itrD = p.getSeriesIterator();
+	        while (itrD.hasNext()){
+	            DataSerie d = itrD.next();
+	            int numD = p.indexOfSerie(d);
+	            
+	            if (first && !isCustomXtitle()){
+	                //posem be les unitats a l'eix X?
+	                if (d.getxUnits()==DataSerie.xunits.tth){
+	                    panel_plot.setXlabel("2"+D1Dplot_global.theta+" (º)");
+	                    txtXtitle.setText("2"+D1Dplot_global.theta+" (º)");   
+	                }else{
+	                    panel_plot.setXlabel(d.getxUnits().getName());
+	                    txtXtitle.setText(d.getxUnits().getName());
+	                }
+	                first=false;
+	            }
+	            
+	            String fnam = d.getSerieName();
+	            logdebug(fnam);
+	            logdebug(d.getColor().toString());
+	            logdebug(Float.toString(d.getScale()));
+	            logdebug(Double.toString(d.getZerrOff()));
+	            logdebug(Double.toString(d.getWavelength()));
+	            logdebug(Float.toString(d.getMarkerSize()));
+	            logdebug(Float.toString(d.getLineWidth()));
+	            logdebug(Boolean.toString(d.isShowErrBars()));
+	            logdebug(Boolean.toString(d.isPlotThis()));
+	            this.addRowToTable(numP, numD, fnam, d.getColor(), d.getScale(), d.getZerrOff(), d.getWavelength(), d.getxUnits().getName(), d.getYOff(), d.getMarkerSize(), d.getLineWidth(), d.isShowErrBars(), d.isPlotThis());
+	        }
+	    }
+	}
+
+	private void updateLabelX() {
+	    if (this.panel_plot==null)return;
+	    if (this.txtXtitle.getText()!=null){
+	        this.panel_plot.setXlabel(this.txtXtitle.getText());    
+	    }
+	}
+
+	private void updateLabelY() {
+	    if (this.panel_plot==null)return;
+	    if (this.txtYtitle.getText()!=null){
+	        this.panel_plot.setYlabel(this.txtYtitle.getText());    
+	    }
+	}
+
+	private void reassignColorPatterns(){
+	    int n=0;
+	    Iterator<Pattern1D> itrP = panel_plot.getPatterns().iterator();
+	    while (itrP.hasNext()){
+	        Pattern1D p = itrP.next();
+	        Iterator<DataSerie> itrds = p.getSeriesIterator();
+	        while (itrds.hasNext()){
+	            DataSerie ds = itrds.next();
+	            if (ds.getTipusSerie()==DataSerie.serieType.dat){
+	                if (D1Dplot_global.isLightTheme()){
+	                    int ncol = n%D1Dplot_global.lightColors.length;
+	                    ds.setColor(FileUtils.parseColorName(D1Dplot_global.lightColors[ncol]));
+	                }else{
+	                    int ncol = n%D1Dplot_global.DarkColors.length;
+	                    ds.setColor(FileUtils.parseColorName(D1Dplot_global.DarkColors[ncol]));
+	                }    
+	                n = n+1;
+	            }
+	        }            
+	    }
+	    this.updateData(false);
+	}
+
+	private void closeDataFile(){
+	    if (table_files.getSelectedRow()<0){
+	        log.warning("Select which pattern(s) to close by selecting the corresponding row(s)");
+	        return;
+	    }
+	    if (table_files.getRowCount()<=0)return;
+	    
+	    int[] selRows = table_files.getSelectedRows();
+	    logdebug("number of rows selected ="+ selRows.length);
+	    logdebug("selrows[0] ="+ selRows[0]);
+	    ArrayList<DataSerie> toDelete = new ArrayList<DataSerie>();
+	    
+	    for (int i=0; i<=selRows.length-1;i++){
+	        int selRow = selRows[i];
+	        int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
+	        int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
+	        
+	        toDelete.add(panel_plot.getPatterns().get(npat).getSerie(nser));
+	    }
+	    
+	    //now delete
+	    Iterator<DataSerie> itrds = toDelete.iterator();
+	    while (itrds.hasNext()){
+	        DataSerie ds = itrds.next();
+	        ds.getPatt1D().removeDataSerie(ds);
+	        if(ds.getPatt1D().getNseriesPattern()==0){
+	            panel_plot.getPatterns().remove(ds.getPatt1D());
+	        }
+	    }
+	    updateData(false);
+	    return;
+	}
+
+	private void saveDataFile(){
+	    logdebug("saveDataFile entered");
+	    if (table_files.getRowCount()<=0)return;
+	    if (table_files.getSelectedRow()<0){
+	        log.warning("Select on the table the pattern you want to save");
+	        return;
+	    }
+	    
+	    int[] selRows = table_files.getSelectedRows();
+	    if (selRows.length>1){
+	    	log.warning("Please, select only ONE row (pattern)");
+	        return;
+	    }
+	
+	    int npat = (Integer) table_files.getValueAt(selRows[0], this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
+	    int nser = (Integer) table_files.getValueAt(selRows[0], this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
+	    
+	    FileNameExtensionFilter filt[] = DataFileUtils.getExtensionFilterWrite();
+	    File datFile = FileUtils.fchooserSaveAsk(mainFrame,new File(getWorkdir()), filt, null);
+	    if (datFile == null){
+	    	log.warning("No data file selected");
+	        return;
+	    }
+	    
+	    datFile = DataFileUtils.writePatternFile(datFile, panel_plot.getPatterns().get(npat), nser, true);
+	    log.info(datFile.toString()+" written!");
+	    logdebug("saveDataFile exited");
+	}
+
+	//    private void setTxtLegendFromPanel(){
+	//        try{
+	//            txtLegendx.setText(Integer.toString(panel_plot.getLegendX()));
+	//            txtLegendy.setText(Integer.toString(panel_plot.getLegendY()));            
+	//        }catch(Exception ex){
+	//            logdebug("Error filling legend textboxes");
+	//        }
+	//
+	//    }
+	    
+	    
+	    
+	    
+	
+	  //import org.apache.batik.dom.GenericDOMImplementation;
+	//    import org.apache.batik.svggen.SVGGraphics2D;
+	    //import org.w3c.dom.DOMImplementation;
+	    //import org.w3c.dom.Document;
+	    
+	    private void saveSVG(File fsvg){
+	        this.panel_plot.getGraphPanel().setSaveSVG(true);
+	        
+	        // Get a DOMImplementation.
+	        org.w3c.dom.DOMImplementation domImpl = org.apache.batik.dom.GenericDOMImplementation.getDOMImplementation();
+	
+	        // Create an instance of org.w3c.dom.Document.
+	        String svgNS = "http://www.w3.org/2000/svg";
+	        org.w3c.dom.Document document = domImpl.createDocument(svgNS, "svg", null);
+	
+	        // Create an instance of the SVG Generator.
+	        org.apache.batik.svggen.SVGGraphics2D svgGenerator = new org.apache.batik.svggen.SVGGraphics2D(document);
+	
+	        // Ask the test to render into the SVG Graphics2D implementation.
+	        panel_plot.getGraphPanel().paintComponent(svgGenerator);
+	
+	        // Finally, stream out SVG to the standard output using
+	        // UTF-8 encoding.
+	        boolean useCSS = true; // we want to use CSS style attributes
+	        try {
+	            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(fsvg,true)));
+	            svgGenerator.stream(out, useCSS);
+	
+	        } catch (Exception e) {
+	            if (D1Dplot_global.isDebug())e.printStackTrace();
+	            this.panel_plot.getGraphPanel().setSaveSVG(false);
+	        }
+	        this.panel_plot.getGraphPanel().setSaveSVG(false);
+	
+	    }
+
+	//    private void saveSVG_JFREESVG(File fsvg){
+	//        
+	//        SVGGraphics2D g2 = new SVGGraphics2D(panel_plot.getWidth(), panel_plot.getHeight());
+	//        
+	//        // Ask the test to render into the SVG Graphics2D implementation.
+	//        panel_plot.getGraphPanel().paintComponent(g2);
+	//
+	//        // Finally, stream out SVG to the standard output using
+	//        // UTF-8 encoding.
+	//        boolean useCSS = true; // we want to use CSS style attributes
+	//        try {
+	////            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(fsvg,true)));
+	////            svgGenerator.stream(out, useCSS);
+	//            SVGUtils.writeToSVG(fsvg, g2.getSVGElement());
+	//
+	//        } catch (Exception e) {
+	//            if (D1Dplot_global.isDebug())e.printStackTrace();
+	//        }
+	//
+	//    }
+	    
+	    private void savePNG(File fpng, float factor){
+	        double pageWidth = panel_plot.getGraphPanel().getSize().width*factor;
+	        double pageHeight = panel_plot.getGraphPanel().getSize().height*factor;
+	        double imageWidth = panel_plot.getGraphPanel().getSize().width;
+	        double imageHeight = panel_plot.getGraphPanel().getSize().height;
+	
+	        double scaleFactor = DataFileUtils.getScaleFactorToFit(
+	                new Dimension((int) Math.round(imageWidth), (int) Math.round(imageHeight)),
+	                new Dimension((int) Math.round(pageWidth), (int) Math.round(pageHeight)));
+	
+	        int width = (int) Math.round(pageWidth);
+	        int height = (int) Math.round(pageHeight);
+	
+	        BufferedImage img = new BufferedImage(
+	//                (int)(width*scaleFactor),
+	//                (int)(height*scaleFactor),
+	                width,
+	                height,
+	                BufferedImage.TYPE_INT_ARGB);
+	        Graphics2D g2d = img.createGraphics();
+	//        g2d.setComposite(AlphaComposite.Clear);
+	//        g2d.fillRect(0, 0, width, height);
+	//        g2d.setComposite(AlphaComposite.Src);
+	        g2d.scale(scaleFactor, scaleFactor);
+	        panel_plot.getGraphPanel().setTransp(true);
+	        panel_plot.getGraphPanel().setOpaque(false);
+	        panel_plot.getGraphPanel().paintComponent(g2d);
+	//        panel_plot.getGraphPanel().paintPNG(g2d,width,height);
+	        panel_plot.getGraphPanel().setTransp(false);
+	        panel_plot.getGraphPanel().setOpaque(true);
+	        g2d.dispose();
+	
+	        try {
+	            ImageIO.write(img, "png", fpng);
+	        } catch (Exception ex) {
+	            if (D1Dplot_global.isDebug())ex.printStackTrace();
+	        }
+	        log.info(fpng.toString()+" written!");
+	    }
+
+	private void sumPatterns(ActionEvent e){
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
 
@@ -844,7 +1268,7 @@ public class D1Dplot_main {
 //        patt.getCommentLines().add("# "+suma.getSerieName());
         patt.getCommentLines().add("#Sum of: "+sbNames.toString().trim());
         patt.setOriginal_wavelength(dss[0].getPatt1D().getOriginal_wavelength());
-        patt.AddDataSerie(suma);
+        patt.addDataSerie(suma);
         panel_plot.getPatterns().add(patt);
         this.updateData(false);
 
@@ -879,12 +1303,12 @@ public class D1Dplot_main {
                 }
             }
             if (destUnits==null){
-                loginfo("choose a valid x-units value");
+                log.warning("Choose a valid x-units value");
                 return;
             }
             
             if (destUnits==xunits.G){
-                loginfo("Conversion to G not supported");
+                log.warning("Conversion to G not supported");
                 return;
             }
             
@@ -902,33 +1326,35 @@ public class D1Dplot_main {
                 DataSerie ds = patt.getSerie(serie);
                 
                 if (ds.getxUnits()==xunits.G){
-                    loginfo("Conversion from G not supported");
+                    log.warning("Conversion from G not supported");
                     return;
                 }
                 
                 if (ds.getWavelength()<0){
-                    loginfo(String.format("error: pattern %d serie %d has no wavelength assigned", pattern,serie));
+                    log.warning(String.format("Pattern %d serie %d has no wavelength assigned, skipping", pattern,serie));
                     continue;
                 }
                 logdebug(String.format("Pattern=%d Serie=%d", pattern,serie));
                 logdebug(String.format("SerieUnits=%s DestUnits=%s", ds.getxUnits().getName(), destUnits.getName()));
                 
                 //CONVERTIM
-                loginfo(String.format("Conversion from %s to %s",ds.getxUnits(), destUnits));
+                log.info(String.format("Conversion from %s to %s",ds.getxUnits(), destUnits));
                 DataSerie newDS = ds.convertToXunits(destUnits);
                 
                 if (newDS!=null){
                     newDS.setColor(ds.getColor()); //SAME COLOR
-                    patt.AddDataSerie(newDS);                    
+                    patt.addDataSerie(newDS);                    
                     ds.setPlotThis(false);
+                    boolean keep = false;
                     if (D1Dplot_global.getAskForDeleteOriginals()) {
-                        boolean keep = FileUtils.YesNoDialog(mainFrame, "keep original patten?");
-                        if (!keep) patt.removeDataSerie(ds);
-                    }else {
-                        patt.removeDataSerie(ds);
+                        keep = FileUtils.YesNoDialog(mainFrame, "keep original patten?");
+                    }
+                    if (!keep) {
+                        	patt.removeDataSerie(ds);
+                        	newDS.setColor(ds.getColor());
                     }
                 }else{
-                    loginfo("not converted, same input and output units maybe?");
+                    log.info(String.format("Pattern %d serie %d not converted, same input and output units maybe?", pattern,serie));
                 }
             }
 //            panel_plot.repaint();
@@ -954,10 +1380,11 @@ public class D1Dplot_main {
             try{
                 newWL = Double.parseDouble(s);
             }catch(Exception ex){
-                logdebug("error parsing wavelength");
+                logdebug("Error parsing wavelength");
+                return;
             }
             if (newWL<0){
-                loginfo("invalid wavelength entered");
+                log.warning("Invalid wavelength entered");
                 return;
             }
             
@@ -974,7 +1401,7 @@ public class D1Dplot_main {
                 DataSerie ds = patt.getSerie(serie);
                 
                 if (ds.getWavelength()<0){
-                    loginfo(String.format("pattern %d serie %d has no wavelength assigned", pattern,serie));
+                    log.warning(String.format("Pattern %d serie %d has no wavelength assigned, skipping", pattern,serie));
                     continue;
                 }
                 
@@ -983,16 +1410,18 @@ public class D1Dplot_main {
                 
                 if (newDS!=null){
                     newDS.setColor(ds.getColor()); //SAME COLOR
-                    patt.AddDataSerie(newDS);
+                    patt.addDataSerie(newDS);
                     ds.setPlotThis(false);
+                    boolean keep = false;
                     if (D1Dplot_global.getAskForDeleteOriginals()) {
-                        boolean keep = FileUtils.YesNoDialog(mainFrame, "keep original patten?");
-                        if (!keep) patt.removeDataSerie(ds);
-                    }else {
-                        patt.removeDataSerie(ds);
+                        keep = FileUtils.YesNoDialog(mainFrame, "keep original patten?");
+                    }
+                    if (!keep) {
+                        	patt.removeDataSerie(ds);
+                        	newDS.setColor(ds.getColor());
                     }
                 }else{
-                    loginfo("error converting wavelength");
+                    log.warning("Error converting wavelength");
                 }
                 
             }
@@ -1024,7 +1453,7 @@ public class D1Dplot_main {
                     Color.BLACK);
             s = "changing color column";
             if(newColor == null){
-                loginfo("select a valid color");
+                log.warning("Select a valid color");
                 return;
             }
         }else{
@@ -1054,7 +1483,7 @@ public class D1Dplot_main {
                           table_files.setValueAt(newColor, selRow, selCol);
                         break;
                     case ErrBars:
-                        loginfo("column not editable");
+                        log.info("Column not editable");
                         break;
                     case Filename:
                         table_files.setValueAt(s, selRow, selCol);
@@ -1069,13 +1498,13 @@ public class D1Dplot_main {
                         table_files.setValueAt(Float.parseFloat(s), selRow, selCol);
                         break;
                     case Show:
-                        loginfo("column not editable");
+                        log.info("Column not editable");
                         break;
                     case Wavel:
                         table_files.setValueAt(Double.parseDouble(s), selRow, selCol);
                         break;
                     case XUnits:
-                        loginfo("column not editable");
+                        log.info("Column not editable");
                         break;
                     case YOffset:
                         table_files.setValueAt(Double.parseDouble(s), selRow, selCol);
@@ -1084,13 +1513,13 @@ public class D1Dplot_main {
                         table_files.setValueAt(Double.parseDouble(s), selRow, selCol);
                         break;
                     case nP:
-                        loginfo("column not editable");
+                        log.info("Column not editable");
                         break;
                     case nS:
-                        loginfo("column not editable");
+                        log.info("Column not editable");
                         break;
                     default:
-                        loginfo("column not identified");
+                        log.info("Column not identified");
                         break;
                 }
             }
@@ -1099,7 +1528,7 @@ public class D1Dplot_main {
     }
     
     private void aplicarselecciotaula(ListSelectionEvent arg0){
-        log.debug("applicarSeleccioTaula entered");
+        logdebug("applicarSeleccioTaula entered");
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
       //prova amb selected rows:
@@ -1117,7 +1546,7 @@ public class D1Dplot_main {
     }
     
     private void applicarModificacioTaula(int columna, int filaIni, int filaFin){
-        log.debug("applicarModificacioTaula entered");
+        logdebug("applicarModificacioTaula entered");
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
         
@@ -1185,157 +1614,13 @@ public class D1Dplot_main {
     }
     
     private int getColumnByName(JTable table, String name) {
-        for (int i = 0; i < table.getColumnCount(); ++i)
-            if (table.getColumnName(i).equalsIgnoreCase(name))
-                return i;
-        return -1;
-    }
- 
-    private void inicia(){
-//        D1Dplot_global.initPars();
-//        if (D1Dplot_global.logging && !D1Dplot_global.isDebug())log.addTextAreaHandler(tAOut);
-        
-        //HO FEM CABRE
-        mainFrame.setSize(D1Dplot_main.getDef_Width(), D1Dplot_main.getDef_Height()); //ho centra el metode main
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        while(mainFrame.getWidth()>screenSize.width){
-            mainFrame.setSize(mainFrame.getWidth()-100, mainFrame.getHeight());
-        }
-        while(mainFrame.getHeight()>screenSize.height){
-            mainFrame.setSize(mainFrame.getWidth(), mainFrame.getHeight()-100);
-        }
+	    for (int i = 0; i < table.getColumnCount(); ++i)
+	        if (table.getColumnName(i).equalsIgnoreCase(name))
+	            return i;
+	    return -1;
+	}
 
-        //split and divider loc
-        Dimension minimumSize = new Dimension(0, 0);
-        tabbedPanel_bottom.setMinimumSize(minimumSize);
-        tabbedPanel_bottom.setPreferredSize(new Dimension(900,20));
-        splitPane.resetToPreferredSizes();
-
-        
-//        FileUtils.setLocale();
-        this.tAOut.setMidaLletra(tAoutFsize);
-        loginfo(D1Dplot_global.welcomeMSG);
-
-        if(D1Dplot_global.getConfigFileReaded()==null){
-            loginfo(String.format("No config file found on: %s, it will be created on exit!",D1Dplot_global.configFilePath));
-        }else{
-            if(D1Dplot_global.getConfigFileReaded()==true){
-                loginfo(String.format("Config file readed: %s",D1Dplot_global.configFilePath));    
-            }else{
-                loginfo(String.format("Error reading config file: %s",D1Dplot_global.configFilePath));
-            }
-        }
-        
-        this.txtXtitle.setText(panel_plot.getXlabel());
-        this.txtYtitle.setText(panel_plot.getYlabel());
-        
-        int iconwidth = 18;
-        Image MU = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/fletxa_amunt.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
-        buttonUp.setText("");
-        buttonUp.setIcon(new ImageIcon(MU));
-        Image MD = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/fletxa_avall.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
-        buttonDown.setText("");
-        buttonDown.setIcon(new ImageIcon(MD));
-        Image ADD = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/afegir.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
-        buttonAdd.setText("");
-        buttonAdd.setIcon(new ImageIcon(ADD));
-        Image REM = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/borrar.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
-        buttonRemove.setText("");
-        buttonRemove.setIcon(new ImageIcon(REM));
-        
-
-        //columnes mides
-        
-        PatternsTableModel model = (PatternsTableModel) table_files.getModel();
-        for (int i=0; i<table_files.getColumnCount(); i++){
-            table_files.getColumnModel().getColumn(i).setPreferredWidth(model.getColumnPrefSize(i));
-            table_files.getColumnModel().getColumn(i).setMaxWidth(model.getColumnMaxSize(i));
-            table_files.getColumnModel().getColumn(i).setMinWidth(model.getColumnMinSize(i));
-            logdebug("columna "+i+" Min="+model.getColumnMinSize(i)+" Max="+model.getColumnMaxSize(i)+" pref="+model.getColumnPrefSize(i));
-        }
-
-        for (int i=0; i<table_files.getColumnCount(); i++){
-            logdebug("col="+i+" Min="+table_files.getColumnModel().getColumn(i).getMinWidth()+" Max="+table_files.getColumnModel().getColumn(i).getMaxWidth()+" pref="+table_files.getColumnModel().getColumn(i).getPreferredWidth());
-        }
-        
-        //botons taula
-        buttonAdd.setPreferredSize(new Dimension(40,28));
-        buttonRemove.setPreferredSize(new Dimension(40,28));
-        buttonUp.setPreferredSize(new Dimension(40,28));
-        buttonDown.setPreferredSize(new Dimension(40,28));
-        buttonAdd.setMaximumSize(new Dimension(45,28));
-        buttonRemove.setMaximumSize(new Dimension(45,28));
-        buttonUp.setMaximumSize(new Dimension(45,28));
-        buttonDown.setMaximumSize(new Dimension(45,28));
-        buttonAdd.setMinimumSize(new Dimension(40,28));
-        buttonRemove.setMinimumSize(new Dimension(40,28));
-        buttonUp.setMinimumSize(new Dimension(40,28));
-        buttonDown.setMinimumSize(new Dimension(40,28));
-        buttonAdd.setMargin(new Insets(2, 2, 2, 2));
-        buttonRemove.setMargin(new Insets(2, 2, 2, 2));
-        buttonUp.setMargin(new Insets(2, 2, 2, 2));
-        buttonDown.setMargin(new Insets(2, 2, 2, 2));
-    }
-    
-    private String getWorkdir(){
-        return D1Dplot_global.workdir;
-    }
-
-    public void openDataFile(){
-        logdebug("openDataFile entered");
-        FileNameExtensionFilter filt[] = DataFileUtils.getExtensionFilterRead();
-        File[] datFile = FileUtils.fchooserMultiple(mainFrame, new File(getWorkdir()), filt,  filt.length-1);
-        if (datFile == null){
-            loginfo("No data file selected");
-            return;
-        }
-        //if (datFile.length>8)DataSerie.setDef_markerSize(0); //perque vagi mes fluid -- 05/12 ja no crec que faci falta
-        for (int i=0; i<datFile.length;i++){
-            readDataFile(datFile[i]);    
-        }
-        logdebug("openDataFile exited");
-        this.updateData(true);
-    }
-    
-    //creem aquest per l'argument launcher
-    public Pattern1D readDataFile(File datfile){
-        Pattern1D patt = new Pattern1D();
-        boolean ok = DataFileUtils.readPatternFile(datfile,patt);
-        if (!ok){
-            loginfo("Error reading data file");
-            return null;
-        }
-        panel_plot.getPatterns().add(patt);
-        D1Dplot_global.setWorkdir(datfile);
-        return patt;
-    }
-    
-    public void updateData(boolean fitgraph){
-        logdebug("updateData entered");
-        //check the current selection
-        int selRow = -1;
-        if (table_files.getRowCount()>0 && table_files.getSelectedRow()>=0){
-            selRow = table_files.getSelectedRow();
-        }
-        
-        updateTable();
-        
-        //seleccionem l'anterior o be la ultima afegida
-        if (selRow >= 0 && table_files.getRowCount()>selRow){
-            table_files.setRowSelectionInterval(selRow,selRow);
-        }else{
-            if (table_files.getRowCount()>0){
-                table_files.setRowSelectionInterval(table_files.getRowCount()-1, table_files.getRowCount()-1);    
-            }
-         }
-        
-        if(fitgraph)panel_plot.fitGraph();
-        panel_plot.repaint();
-//        mainFrame.repaint();
-        logdebug("updateData exited");
-
-    }
-    //nP, nS, Filename, Color, Scale, ZerOff, Wavel, Marker, Line, ErrBars, Show,
+	//nP, nS, Filename, Color, Scale, ZerOff, Wavel, Marker, Line, ErrBars, Show,
     private void addRowToTable(int nP, int nS, String fname, Color c, float scale, double zoff, double wavel, String xunits, double yoffset, float markersize, float linewidth, boolean errbars, boolean show){
         DefaultTableModel model = (DefaultTableModel) table_files.getModel();
         Object[] row = {nP,nS,fname,c,scale,zoff,wavel,xunits,yoffset,markersize,linewidth,errbars,show};
@@ -1343,481 +1628,238 @@ public class D1Dplot_main {
     }
         
     
-    protected void updateTable(){
-        DefaultTableModel model = (DefaultTableModel) table_files.getModel();
-        model.setRowCount(0);
-        
-        Iterator<Pattern1D> itrP = panel_plot.getPatterns().iterator();
-        boolean first = true;
-        while (itrP.hasNext()){
-            Pattern1D p = itrP.next();
-            int numP = panel_plot.getPatterns().indexOf(p);
-            Iterator<DataSerie> itrD = p.getSeriesIterator();
-            while (itrD.hasNext()){
-                DataSerie d = itrD.next();
-                int numD = p.indexOfSerie(d);
-                
-                if (first && !isCustomXtitle()){
-                    //posem be les unitats a l'eix X?
-                    if (d.getxUnits()==DataSerie.xunits.tth){
-                        panel_plot.setXlabel("2"+D1Dplot_global.theta+" (º)");
-                        txtXtitle.setText("2"+D1Dplot_global.theta+" (º)");   
-                    }else{
-                        panel_plot.setXlabel(d.getxUnits().getName());
-                        txtXtitle.setText(d.getxUnits().getName());
-                    }
-                    first=false;
-                }
-                
-                String fnam = d.getSerieName();
-                logdebug(fnam);
-                logdebug(d.getColor().toString());
-                logdebug(Float.toString(d.getScale()));
-                logdebug(Double.toString(d.getZerrOff()));
-                logdebug(Double.toString(d.getWavelength()));
-                logdebug(Float.toString(d.getMarkerSize()));
-                logdebug(Float.toString(d.getLineWidth()));
-                logdebug(Boolean.toString(d.isShowErrBars()));
-                logdebug(Boolean.toString(d.isPlotThis()));
-                this.addRowToTable(numP, numD, fnam, d.getColor(), d.getScale(), d.getZerrOff(), d.getWavelength(), d.getxUnits().getName(), d.getYOff(), d.getMarkerSize(), d.getLineWidth(), d.isShowErrBars(), d.isPlotThis());
-            }
-        }
-    }
-    
-    protected void updateLabelX() {
-        if (this.panel_plot==null)return;
-        if (this.txtXtitle.getText()!=null){
-            this.panel_plot.setXlabel(this.txtXtitle.getText());    
-        }
-    }
-    protected void updateLabelY() {
-        if (this.panel_plot==null)return;
-        if (this.txtYtitle.getText()!=null){
-            this.panel_plot.setYlabel(this.txtYtitle.getText());    
-        }
-    }
-    protected void do_mntmOpen_actionPerformed(ActionEvent e) {
-        openDataFile();
-    }
     
     
-    protected void do_comboTheme_itemStateChanged(ItemEvent arg0) {
-        if(arg0.getStateChange() == ItemEvent.DESELECTED)return;
-        if (comboTheme.getSelectedItem().toString().equalsIgnoreCase("Light")){
-            logdebug("light theme");
-            D1Dplot_global.setLightTheme(true);
-            PlotPanel.setLightTheme(true);
-        }else{
-            logdebug("Dark theme");
-            D1Dplot_global.setLightTheme(false);
-            PlotPanel.setLightTheme(false);
-        }
-        
-        if (panel_plot.getPatterns().size()>0){
-            boolean repaint = FileUtils.YesNoDialog(mainFrame, "Repaint current patterns?");
-            if(repaint){
-                reassignColorPatterns();
-            }
-        }
-        panel_plot.repaint();
-    }
-    
-    public void reassignColorPatterns(){
-        int n=0;
-        Iterator<Pattern1D> itrP = panel_plot.getPatterns().iterator();
-        while (itrP.hasNext()){
-            Pattern1D p = itrP.next();
-            Iterator<DataSerie> itrds = p.getSeriesIterator();
-            while (itrds.hasNext()){
-                DataSerie ds = itrds.next();
-                if (ds.getTipusSerie()==DataSerie.serieType.dat){
-                    if (D1Dplot_global.isLightTheme()){
-                        int ncol = n%D1Dplot_global.lightColors.length;
-                        ds.setColor(D1Dplot_global.parseColorName(D1Dplot_global.lightColors[ncol]));
-                    }else{
-                        int ncol = n%D1Dplot_global.DarkColors.length;
-                        ds.setColor(D1Dplot_global.parseColorName(D1Dplot_global.DarkColors[ncol]));
-                    }    
-                    n = n+1;
-                }
-            }            
-        }
-    }
-    
-    protected void do_buttonAdd_actionPerformed(ActionEvent e) {
-        openDataFile();
-    }
-    protected void do_mntmClose_actionPerformed(ActionEvent e) {
-        closeDataFile();
-    }
-    
-    private void closeDataFile(){
-        if (table_files.getSelectedRow()<0){
-            loginfo("First, select row(s)");
-            return;
-        }
-        if (table_files.getRowCount()<=0)return;
-        
-        int[] selRows = table_files.getSelectedRows();
-        logdebug("number of rows selected ="+ selRows.length);
-        logdebug("selrows[0] ="+ selRows[0]);
-        ArrayList<DataSerie> toDelete = new ArrayList<DataSerie>();
-        
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            
-            toDelete.add(panel_plot.getPatterns().get(npat).getSerie(nser));
-        }
-        
-        //now delete
-        Iterator<DataSerie> itrds = toDelete.iterator();
-        while (itrds.hasNext()){
-            DataSerie ds = itrds.next();
-            ds.getPatt1D().removeDataSerie(ds);
-            if(ds.getPatt1D().getNseriesPattern()==0){
-                panel_plot.getPatterns().remove(ds.getPatt1D());
-            }
-        }
-        updateData(false);
-        return;
-    }
-
-    protected void do_buttonRemove_actionPerformed(ActionEvent e) {
-        closeDataFile();
-    }
-    
-    //IT MOVES PATTERNS ONLY
-    protected void do_buttonUp_actionPerformed(ActionEvent e) {
-        if (table_files.getSelectedRow()<0){
-            loginfo("First, select row(s)");
-            return;
-        }
-        if (table_files.getRowCount()<=0)return;
-        
-        int[] selRows = table_files.getSelectedRows();
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            if (nser==0){
-                //moure el pattern
-                try{
-                    Collections.swap(panel_plot.getPatterns(), npat, npat-1);    
-                    table_files.setRowSelectionInterval(selRow-1, selRow-1);
-                }catch(Exception ex){
-                    logdebug("moving pattern... index not existing");
-                }
-                continue;
-            }else{
-                //movem la serie dins del pattern
-                try{
-                    Collections.swap(panel_plot.getPatterns().get(npat).getSeries(), nser, nser-1);
-                    table_files.setRowSelectionInterval(selRow-1, selRow-1);
-                }catch(Exception ex){
-                    logdebug("moving serie... index not existing");
-                }
-                
-            }
-        }
-        
-        updateData(false);
-        return;
-        
-    }
-    protected void do_buttonDown_actionPerformed(ActionEvent e) {
-        if (table_files.getSelectedRow()<0){
-            loginfo("First, select row(s)");
-            return;
-        }
-        if (table_files.getRowCount()<=0)return;
-        
-        int[] selRows = table_files.getSelectedRows();
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            if (nser==panel_plot.getPatterns().get(npat).getNseries()-1){
-                //moure el pattern
-                try{
-                    Collections.swap(panel_plot.getPatterns(), npat, npat+1);    
-                    table_files.setRowSelectionInterval(selRow+1, selRow+1);
-                }catch(Exception ex){
-                    logdebug("moving pattern... index not existing");
-                }
-                continue;
-            }else{
-                //movem la serie dins del pattern
-                try{
-                    Collections.swap(panel_plot.getPatterns().get(npat).getSeries(), nser, nser+1);
-                    table_files.setRowSelectionInterval(selRow+1, selRow+1);
-                }catch(Exception ex){
-                    logdebug("moving serie... index not existing");
-                }
-            }
-        }
-        
-        updateData(false);
-        return;
-    }
-    
-    protected void do_mntmSaveAs_actionPerformed(ActionEvent arg0) {
-        saveDataFile();
-    }
-    
-    public void saveDataFile(){
-        logdebug("saveDataFile entered");
-        if (table_files.getRowCount()<=0)return;
-        if (table_files.getSelectedRow()<0){
-            loginfo("Select on the table the pattern you want to save");
-            return;
-        }
-        
-        int[] selRows = table_files.getSelectedRows();
-        if (selRows.length>1){
-            loginfo("Please, select only ONE row (pattern)");
-            return;
-        }
-
-        int npat = (Integer) table_files.getValueAt(selRows[0], this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-        int nser = (Integer) table_files.getValueAt(selRows[0], this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-        
-        FileNameExtensionFilter filt[] = DataFileUtils.getExtensionFilterWrite();
-        File datFile = FileUtils.fchooser(mainFrame,new File(getWorkdir()), filt, 0, true, true);
-        if (datFile == null){
-            loginfo("No data file selected");
-            return;
-        }
-        
-        datFile = DataFileUtils.writePatternFile(datFile, panel_plot.getPatterns().get(npat), nser, true);
-        loginfo(datFile.toString()+" written!");
-        logdebug("saveDataFile exited");
-    }
-    
-    protected void do_chckbxShowLegend_itemStateChanged(ItemEvent arg0) {
-        panel_plot.setShowLegend(chckbxShowLegend.isSelected());
-        panel_plot.repaint();
-    }
-    protected void do_txtLegendx_actionPerformed(ActionEvent e) {
-        try{
-            int lx = Integer.parseInt(txtLegendx.getText());
-            panel_plot.setLegendX(lx);
-            panel_plot.repaint();
-            txtLegendx.setText(Integer.toString(panel_plot.getLegendX()));
-        }catch(Exception ex){
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
-        }
-    }
-    protected void do_txtLegendy_actionPerformed(ActionEvent e) {
-        try{
-            int ly = Integer.parseInt(txtLegendy.getText());
-            panel_plot.setLegendY(ly);
-            panel_plot.repaint();
-            txtLegendy.setText(Integer.toString(panel_plot.getLegendY()));
-        }catch(Exception ex){
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
-        }
-    }
-    
-    protected void setTxtLegendFromPanel(){
-        try{
-            txtLegendx.setText(Integer.toString(panel_plot.getLegendX()));
-            txtLegendy.setText(Integer.toString(panel_plot.getLegendY()));            
-        }catch(Exception ex){
-            log.debug("error filling legend textboxes");
-        }
-
-    }
-    
-    protected void do_chckbxAutopos_itemStateChanged(ItemEvent e) {
-        panel_plot.setAutoPosLegend(chckbxAutopos.isSelected());
-        panel_plot.repaint();        
-        if (chckbxAutopos.isSelected()){
-            txtLegendx.setEditable(false);
-            txtLegendy.setEditable(false);
-            //legend pos
-            txtLegendx.setText(Integer.toString(panel_plot.getLegendX()));
-            txtLegendy.setText(Integer.toString(panel_plot.getLegendY()));
-        }else{
-            txtLegendx.setEditable(true);
-            txtLegendy.setEditable(true);
-        }
-    }
-    protected void do_chckbxIntensityWithBackground_itemStateChanged(ItemEvent e) {
-        Pattern1D.setPlotwithbkg(chckbxIntensityWithBackground.isSelected());
-        panel_plot.repaint();
-    }
-    protected void do_chckbxHklLabels_itemStateChanged(ItemEvent arg0) {
-        if (this.panel_plot==null)return;
-        panel_plot.setHkllabels(chckbxHklLabels.isSelected());
-    }
-    protected void do_chckbxShowGridLines_itemStateChanged(ItemEvent e) {
-        if (this.panel_plot==null)return;
-        panel_plot.setShowGridY(chckbxShowGridY.isSelected());
-        panel_plot.repaint();
-    }
-
-    protected void do_chckbxShowGridX_itemStateChanged(ItemEvent arg0) {
-        if (this.panel_plot==null)return;
-        panel_plot.setShowGridX(chckbxShowGridX.isSelected());
-        panel_plot.repaint();
-    }
-    
-    public static int getDef_Width() {
-        return def_Width;
-    }
-
-    public static void setDef_Width(int def_Width) {
-        D1Dplot_main.def_Width = def_Width;
-    }
-
-    public static int getDef_Height() {
-        return def_Height;
-    }
-
-    public static void setDef_Height(int def_Height) {
-        D1Dplot_main.def_Height = def_Height;
-    }
     
     
-    /**
-     * @return the landF
-     */
-    public static String getLandF() {
-        return LandF;
-    }
 
-    /**
-     * @param landF the landF to set
-     */
-    public static void setLandF(String landF) {
-        LandF = landF;
-    }
-
-  //import org.apache.batik.dom.GenericDOMImplementation;
-//    import org.apache.batik.svggen.SVGGraphics2D;
-    //import org.w3c.dom.DOMImplementation;
-    //import org.w3c.dom.Document;
     
-    private void saveSVG(File fsvg){
-        this.panel_plot.getGraphPanel().setSaveSVG(true);
-        
-        // Get a DOMImplementation.
-        org.w3c.dom.DOMImplementation domImpl = org.apache.batik.dom.GenericDOMImplementation.getDOMImplementation();
-
-        // Create an instance of org.w3c.dom.Document.
-        String svgNS = "http://www.w3.org/2000/svg";
-        org.w3c.dom.Document document = domImpl.createDocument(svgNS, "svg", null);
-
-        // Create an instance of the SVG Generator.
-        org.apache.batik.svggen.SVGGraphics2D svgGenerator = new org.apache.batik.svggen.SVGGraphics2D(document);
-
-        // Ask the test to render into the SVG Graphics2D implementation.
-        panel_plot.getGraphPanel().paintComponent(svgGenerator);
-
-        // Finally, stream out SVG to the standard output using
-        // UTF-8 encoding.
-        boolean useCSS = true; // we want to use CSS style attributes
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(fsvg,true)));
-            svgGenerator.stream(out, useCSS);
-
-        } catch (Exception e) {
-            if (D1Dplot_global.isDebug())e.printStackTrace();
-            this.panel_plot.getGraphPanel().setSaveSVG(false);
-        }
-        this.panel_plot.getGraphPanel().setSaveSVG(false);
-
-    }
     
-    private void savePNG(File fpng, float factor){
-        double pageWidth = panel_plot.getGraphPanel().getSize().width*factor;
-        double pageHeight = panel_plot.getGraphPanel().getSize().height*factor;
-        double imageWidth = panel_plot.getGraphPanel().getSize().width;
-        double imageHeight = panel_plot.getGraphPanel().getSize().height;
-
-        double scaleFactor = DataFileUtils.getScaleFactorToFit(
-                new Dimension((int) Math.round(imageWidth), (int) Math.round(imageHeight)),
-                new Dimension((int) Math.round(pageWidth), (int) Math.round(pageHeight)));
-
-        int width = (int) Math.round(pageWidth);
-        int height = (int) Math.round(pageHeight);
-
-        BufferedImage img = new BufferedImage(
-                width,
-                height,
-                BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
-        g2d.scale(scaleFactor, scaleFactor);
-        panel_plot.getGraphPanel().setTransp(true);
-        panel_plot.getGraphPanel().setOpaque(false);
-        panel_plot.getGraphPanel().paintComponent(g2d);
-        panel_plot.getGraphPanel().setTransp(false);
-        panel_plot.getGraphPanel().setOpaque(true);
-        g2d.dispose();
-
-        try {
-            ImageIO.write(img, "png", fpng);
-        } catch (Exception ex) {
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
-        }
-        logdebug(fpng.toString()+" written");
-    }
     
-    protected void do_mntmCloseAll_actionPerformed(ActionEvent e) {
+    
+
+
+    
+    
+    
+    
+
+    
+    
+    
+
+    
+
+    private void do_mainFrame_windowClosing(WindowEvent e) {
+    	if (D1Dplot_global.isKeepSize()) {
+    		D1Dplot_global.setDef_Height(this.getMainFrame().getHeight());
+    		D1Dplot_global.setDef_Width(this.getMainFrame().getWidth());
+    	}
+    	
+	    boolean ok = D1Dplot_global.writeParFile();
+	    logdebug("par file written (method returned "+Boolean.toString(ok)+")");
+	    mainFrame.dispose();
+	    System.exit(0);
+	}
+
+	private void do_mntmQuit_actionPerformed(ActionEvent e) {
+	    do_mainFrame_windowClosing(null);
+	}
+
+	private void do_mntmOpen_actionPerformed(ActionEvent e) {
+	    openDataFile();
+	}
+
+	private void do_comboTheme_itemStateChanged(ItemEvent arg0) {
+	    if(arg0.getStateChange() == ItemEvent.DESELECTED)return;
+	    if (comboTheme.getSelectedItem().toString().equalsIgnoreCase("Light")){
+	        logdebug("light theme");
+	        D1Dplot_global.setLightTheme(true);
+	        PlotPanel.setLightTheme(true);
+	    }else{
+	        logdebug("Dark theme");
+	        D1Dplot_global.setLightTheme(false);
+	        PlotPanel.setLightTheme(false);
+	    }
+	    
+	    if (panel_plot.getPatterns().size()>0){
+	        boolean repaint = FileUtils.YesNoDialog(mainFrame, "Repaint current patterns?");
+	        if(repaint){
+	            reassignColorPatterns();
+	        }
+	    }
+	    panel_plot.actualitzaPlot();
+	}
+
+	private void do_buttonAdd_actionPerformed(ActionEvent e) {
+	    openDataFile();
+	}
+
+	private void do_mntmClose_actionPerformed(ActionEvent e) {
+	    closeDataFile();
+	}
+
+	private void do_buttonRemove_actionPerformed(ActionEvent e) {
+	    closeDataFile();
+	}
+
+	//IT MOVES PATTERNS ONLY
+	private void do_buttonUp_actionPerformed(ActionEvent e) {
+	    if (table_files.getSelectedRow()<0){
+	        log.warning("Select which pattern(s) to move by selecting the corresponding row(s)");
+	        return;
+	    }
+	    if (table_files.getRowCount()<=0)return;
+	    
+	    //prova de moure series
+	    int[] selRows = table_files.getSelectedRows();
+	    for (int i=0; i<=selRows.length-1;i++){
+	        int selRow = selRows[i];
+	        int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
+	        int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
+	        if (nser==0){
+	            //moure el pattern
+	            try{
+	                Collections.swap(panel_plot.getPatterns(), npat, npat-1);    
+	                table_files.setRowSelectionInterval(selRow-1, selRow-1);
+	            }catch(Exception ex){
+	                logdebug("moving pattern... index not existing");
+	            }
+	            continue;
+	        }else{
+	            //movem la serie dins del pattern
+	            try{
+	            	panel_plot.getPatterns().get(npat).swapSeries(nser, nser-1);
+//	                Collections.swap(panel_plot.getPatterns().get(npat).getSeries(), nser, nser-1);
+	                table_files.setRowSelectionInterval(selRow-1, selRow-1);
+	            }catch(Exception ex){
+	                logdebug("moving serie... index not existing");
+	            }
+	            
+	        }
+	    }
+	    
+	    updateData(false);
+	    return;
+	    
+	}
+
+	private void do_buttonDown_actionPerformed(ActionEvent e) {
+	    if (table_files.getSelectedRow()<0){
+	        log.warning("Select which pattern(s) to move by selecting the corresponding row(s)");
+	        return;
+	    }
+	    if (table_files.getRowCount()<=0)return;
+	    
+	    //prova de moure series
+	    int[] selRows = table_files.getSelectedRows();
+	    for (int i=0; i<=selRows.length-1;i++){
+	        int selRow = selRows[i];
+	        int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
+	        int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
+	        if (nser==panel_plot.getPatterns().get(npat).getNseries()-1){
+	            //moure el pattern
+	            try{
+	                Collections.swap(panel_plot.getPatterns(), npat, npat+1);    
+	                table_files.setRowSelectionInterval(selRow+1, selRow+1);
+	            }catch(Exception ex){
+	                logdebug("moving pattern... index not existing");
+	            }
+	            continue;
+	        }else{
+	            //movem la serie dins del pattern
+	            try{
+	            	panel_plot.getPatterns().get(npat).swapSeries(nser, nser+1);
+//	                Collections.swap(panel_plot.getPatterns().get(npat).getSeries(), nser, nser+1);
+	                table_files.setRowSelectionInterval(selRow+1, selRow+1);
+	            }catch(Exception ex){
+	                logdebug("moving serie... index not existing");
+	            }
+	        }
+	    }
+	    
+	    updateData(false);
+	    return;
+	}
+
+	private void do_mntmSaveAs_actionPerformed(ActionEvent arg0) {
+	    saveDataFile();
+	}
+
+	private void do_chckbxShowLegend_itemStateChanged(ItemEvent arg0) {
+	    panel_plot.setShowLegend(chckbxShowLegend.isSelected());
+	    panel_plot.actualitzaPlot();
+	}
+
+	private void do_txtLegendx_actionPerformed(ActionEvent e) {
+	    try{
+	        int lx = Integer.parseInt(txtLegendx.getText());
+	        panel_plot.setLegendX(lx);
+	        panel_plot.actualitzaPlot();
+	        txtLegendx.setText(Integer.toString(panel_plot.getLegendX()));
+	    }catch(Exception ex){
+	        if (D1Dplot_global.isDebug())ex.printStackTrace();
+	    }
+	}
+
+	private void do_txtLegendy_actionPerformed(ActionEvent e) {
+	    try{
+	        int ly = Integer.parseInt(txtLegendy.getText());
+	        panel_plot.setLegendY(ly);
+	        panel_plot.actualitzaPlot();
+	        txtLegendy.setText(Integer.toString(panel_plot.getLegendY()));
+	    }catch(Exception ex){
+	        if (D1Dplot_global.isDebug())ex.printStackTrace();
+	    }
+	}
+
+
+	    
+	    private void do_chckbxAutopos_itemStateChanged(ItemEvent e) {
+	        panel_plot.setAutoPosLegend(chckbxAutopos.isSelected());
+	        panel_plot.actualitzaPlot();        
+	        if (chckbxAutopos.isSelected()){
+	            txtLegendx.setEditable(false);
+	            txtLegendy.setEditable(false);
+	        }else{
+	            txtLegendx.setEditable(true);
+	            txtLegendy.setEditable(true);
+	        }
+	        //legend pos Actualitzem sempre
+	        txtLegendx.setText(Integer.toString(panel_plot.getLegendX()));
+	        txtLegendy.setText(Integer.toString(panel_plot.getLegendY()));
+	    }
+
+	private void do_chckbxIntensityWithBackground_itemStateChanged(ItemEvent e) {
+	    Pattern1D.setPlotwithbkg(chckbxIntensityWithBackground.isSelected());
+	    panel_plot.actualitzaPlot();
+	}
+
+	private void do_chckbxHklLabels_itemStateChanged(ItemEvent arg0) {
+	    if (this.panel_plot==null)return;
+	    panel_plot.setHkllabels(chckbxHklLabels.isSelected());
+	}
+
+	private void do_chckbxShowGridLines_itemStateChanged(ItemEvent e) {
+	    if (this.panel_plot==null)return;
+	    panel_plot.setShowGridY(chckbxShowGridY.isSelected());
+	    panel_plot.actualitzaPlot();
+	}
+
+	private void do_chckbxShowGridX_itemStateChanged(ItemEvent arg0) {
+	    if (this.panel_plot==null)return;
+	    panel_plot.setShowGridX(chckbxShowGridX.isSelected());
+	    panel_plot.actualitzaPlot();
+	}
+
+	private void do_mntmCloseAll_actionPerformed(ActionEvent e) {
         panel_plot.getPatterns().clear();
         this.updateData(true);
     }
     
-    protected void do_mntmExportAsPng_1_actionPerformed(ActionEvent arg0) {
-        Iterator<Pattern1D> itrP = panel_plot.getPatterns().iterator();
-        //set all to false show
-        while(itrP.hasNext()) {
-            Pattern1D p = itrP.next();
-            Iterator<DataSerie> itrS = p.getSeries().iterator();
-            while (itrS.hasNext()) {
-                DataSerie s = itrS.next();
-                s.setPlotThis(false);
-            }
-        }
-        //ara anirem activant un a un i guardant
-        itrP = panel_plot.getPatterns().iterator();
-        while(itrP.hasNext()) {
-            Pattern1D p = itrP.next();
-            Iterator<DataSerie> itrS = p.getSeries().iterator();
-            while (itrS.hasNext()) {
-                DataSerie s = itrS.next();
-                s.setPlotThis(true);
-                //save file
-                File fpng = FileUtils.canviExtensio(s.getPatt1D().getFile(),"png");
-                log.debug(fpng.toString());
-                this.savePNG(fpng,1.0f);
-                s.setPlotThis(false);
-            }
-        }
-        
-        itrP = panel_plot.getPatterns().iterator();
-        //set all to true show
-        while(itrP.hasNext()) {
-            Pattern1D p = itrP.next();
-            Iterator<DataSerie> itrS = p.getSeries().iterator();
-            while (itrS.hasNext()) {
-                DataSerie s = itrS.next();
-                s.setPlotThis(true);
-            }
-        }
-    }
-    
-    protected void do_mntmExportAsPng_actionPerformed(ActionEvent e) {
-        File fpng = FileUtils.fchooserSaveNoAsk(mainFrame, new File(D1Dplot_global.getWorkdir()), null); //ja preguntem despres
+    private void do_mntmExportAsPng_actionPerformed(ActionEvent e) {
+        File fpng = FileUtils.fchooserSaveAsk(mainFrame, new File(D1Dplot_global.getWorkdir()), null, "png");
         if (fpng!=null){
-            fpng = FileUtils.canviExtensio(fpng, "png");
-            if (fpng.exists()){
-                int actionDialog = JOptionPane.showConfirmDialog(mainFrame,
-                        "Replace existing file?");
-                if (actionDialog == JOptionPane.NO_OPTION)return;
-            }
             int w = panel_plot.getGraphPanel().getSize().width;
             int h = panel_plot.getGraphPanel().getSize().height;
             String s = (String)JOptionPane.showInputDialog(
@@ -1835,7 +1877,7 @@ public class D1Dplot_main {
                 try{
                     factor=Float.parseFloat(s);
                 }catch(Exception ex){
-                    logdebug("error reading factor");
+                    log.warning("Error reading png scale factor");
                 }
                 log.writeNameNumPairs("config", true, "factor", factor);
                 this.savePNG(fpng,factor);
@@ -1843,73 +1885,55 @@ public class D1Dplot_main {
         }
     }
     
-    protected void do_mntmExportAsSvg_actionPerformed(ActionEvent e) {
-        File fsvg = FileUtils.fchooserSaveNoAsk(mainFrame, new File(D1Dplot_global.getWorkdir()), null);
+    private void do_mntmExportAsSvg_actionPerformed(ActionEvent e) {
+        File fsvg = FileUtils.fchooserSaveNoAsk(mainFrame, new File(D1Dplot_global.getWorkdir()), null,"svg");
         if (fsvg!=null){
-            fsvg = FileUtils.canviExtensio(fsvg, "svg");
-            if (fsvg.exists()){
-                int actionDialog = JOptionPane.showConfirmDialog(mainFrame,
-                        "Replace existing file?");
-                if (actionDialog == JOptionPane.NO_OPTION)return;
-                fsvg.delete();
-            }
+//            fsvg = FileUtils.canviExtensio(fsvg, "svg");
+//            if (fsvg.exists()){ //no cal no??
+//                fsvg.delete();
+//            }
             this.saveSVG(fsvg);
         }
     }
-    protected void do_chckbxShowNegativeLabels_itemStateChanged(ItemEvent arg0) {
+    private void do_chckbxShowNegativeLabels_itemStateChanged(ItemEvent arg0) {
         if (this.panel_plot==null)return;
         panel_plot.setNegativeYAxisLabels(chckbxShowNegativeLabels.isSelected());
-        panel_plot.repaint();
+        panel_plot.actualitzaPlot();
     }
-    protected void do_chckbxVerticalYLabel_itemStateChanged(ItemEvent e) {
+    private void do_chckbxVerticalYLabel_itemStateChanged(ItemEvent e) {
         if (this.panel_plot==null)return;
         PlotPanel.setVerticalYlabel(chckbxVerticalYLabel.isSelected());
-        panel_plot.repaint();
+        panel_plot.actualitzaPlot();
     }
 
-    protected void do_chckbxVerticalYAxis_itemStateChanged(ItemEvent arg0) {
+    private void do_chckbxVerticalYAxis_itemStateChanged(ItemEvent arg0) {
         if (this.panel_plot==null)return;
         PlotPanel.setVerticalYAxe(chckbxVerticalYAxis.isSelected());
-        panel_plot.repaint();
+        panel_plot.actualitzaPlot();
     }
     
-    protected void do_mntmFindPeaks_1_actionPerformed(ActionEvent e) {
+    private void do_mntmFindPeaks_1_actionPerformed(ActionEvent e) {
         if (FindPksDiag == null) {
-            FindPksDiag = new FindPeaks_dialog(this.panel_plot,this);
+            FindPksDiag = new FindPeaksDialog(this.getMainFrame(),this.panel_plot);
         }
-        FindPksDiag.setVisible(true);
+        FindPksDiag.visible(true);
     }
-    protected void do_mntmCalcBackground_actionPerformed(ActionEvent e) {
+    private void do_mntmCalcBackground_actionPerformed(ActionEvent e) {
         if (bkgDiag == null) {
-            bkgDiag = new Background_dialog(this.panel_plot,this);
+            bkgDiag = new BackgroundDialog(this.panel_plot,this);
         }
-        bkgDiag.setVisible(true);
+        bkgDiag.visible(true);
     }
 
-    public FindPeaks_dialog getFindPksDiag() {
-        return FindPksDiag;
-    }
-
-    public void setFindPksDiag(FindPeaks_dialog findPksDiag) {
-        FindPksDiag = findPksDiag;
-    }
-
-    public Background_dialog getBkgDiag() {
-        return bkgDiag;
-    }
-
-    public void setBkgDiag(Background_dialog bkgDiag) {
-        this.bkgDiag = bkgDiag;
-    }
     
-    protected void do_mntmSubtractPatterns_actionPerformed(ActionEvent e) {
+    private void do_mntmSubtractPatterns_actionPerformed(ActionEvent e) {
         if (subDiag == null) {
-            subDiag = new Subtract_dialog(this.panel_plot,this);
+            subDiag = new SubtractDialog(this);
         }
-        subDiag.setVisible(true);
+        subDiag.visible(true);
     }
     
-    protected void do_btnReload_actionPerformed(ActionEvent e) {
+    private void do_btnReload_actionPerformed(ActionEvent e) {
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
         int[] selRows = table_files.getSelectedRows();
@@ -1946,11 +1970,12 @@ public class D1Dplot_main {
         this.updateData(false);
     }
 
-    protected void do_mntm2Dplot_actionPerformed(ActionEvent e) {
+    private void do_mntm2Dplot_actionPerformed(ActionEvent e) {
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
         int[] selRows = table_files.getSelectedRows();
         if (selRows.length<=1){
+        	log.info("Please, select more than one pattern to create the 2D plot");
             FileUtils.InfoDialog(mainFrame,"Select more than one pattern", "2D plot selected patterns");
             return;
         }
@@ -1987,7 +2012,7 @@ public class D1Dplot_main {
         for (int i=0; i<dss.length;i++){
             t2is[i]=dss[i].getPoint(0).getX();
             t2fs[i]=dss[i].getPoint(dss[i].getNpoints()-1).getX();
-            log.fine(String.format("t2i(%d)=%.3f t2f(%d)=%3f", i,t2is[i],i,t2fs[i]));
+            if(D1Dplot_global.isDebug())log.fine(String.format("t2i(%d)=%.3f t2f(%d)=%3f", i,t2is[i],i,t2fs[i]));
         }
         double t2i = PattOps.findMax(t2is);
         double t2f = PattOps.findMin(t2fs);
@@ -2013,7 +2038,7 @@ public class D1Dplot_main {
             totRange = totRange + rangedp[i];
         }
         if (totRange/dss.length != rangedp[0]){
-            loginfo("inconsitency on nr of points in the coincident range");
+        	log.warning("Inconsitency on nr of points in the coincident range");
 //            return;
         }
         
@@ -2025,8 +2050,8 @@ public class D1Dplot_main {
             }
         }
         
-        p2 = new PlotPanel2D(this);
-        p2.setVisible(true);
+        p2 = new Plot2DPanel(this.getMainFrame());
+        p2.visible(true);
         ArrayList<DataSerie> adss = new ArrayList<DataSerie>();
         for (int i=0; i<dss.length; i++){
             adss.add(dss[i]);
@@ -2034,7 +2059,7 @@ public class D1Dplot_main {
         p2.setImagePatts(adss);
     }
     
-    protected void do_mntmSequentialyOffset_actionPerformed(ActionEvent arg0) {
+    private void do_mntmSequentialyOffset_actionPerformed(ActionEvent arg0) {
         if (table_files.getSelectedRow()<0)return;
         if (table_files.getRowCount()<=0)return;
         int[] selRows = table_files.getSelectedRows();
@@ -2054,7 +2079,7 @@ public class D1Dplot_main {
             try{
                 yoff = Double.parseDouble(s);
             }catch(Exception ex){
-                loginfo("error reading y offset");
+            	log.warning("Error reading y offset");
                 return;
             }
         }
@@ -2074,7 +2099,7 @@ public class D1Dplot_main {
         
     }
     
-    protected void do_txtXtitle_actionPerformed(ActionEvent e) {
+    private void do_txtXtitle_actionPerformed(ActionEvent e) {
         if (txtXtitle.getText().isEmpty()){
             this.setCustomXtitle(false);
         }else{
@@ -2082,57 +2107,27 @@ public class D1Dplot_main {
             this.setCustomXtitle(true);
         }
     }
-    protected void do_txtYtitle_actionPerformed(ActionEvent e) {
+    private void do_txtYtitle_actionPerformed(ActionEvent e) {
         panel_plot.setYlabel(txtYtitle.getText());
     }
 
-    /**
-     * @return the customXtitle
-     */
-    public boolean isCustomXtitle() {
-        return customXtitle;
-    }
-
-    /**
-     * @param customXtitle the customXtitle to set
-     */
-    public void setCustomXtitle(boolean customXtitle) {
-        this.customXtitle = customXtitle;
-    }
-    
-    private void logdebug(String s){
-        if (D1Dplot_global.isDebug()){
-            log.debug(s);
-        }
-    }
-    private void loginfo(String s){
-        if (D1Dplot_global.logging){
-            log.info(s);
-        }
-        tAOut.stat(s); //ho passem pel txtArea
-    }
-    
-    public LogJTextArea getTAOut(){
-        return tAOut;
-    }
-
-    protected void do_mntmAbout_actionPerformed(ActionEvent e) {
+    private void do_mntmAbout_actionPerformed(ActionEvent e) {
         if (aboutDiag==null){
-            aboutDiag = new About_dialog();    
+            aboutDiag = new AboutDialog(this.getMainFrame());    
         }
-        aboutDiag.setVisible(true);
+        aboutDiag.visible(true);
     }
-    protected void do_mntmConvertToWavelength_actionPerformed(ActionEvent e) {
+    private void do_mntmConvertToWavelength_actionPerformed(ActionEvent e) {
         this.convertToWL(e);
     }
-    protected void do_mntmChangeXUnits_actionPerformed(ActionEvent e) {
+    private void do_mntmChangeXUnits_actionPerformed(ActionEvent e) {
         this.changeXunits(e);
     }
-    protected void do_mntmSumSelected_actionPerformed(ActionEvent e) {
+    private void do_mntmSumSelected_actionPerformed(ActionEvent e) {
         this.sumPatterns(e);
     }
     
-    protected void do_mntmRebinning_actionPerformed(ActionEvent arg0) {
+    private void do_mntmRebinning_actionPerformed(ActionEvent arg0) {
         if (table_files.getRowCount()<=0)return;
         if (table_files.getSelectedRow()<0)return;
         int[] selRows = table_files.getSelectedRows();
@@ -2169,7 +2164,7 @@ public class D1Dplot_main {
                 step = Double.parseDouble(vals[1]);
                 t2f = Double.parseDouble(vals[2]);
             }catch(Exception ex){
-                loginfo("error parsing values");
+            	log.warning("Error parsing values");
                 return;
             }
         }
@@ -2198,13 +2193,129 @@ public class D1Dplot_main {
         this.updateData(false);
     }
     
-    protected void do_mntmUsersGuide_actionPerformed(ActionEvent e) {
+    private void do_mntmUsersGuide_actionPerformed(ActionEvent e) {
         if (aboutDiag==null){
-            aboutDiag = new About_dialog();    
+            aboutDiag = new AboutDialog(this.getMainFrame());    
         }
         aboutDiag.do_btnUsersGuide_actionPerformed(e);
     }
 
+	private void do_mntmCheckForUpdates_actionPerformed(ActionEvent e) {
+        String bona="";
+        String url="https://www.cells.es/en/beamlines/bl04-mspd/preparing-your-experiment";
+        
+		try {
+			URL mspd = new URL(url);
+			BufferedReader in = new BufferedReader(new InputStreamReader(mspd.openStream()));
+	        String inputLine;
+	        while ((inputLine = in.readLine()) != null) {
+	            if (FileUtils.containsIgnoreCase(inputLine, "d1Dplot software for windows v")) {
+	            	bona = inputLine;
+	            	break;
+	            }
+	        }
+	        in.close();
+			
+		} catch (Exception e1) {
+			if(D1Dplot_global.isDebug())e1.printStackTrace();
+			log.warning("Error checking for new versions");
+		}
 
+		//d2Dplot software for linux v1811" href="https://www.cells.es/en/beamlines/bl04-mspd/d2dplot1811win_181122-tar.gz
+		if (bona.length()>0) {
+			String data = bona.split(".zip")[0];
+			data = data.split("win_")[1];
+			int webVersion = Integer.parseInt(data);
+			if (webVersion != D1Dplot_global.build_date) {
+				boolean yes = FileUtils.YesNoDialog(this.getMainFrame(), "New d1Dplot version is available ("+webVersion+"). Please download at\n"+url,"New version available!");
+				if (yes) {
+					FileUtils.openURL(url);
+				}
+			}
+			if (webVersion == D1Dplot_global.build_date) {
+				FileUtils.InfoDialog(this.getMainFrame(), "You have the last version of d1Dplot ("+D1Dplot_global.build_date+").", "d1Dplot is up to date");
+			}
+		}
+	}
+    
+	private void do_btnReassignColors_actionPerformed(ActionEvent e) {
+		this.reassignColorPatterns();
+	}
+	
+	private void do_mntmReferenceReflectionPositions_actionPerformed(ActionEvent e) {
+        if (refDiag == null) {
+            refDiag = new HKLreferenceDialog(this);
+        }
+        refDiag.visible(true);
+	}
+	
+    public JFrame getMainFrame() {
+		return mainFrame;
+	}
 
+	public static int getDef_Width() {
+	    return def_Width;
+	}
+
+	public static void setDef_Width(int def_Width) {
+	    D1Dplot_main.def_Width = def_Width;
+	}
+
+	public static int getDef_Height() {
+	    return def_Height;
+	}
+
+	public static void setDef_Height(int def_Height) {
+	    D1Dplot_main.def_Height = def_Height;
+	}
+
+	public static boolean isKeepSize() {
+		return keepSize;
+	}
+
+	public static void setKeepSize(boolean keepSize) {
+		D1Dplot_main.keepSize = keepSize;
+	}
+
+	public static boolean isAskForDeleteOriginals() {
+		return askForDeleteOriginals;
+	}
+
+	public static void setAskForDeleteOriginals(boolean askForDeleteOriginals) {
+		D1Dplot_main.askForDeleteOriginals = askForDeleteOriginals;
+	}
+
+	public static String getLandF() {
+	    return LandF;
+	}
+
+	public static void setLandF(String landF) {
+	    LandF = landF;
+	}
+
+	private String getWorkdir(){
+	    return D1Dplot_global.getWorkdir();
+	}
+
+	private boolean isCustomXtitle() {
+	    return customXtitle;
+	}
+
+	private void setCustomXtitle(boolean customXtitle) {
+	    this.customXtitle = customXtitle;
+	}
+
+	public PlotPanel getPanel_plot() {
+		return panel_plot;
+	}
+
+	public void setPanel_plot(PlotPanel panel_plot) {
+		this.panel_plot = panel_plot;
+	}
+
+	private void logdebug(String s){
+	    if (D1Dplot_global.isDebug()){
+	        log.debug(s);
+	    }
+	}
 }
