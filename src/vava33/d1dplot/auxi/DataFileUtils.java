@@ -17,10 +17,10 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Scanner;
 
 import javax.swing.JOptionPane;
@@ -29,8 +29,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.d1dplot.D1Dplot_global;
-import com.vava33.d1dplot.D1Dplot_main;
-import com.vava33.d1dplot.Dicvol_dialog;
+import com.vava33.d1dplot.DicvolDialog;
 import com.vava33.d1dplot.auxi.DataSerie.serieType;
 import com.vava33.d1dplot.auxi.DataSerie.xunits;
 import com.vava33.jutils.VavaLogger;
@@ -38,48 +37,81 @@ import com.vava33.jutils.FileUtils;
 
 public final class DataFileUtils {
 
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(DataFileUtils.class.getName());
+    private static final String className = "DataFileUtils";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);    
     
+    private static class FileFormat{
+    	private String[] extensions;
+    	private String description;
+    	
+    	public FileFormat(String[] exts, String description) {
+    		this.extensions=exts;
+    		this.description=description;
+    	}
+		public String[] getExtensions() {return extensions;}
+		public String getDescription() {return description;}
+//		public ArrayList<String> getExtensionsAsArrayList(){
+//			ArrayList<String> ar = new ArrayList<String>();
+//			for (int i=0;i<extensions.length;i++) {
+//				ar.add(extensions[i]);
+//			}
+//			return ar;
+//		}
+    }
     
-    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,PRF,GR,TXT,REF;}
-    public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR;}
-    public static final Map<String, String> formatInfo;
+    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,FF,PRF,GR,TXT;}
+    public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR,FF;}
+    public static final LinkedHashMap<String, FileFormat> XRDformatInfo;
     static
     {
-        formatInfo = new HashMap<String, String>(); //ext, description
-        formatInfo.put("dat", "2 or 3 columns file 2th/int/(err) *OR* free format (*.dat)");
-        formatInfo.put("xye", "3 columns file 2th/int/err (*.xye)");
-        formatInfo.put("xy", "2 columns file 2th/int (*.xy)");
-        formatInfo.put("asc", "2 columns file 2th/int with no headers (*.asc)");
-        formatInfo.put("gsa", "GSAS Standard Powder Data File (*.gsa)");
-        formatInfo.put("xrdml", "Panalytical format (*.xrdml)");
-        formatInfo.put("prf", "Obs,calc and difference profiles after fullprof refinement (*.prf)");
-        formatInfo.put("gr", "g(r) from pdfgetx3 (*.gr)");
-        formatInfo.put("txt", "2 columns space or comma separated (*.txt)");
-        formatInfo.put("ref", "1 column of 2theta values (*.ref)");
+        XRDformatInfo = new LinkedHashMap<String, FileFormat>(); //ext, description
+        XRDformatInfo.put("dat", new FileFormat(new String[]{"dat","DAT"},"2 or 3 columns file 2th/int/(err) with header (.dat)"));
+        XRDformatInfo.put("xye", new FileFormat(new String[]{"xye","XYE"},"3 columns file 2th/int/err (*.xye)"));
+        XRDformatInfo.put("xy", new FileFormat(new String[]{"xy","XY"},"2 columns file 2th/int (*.xy)"));
+        XRDformatInfo.put("asc", new FileFormat(new String[]{"asc","ASC"},"2 columns file 2th/int with no headers (*.asc)"));
+        XRDformatInfo.put("gsa", new FileFormat(new String[]{"gsa","GSA"},"GSAS Standard Powder Data File (*.gsa)"));
+        XRDformatInfo.put("xrdml", new FileFormat(new String[]{"xrdml","XRDML"},"Panalytical format (*.xrdml)"));
+        XRDformatInfo.put("ff", new FileFormat(new String[]{"ff","FF"},"List of intensities in free format (*.ff)"));
+        XRDformatInfo.put("prf", new FileFormat(new String[]{"prf","PRF"},"Obs,calc and difference profiles from fullprof (*.prf)"));
+        XRDformatInfo.put("gr", new FileFormat(new String[]{"gr","GR"},"g(r) from pdfgetx3 (*.gr)"));
+        XRDformatInfo.put("txt", new FileFormat(new String[]{"txt","TXT"},"2 columns space or comma separated (*.txt)"));
+    }
+    
+    public static enum SupportedReadRefExtensions {REF,HKL,DAT,TXT;}
+    public static enum SupportedWriteRefExtensions {REF;}
+    public static final LinkedHashMap<String, FileFormat> REFformatInfo;
+    static
+    {
+    	REFformatInfo = new LinkedHashMap<String, FileFormat>(); //ext, description
+    	REFformatInfo.put("ref", new FileFormat(new String[]{"ref","REF"},"1 column of 2theta values (*.ref)"));
+    	REFformatInfo.put("hkl", new FileFormat(new String[]{"hkl","HKL"},"reflections file (*.hkl)"));
+    	REFformatInfo.put("dat", new FileFormat(new String[]{"dat","DAT"},"2 or 3 columns file 2th/int/(err) with optional header"));
+    	REFformatInfo.put("txt", new FileFormat(new String[]{"txt","TXT"},"2 columns space or comma separated (*.txt)"));
     }
     
     public static enum SupportedWritePeaksFormats {DIC,TXT;}
-    public static final Map<String, String> peakFormatInfo;
+    public static final LinkedHashMap<String, FileFormat> peakFormatInfo;
     static
     {
-        peakFormatInfo = new HashMap<String, String>(); //ext, description
-        peakFormatInfo.put("dic", "dicvol input file");
-        peakFormatInfo.put("txt", "list of peaks in 3 columns format 2th/int/err");
+        peakFormatInfo = new LinkedHashMap<String, FileFormat>(); //ext, description
+        peakFormatInfo.put("dic", new FileFormat(new String[]{"dic","DIC"},"DICVOL06 input file (*.dic)"));
+        peakFormatInfo.put("inp", new FileFormat(new String[]{"inp","INP"},"McMaille input file (*.inp)"));
+        peakFormatInfo.put("txt", new FileFormat(new String[]{"txt","TXT"},"list of peaks in 3 columns format 2th/int/err"));
     }
     
     public static FileNameExtensionFilter[] getExtensionFilterWrite(){
-        //mirem quins formats som capaços de salvar segons ImgFileUtils
-        Iterator<String> itrformats = DataFileUtils.formatInfo.keySet().iterator();
+        Iterator<String> itrformats = DataFileUtils.XRDformatInfo.keySet().iterator();
         FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedWriteExtensions.values().length];
         int nfiltre=0;
         while (itrformats.hasNext()){
-            String frm = itrformats.next();
-            //this line returns the FORMAT in the ENUM or NULL
-            DataFileUtils.SupportedWriteExtensions wfrm = FileUtils.searchEnum(DataFileUtils.SupportedWriteExtensions.class, frm);
+            FileFormat frm = DataFileUtils.XRDformatInfo.get(itrformats.next());
+            DataFileUtils.SupportedWriteExtensions wfrm = null;
+            for (int i=0; i<frm.getExtensions().length; i++) {
+            	wfrm = FileUtils.searchEnum(DataFileUtils.SupportedWriteExtensions.class, frm.getExtensions()[i]);	
+            }
             if (wfrm!=null){
                 //afegim filtre
-                filter[nfiltre] = new FileNameExtensionFilter(DataFileUtils.formatInfo.get(frm), frm);
+            	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
                 nfiltre = nfiltre +1;
             }
         }
@@ -87,39 +119,85 @@ public final class DataFileUtils {
     }
     
     public static FileNameExtensionFilter[] getExtensionFilterRead(){
-        //mirem quins formats som capaços de salvar segons ImgFileUtils
-        Iterator<String> itrformats = DataFileUtils.formatInfo.keySet().iterator();
-        FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedReadExtensions.values().length+1]; //+1 for all image formats
-        String[] frmStrings= new String[DataFileUtils.SupportedReadExtensions.values().length];
+        Iterator<String> itrformats = DataFileUtils.XRDformatInfo.keySet().iterator();
+        FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedReadExtensions.values().length+1];
+        ArrayList<String> frmStrings = new ArrayList<String>();
         int nfiltre=0;
         while (itrformats.hasNext()){
-            String frm = itrformats.next();
-            //this line returns the FORMAT in the ENUM or NULL
-            DataFileUtils.SupportedReadExtensions wfrm = FileUtils.searchEnum(DataFileUtils.SupportedReadExtensions.class, frm);
+            FileFormat frm = DataFileUtils.XRDformatInfo.get(itrformats.next());
+            DataFileUtils.SupportedReadExtensions wfrm = null;
+            for (int i=0; i<frm.getExtensions().length; i++) {
+            	wfrm = FileUtils.searchEnum(DataFileUtils.SupportedReadExtensions.class, frm.getExtensions()[i]);	
+            }
             if (wfrm!=null){
                 //afegim filtre
-                filter[nfiltre] = new FileNameExtensionFilter(DataFileUtils.formatInfo.get(frm), frm);
-                frmStrings[nfiltre] = frm;
+            	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
+            	frmStrings.addAll(Arrays.asList(frm.getExtensions()));
+//            	frmStrings.addAll(frm.getExtensionsAsArrayList());
                 nfiltre = nfiltre +1;
             }
         }
         //afegim filtre de tots els formats
-        filter[nfiltre] = new FileNameExtensionFilter("All 1D-XRD supported formats", frmStrings);
+        filter[nfiltre] = new FileNameExtensionFilter("All 1D-XRD supported formats", frmStrings.toArray(new String[frmStrings.size()]));
+        return filter;
+    }
+    
+    public static FileNameExtensionFilter[] getExtensionFilterRefWrite(){
+        Iterator<String> itrformats = DataFileUtils.REFformatInfo.keySet().iterator();
+        FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedWriteRefExtensions.values().length];
+        int nfiltre=0;
+        while (itrformats.hasNext()){
+            FileFormat frm = DataFileUtils.REFformatInfo.get(itrformats.next());
+            DataFileUtils.SupportedWriteRefExtensions wfrm = null;
+            for (int i=0; i<frm.getExtensions().length; i++) {
+            	wfrm = FileUtils.searchEnum(DataFileUtils.SupportedWriteRefExtensions.class, frm.getExtensions()[i]);	
+            }
+            if (wfrm!=null){
+                //afegim filtre
+            	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
+                nfiltre = nfiltre +1;
+            }
+        }
+        return filter;
+    }
+    
+    public static FileNameExtensionFilter[] getExtensionFilterRefRead(){
+        Iterator<String> itrformats = DataFileUtils.REFformatInfo.keySet().iterator();
+        FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedReadRefExtensions.values().length+1];
+        ArrayList<String> frmStrings = new ArrayList<String>();
+        int nfiltre=0;
+        while (itrformats.hasNext()){
+            FileFormat frm = DataFileUtils.REFformatInfo.get(itrformats.next());
+            DataFileUtils.SupportedReadRefExtensions wfrm = null;
+            for (int i=0; i<frm.getExtensions().length; i++) {
+            	wfrm = FileUtils.searchEnum(DataFileUtils.SupportedReadRefExtensions.class, frm.getExtensions()[i]);	
+            }
+            if (wfrm!=null){
+                //afegim filtre
+            	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
+            	frmStrings.addAll(Arrays.asList(frm.getExtensions()));
+//            	frmStrings.addAll(frm.getExtensionsAsArrayList());
+                nfiltre = nfiltre +1;
+            }
+        }
+        //afegim filtre de tots els formats
+        filter[nfiltre] = new FileNameExtensionFilter("All supported formats", frmStrings.toArray(new String[frmStrings.size()]));
         return filter;
     }
     
     public static FileNameExtensionFilter[] getExtensionFilterPeaksWrite(){
-        //mirem quins formats som capaços de salvar segons ImgFileUtils
         Iterator<String> itrformats = DataFileUtils.peakFormatInfo.keySet().iterator();
         FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedWritePeaksFormats.values().length];
         int nfiltre=0;
         while (itrformats.hasNext()){
-            String frm = itrformats.next();
-            //this line returns the FORMAT in the ENUM or NULL
-            DataFileUtils.SupportedWritePeaksFormats wfrm = FileUtils.searchEnum(DataFileUtils.SupportedWritePeaksFormats.class, frm);
+            FileFormat frm = DataFileUtils.peakFormatInfo.get(itrformats.next());
+            DataFileUtils.SupportedWritePeaksFormats wfrm = null;
+            for (int i=0; i<frm.getExtensions().length; i++) {
+            	wfrm = FileUtils.searchEnum(DataFileUtils.SupportedWritePeaksFormats.class, frm.getExtensions()[i]);	
+            }
             if (wfrm!=null){
                 //afegim filtre
-                filter[nfiltre] = new FileNameExtensionFilter(DataFileUtils.peakFormatInfo.get(frm), frm);
+            	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
                 nfiltre = nfiltre +1;
             }
         }
@@ -133,32 +211,22 @@ public final class DataFileUtils {
         String ext = FileUtils.getExtension(d1file).trim();
 
         // this line returns the FORMAT in the ENUM or NULL
-        SupportedReadExtensions format = FileUtils.searchEnum(
-                SupportedReadExtensions.class, ext);
-        if (format != null) {
-            log.debug("Format=" + format.toString());
-        }
+        SupportedReadExtensions format = FileUtils.searchEnum(SupportedReadExtensions.class, ext);
+        
+        if (format != null) {log.debug("Format=" + format.toString());}
 
         if (format == null) {
-            SupportedReadExtensions[] possibilities = SupportedReadExtensions
-                    .values();
-            SupportedReadExtensions s = (SupportedReadExtensions) JOptionPane
-                    .showInputDialog(null, "Input format:", "Read File",
-                            JOptionPane.PLAIN_MESSAGE, null, possibilities,
-                            possibilities[0]);
-            if (s == null) {
-                return false;
-            }
+            SupportedReadExtensions[] possibilities = SupportedReadExtensions.values();
+            SupportedReadExtensions s = (SupportedReadExtensions) JOptionPane.showInputDialog(null, "Input format:", "Read File",
+                            JOptionPane.PLAIN_MESSAGE, null, possibilities,possibilities[0]);
+            if (s == null) {return false;}
             format = s;
         }
+        
         boolean ok = false;
         switch (format) {
             case DAT:
-                if (detectDATFreeFormat(d1file)){
-                    ok = readDATFreeFormat(d1file,patt1D);
-                }else{
-                    ok = readDAT_ALBA(d1file,patt1D);
-                }
+                ok = readDAT(d1file,patt1D);
                 break;
             case XYE:
                 ok = readXYE(d1file,patt1D);
@@ -175,23 +243,27 @@ public final class DataFileUtils {
             case XRDML:
                 ok = readXRDML(d1file,patt1D);
                 break;
+            case FF:
+                ok = readFF(d1file,patt1D);
+                break;
             case PRF:
                 ok = readPRF(d1file,patt1D);
                 break;
             case GR:
                 ok = readGR(d1file,patt1D);
                 break;
-            case REF:
-                ok = readREF(d1file,patt1D);
-                break;
             default:
-                ok = readUNK(d1file,patt1D);
+                ok = readUNK(d1file,patt1D); //TXT
                 break;
 
         }
         if (!ok){
-            log.debug("Error reading pattern "+d1file.getAbsolutePath());
-            return false;
+        	//ho tornem a intentar...
+        	ok = readUNK(d1file,patt1D);
+        	if (!ok) {
+                log.debug("Error reading pattern "+d1file.getAbsolutePath());
+                return false;        		
+        	}
         }
         if (patt1D.getFile() == null) {
             patt1D.setFile(d1file);
@@ -207,6 +279,53 @@ public final class DataFileUtils {
             }
         }
         return true;
+    }
+    
+    public static Reference readREFFile(File d1file) {
+        // comprovem extensio
+        log.debug(d1file.toString());
+        String ext = FileUtils.getExtension(d1file).trim();
+
+        // this line returns the FORMAT in the ENUM or NULL
+        SupportedReadRefExtensions format = FileUtils.searchEnum(SupportedReadRefExtensions.class, ext);
+        
+        if (format != null) {log.debug("Format=" + format.toString());}
+
+        if (format == null) {
+            SupportedReadRefExtensions[] possibilities = SupportedReadRefExtensions.values();
+            SupportedReadRefExtensions s = (SupportedReadRefExtensions) JOptionPane.showInputDialog(null, "Input format:", "Read File",
+                            JOptionPane.PLAIN_MESSAGE, null, possibilities,possibilities[0]);
+            if (s == null) {return null;}
+            format = s;
+        }
+
+        Reference ref = null;
+        switch (format) {
+        case REF:
+        	ref = readREF(d1file);
+        	break;
+        case HKL:
+        	ref = readHKL(d1file);
+        	break;
+        case DAT:
+        	ref = readREF(d1file);
+        	break;
+        default:
+        	ref = readUNKref(d1file); //TXT
+        	break;
+        }
+        
+        if (ref==null){
+        	//ho tornem a intentar...
+        	ref = readUNKref(d1file);
+        	if (ref==null) {
+                log.debug("Error reading reference file "+d1file.getAbsolutePath());
+                return null;        		
+        	}
+        }
+        
+        return ref;
+
     }
     
     public static File writePatternFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite) {
@@ -234,7 +353,7 @@ public final class DataFileUtils {
                         npoints = Integer.parseInt(s);
                     }catch(Exception ex){
                         ex.printStackTrace();
-                        log.info("error reading n points");
+                        log.warning("Error reading n points");
                         return null;
                     }
                 }
@@ -271,22 +390,7 @@ public final class DataFileUtils {
 
         switch (format) {
             case DAT:
-                Object[] options = {"DAT 3 Columns: 2theta Intensity ESD","DAT Free Format"};
-                int n = JOptionPane.showOptionDialog(null,
-                        "Which DAT format would you like?",
-                        "Select DAT format",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE,
-                        null,
-                        options,
-                        options[0]);
-                if(n==0){  
-                    written = writeDAT_ALBA(patt1D,serie,d1File,overwrite);
-                }else if(n==1){
-                    written = writeDAT_FreeFormat(patt1D,serie,d1File,overwrite);
-                }else{
-                    log.info("no DAT format choosen");
-                }
+                written = writeDAT_ALBA(patt1D,serie,d1File,overwrite);
                 break;
             case ASC:
                 written = writeASC(patt1D,serie,d1File,overwrite);
@@ -297,18 +401,21 @@ public final class DataFileUtils {
             case XRDML:
                 written = writeXRDML(patt1D,serie,d1File,true,overwrite);
                 break;
+            case FF:
+                written = writeDAT_FreeFormat(patt1D,serie,d1File,overwrite);
+                break;
             case GR:
                 written = writeGR(patt1D,serie,d1File,overwrite);
                 break;
             default:
-                log.info("Unknown format to write");
+                log.warning("Unknown format to write");
                 return null;
         }
         if (written) fout = d1File;
         return fout;
     }
     
-    public static File writePeaksFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite,D1Dplot_main m) {
+    public static File writePeaksFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite) {
         SupportedWritePeaksFormats[] possibilities = SupportedWritePeaksFormats
                 .values();
         SupportedWritePeaksFormats s = (SupportedWritePeaksFormats) JOptionPane
@@ -323,7 +430,7 @@ public final class DataFileUtils {
         switch (s) {
             case DIC:
                 d1File = FileUtils.canviExtensio(d1File, "dic");
-                written = writePeaksDIC(patt1D,serie,d1File,overwrite,m);
+                written = writePeaksDIC(patt1D,serie,d1File,overwrite);
                 break;
             case TXT:
                 written = writePeaksTXT(patt1D,serie,d1File,overwrite);
@@ -333,146 +440,25 @@ public final class DataFileUtils {
         return fout;
     }
     
-    public static boolean writePeaksTXT(Pattern1D patt1D, int serie, File outf, boolean overwrite){
-        if (outf.exists()&&!overwrite)return false;
-        if (outf.exists()&&overwrite)outf.delete();
-        DataSerie ds = patt1D.getSerie(serie); //Affected Serie
-        boolean written = true;
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            
-            Iterator<String> itrComm = patt1D.getCommentLines().iterator();
-            while (itrComm.hasNext()){
-                String cline = itrComm.next();
-                if (!cline.startsWith("#"))cline = "# "+cline;
-                out.println(cline);
-            }
-            out.println("# file generated with d1Dplot");
-            //ARA ELS PICS
-            for(int i=0;i<ds.getNpeaks();i++){
-                String s = String.format(" %12.5f %15.3f %15.3f",ds.getPeak(i).getX(),ds.getPeak(i).getY(),ds.getPeak(i).getSdy());
-                s = s.replace(",", ".");
-                out.println(s);
-            }
-            
-            out.close();
-        } catch (Exception ex) {
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
-            written = false;
-        }
-        return written;
-        
-    }
-    
-    
-    static Dicvol_dialog dvdiag;
-    public static boolean writePeaksDIC(Pattern1D patt1D, int serie, File outf, boolean overwrite, D1Dplot_main main){
-        if (outf.exists()&&!overwrite)return false;
-        if (outf.exists()&&overwrite)outf.delete();
-        DataSerie ds = patt1D.getSerie(serie); //Affected Serie
-        
-        //preguntem els parametres
-        if (dvdiag==null){
-            dvdiag = new Dicvol_dialog(ds,main);
-            dvdiag.setVisible(true);
-        }else{
-            dvdiag.updateDS(ds);
-            dvdiag.setVisible(true);
-        }
-        
-        
-        //now we write
-        if (!dvdiag.isEverythingOK()){
-            log.info("error reading dicvol parameters");
-            return false;
-        }
-        
-        boolean written = true;
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            
-            Iterator<String> itrComm = patt1D.getCommentLines().iterator();
-            int ncom = 0;
-            while (itrComm.hasNext()){
-                String cline = itrComm.next();
-                if (ncom>=2){
-                    if (!cline.startsWith("!"))cline = "! "+cline;
-                }else{
-                    if (!cline.startsWith("#"))cline = "# "+cline;    
-                }
-                out.println(cline);
-                ncom++;
-            }
-            out.println("# file generated with d1Dplot");
-            int xun = 2;
-            switch(ds.getxUnits()){
-                case tth:
-                    xun = 2;
-                    break;
-                case Q:
-                    xun = 4;
-                    break;
-                case dsp:
-                    xun = 3;
-                    break;
-                case dspInv:
-                    log.info("dspInv not supported by dicvol, please change xunits");
-                    break;
-                default:
-                    xun = 2;
-                    break;
-            }
-            //N,ITYPE,JC,JT,JH,JO,JM,JTR
-            String s = String.format("%4d %2d %2d %2d %2d %2d %2d %2d",dvdiag.getNpeaks(), xun, dvdiag.isCubicInt(), dvdiag.isTetraInt(), dvdiag.isHexaInt(), dvdiag.isOrtoInt(), dvdiag.isMonoInt(), dvdiag.isTricInt());
-            s = s.replace(",", ".");
-            out.println(s);
-            //AMAX,BMAX,CMAX,VOLMIN,VOLMAX,BEMIN,BEMAX
-            s = String.format("  %.2f %.2f %.2f %.2f %.2f %.2f %.2f", dvdiag.getAmax(),dvdiag.getBmax(),dvdiag.getCmax(),dvdiag.getVmin(),dvdiag.getVmax(),dvdiag.getBetamin(),dvdiag.getBetamax());
-            s = s.replace(",", ".");
-            out.println(s);
-            //WAVE,POIMOL,DENS,DELDEN 
-            s = String.format("  %.5f %.2f %.2f %.2f", dvdiag.getWavel(), dvdiag.getMw(),dvdiag.getDensity(),dvdiag.getDensityerr());
-            s = s.replace(",", ".");
-            out.println(s);
-            //EPS,FOM,N_IMP,ZERO_S,ZERO_REF,OPTION 
-            s = String.format("  %.2f %.2f %d %d %d %d", dvdiag.getEps(),dvdiag.getMinfom(),dvdiag.getSpurious(),dvdiag.isZeroRefInt(),dvdiag.isPrevzeroInt(),dvdiag.isDic06Int());
-            s = s.replace(",", ".");
-            out.println(s);
-            
-            //ARA ELS PICS
-            for(int i=0;i<dvdiag.getNpeaks();i++){
-                s = String.format(" %12.5f %15.2f %15.2f",ds.getPeak(i).getX(), ds.getPeak(i).getY(), ds.getPeak(i).getSdy());
-                s = s.replace(",", ".");
-                out.println(s);
-            }
-            
-            out.close();
-        } catch (Exception ex) {
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
-            written = false;
-        }
-        return written;
-    }
-    
-    private static boolean isComment(String ln){
-        if (ln.trim().startsWith("#"))return true;
-        if (ln.trim().startsWith("!"))return true;
-        if (ln.trim().startsWith("/"))return true;
-        if (ln.trim().startsWith("$"))return true;
-        return false;
-    }
-    
     private static boolean readXYE(File f, Pattern1D patt1D){
-        return readDAT_ALBA(f,patt1D);
+        return readDAT(f,patt1D);
     }
     
     private static boolean readASC(File f, Pattern1D patt1D){
-        return readDAT_ALBA(f,patt1D);
+        return readDAT(f,patt1D);
 
     }
     
     //only 1 serie
-    public static boolean readUNK(File datFile, Pattern1D patt1D) {
+    private static boolean readUNK(File datFile, Pattern1D patt1D) {
+    	//primer mirem si es free format
+    	if (detectFreeFormat(datFile)) {
+    		readFF(datFile,patt1D);
+    		return true;
+    	}
+    	//TODO: es poden afegir altres comprovacions...
+    	
+    	//Sino mirem de detectar linies on hi hagi dos valors t2, intensitat separats per espai, coma, etc...
         boolean readed = true;
         DataSerie ds = new DataSerie();
         try {
@@ -509,7 +495,7 @@ public final class DataFileUtils {
                 try{
                     sdev = Double.parseDouble(values[2]);
                 }catch(Exception ex){
-                    log.debug("error parsing sdev");
+                    log.fine("error parsing sdev");
                 }
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
@@ -519,7 +505,7 @@ public final class DataFileUtils {
                 }
             }
             ds.setSerieName(datFile.getName());
-            patt1D.AddDataSerie(ds);
+            patt1D.addDataSerie(ds);
             sf.close();
 
         }catch(Exception e){
@@ -533,8 +519,14 @@ public final class DataFileUtils {
         }
     }
     
+    private static Reference readUNKref(File datFile) {
+//    	log.info("unknown ref file");
+    	return null;
+    }
+
+    
     //only 1 serie
-    public static boolean readDAT_ALBA(File datFile, Pattern1D patt1D) {
+    private static boolean readDAT(File datFile, Pattern1D patt1D) {
         boolean firstLine = true;
         boolean readed = true;
         DataSerie ds = new DataSerie();
@@ -558,13 +550,22 @@ public final class DataFileUtils {
 
                 String values[] = line.trim().split("\\s+");
 
-                double t2 = Double.parseDouble(values[0]);
-                double inten = Double.parseDouble(values[1]);
+                //afegim comprovacio de que la primera linea pot ser no comentada (cas xye), TODO:revisar
+                double t2 = 0.0;
+                double inten = 0.0;
+                try {
+                    t2 = Double.parseDouble(values[0]);
+                    inten = Double.parseDouble(values[1]);
+                }catch(Exception ex) {
+                	log.warning(String.format("Error reading (t2 Intensity) in line: %s",line));
+//                	if (!firstLine) return false; //no acceptem errors que no siguin a la primera linia, TODO:mirar si posar-ho o no
+                	continue;
+                }
                 double sdev = 0.0;
                 try{
                     sdev = Double.parseDouble(values[2]);
                 }catch(Exception ex){
-                    log.debug("error parsing sdev");
+                    log.fine("error parsing sdev");
                 }
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
@@ -577,9 +578,10 @@ public final class DataFileUtils {
                     ds.setT2f(t2);
                 }
             }
-            ds.setSerieName(datFile.getName());
-            patt1D.AddDataSerie(ds);
             sf.close();
+            if (ds.getNpoints()<=0)return false; //TODO: mirar si poso un limit
+            ds.setSerieName(datFile.getName());
+            patt1D.addDataSerie(ds);
 
         }catch(Exception e){
             if (D1Dplot_global.isDebug())e.printStackTrace();
@@ -593,21 +595,18 @@ public final class DataFileUtils {
     }
     
     //ref is a list of 2theta values, you can use in comments wave X.XXXX
-    public static boolean readREF(File datFile, Pattern1D patt1D) {
-        boolean firstLine = true;
-        boolean readed = true;
-        DataSerie ds = new DataSerie();
-
+    private static Reference readREF(File datFile) {
+        double wave = -1;
+        Reference ref = new Reference(FileUtils.getFNameNoExt(datFile.getName()));
+        
         try {
             Scanner sf = new Scanner(datFile);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (isComment(line)){
-                    patt1D.getCommentLines().add(line);
                     double wl = searchForWavel(line);
                     if (wl>0){
-                        patt1D.setOriginal_wavelength(wl);
-                        ds.setWavelength(wl);
+                        wave = wl;
                     }
                     continue;
                 }
@@ -617,47 +616,54 @@ public final class DataFileUtils {
                 
                 String values[] = line.trim().split("\\s+");
 
-                double t2 = Double.parseDouble(values[0]);
+                double t2 = -1;
+                try {
+                	t2 = Double.parseDouble(values[0]);	
+                }catch(Exception ex) {
+                	log.fine("error parsing t2");
+                	continue;
+                }
                 double inten = 0.0;
                 try{
                     inten = Double.parseDouble(values[1]);                    
                 }catch(Exception ex){
-                    log.debug("error parsing inten");
+                    log.fine("error parsing inten");
                 }
-                double sdev = 0.0;
-                try{
-                    sdev = Double.parseDouble(values[2]);
-                }catch(Exception ex){
-                    log.debug("error parsing sdev");
-                }
-
-                ds.addPoint(new DataPoint(t2,inten,sdev));
-                if (firstLine){
-                    ds.setT2i(t2);
-                    firstLine = false;
-                }
-
-                if (!sf.hasNextLine()){
-                    ds.setT2f(t2);
+//                double sdev = 0.0;
+//                try{
+//                    sdev = Double.parseDouble(values[2]);
+//                }catch(Exception ex){
+//                    log.fine("error parsing sdev");
+//                }
+                
+                if (t2>0) {
+                	//convert to dspacing
+                	if (wave<=0) {
+                		wave = FileUtils.DialogAskForPositiveDouble(null,"Wavelength (Ang) =","Wavelength required to calculate d-spacings from 2-theta values","");
+                		if (wave<=0){
+                			log.warning("Invalid wavelength entered");
+                			sf.close();
+                			return null;
+                		}
+                	}
+                	ref.addDspInten(PattOps.getDspFrom2ThetaRad(wave, FastMath.toRadians(t2)), inten);	
                 }
             }
-            ds.setSerieName(datFile.getName());
-            ds.setTipusSerie(serieType.ref);
-            patt1D.AddDataSerie(ds);
             sf.close();
 
         }catch(Exception e){
             if (D1Dplot_global.isDebug())e.printStackTrace();
-            readed = false;
+            return null;
         }
-        if (readed){
-            return true;
-        }else{
-            return false;
-        }
+        return ref;
     }
     
-    public static boolean readGR(File datFile, Pattern1D patt1D) {
+    private static Reference readHKL(File hklfile) {
+    	FileUtils.InfoDialog(null, "HKL reading not implemented yet!", "Not implemented"); //TODO
+    	return null;
+    }
+    
+    private static boolean readGR(File datFile, Pattern1D patt1D) {
         boolean firstLine = true;
         boolean readed = true;
         DataSerie ds = new DataSerie();
@@ -718,7 +724,7 @@ public final class DataFileUtils {
             ds.setTipusSerie(serieType.gr);
             ds.setxUnits(xunits.G);
             ds.setSerieName(datFile.getName());
-            patt1D.AddDataSerie(ds);
+            patt1D.addDataSerie(ds);
             sf.close();
 
         }catch(Exception e){
@@ -805,7 +811,7 @@ public final class DataFileUtils {
                 ds.addPoint(new DataPoint(t2ang.get(i),intensities.get(i),0.0f));
             }
             ds.setSerieName(f.getName());
-            patt1D.AddDataSerie(ds);
+            patt1D.addDataSerie(ds);
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
@@ -814,7 +820,7 @@ public final class DataFileUtils {
         return true;
     }
     
-    private static boolean readDATFreeFormat(File f, Pattern1D patt1D){
+    private static boolean readFF(File f, Pattern1D patt1D){
         boolean firstLine = true;
         DataSerie ds = new DataSerie();
         ArrayList<Double> intensities = new ArrayList<Double>();
@@ -846,7 +852,7 @@ public final class DataFileUtils {
                         ds.setT2f(Double.parseDouble(values[2]));
                     }catch(Exception readex){
                         if (D1Dplot_global.isDebug())readex.printStackTrace();
-                        log.info("Error reading 1st line of Free Format file (t2i step t2f)");
+                        log.warning("Error reading 1st line of Free Format file (t2i step t2f)");
                         sf.close();
                         return false;
                     }
@@ -877,7 +883,7 @@ public final class DataFileUtils {
                 ds.addPoint(new DataPoint(t2ang.get(i),intensities.get(i),0.0f));
             }
             ds.setSerieName(f.getName());
-            patt1D.AddDataSerie(ds);
+            patt1D.addDataSerie(ds);
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
@@ -888,7 +894,7 @@ public final class DataFileUtils {
     
 
     
-    private static boolean detectDATFreeFormat(File f){
+    private static boolean detectFreeFormat(File f){
         //al free format la primera linia es 2ti step 2tf
         double t2 = 0.00f;
         double inten = 0.00f;
@@ -927,7 +933,7 @@ public final class DataFileUtils {
                 if(sdev>inten){
                     if (sdev>t2){
                         //probablement sera freeformat
-                        log.info("free format detected!");
+                        log.info("Free Format detected!");
                         return true;
                     }
                 }
@@ -989,7 +995,7 @@ public final class DataFileUtils {
                         }
                     }catch(Exception readex){
                         if (D1Dplot_global.isDebug())readex.printStackTrace();
-                        log.info("Error GSA file");
+                        log.debug("Error reading GSA file");
                         sf.close();
                         return false;
                     }
@@ -1000,7 +1006,7 @@ public final class DataFileUtils {
             
             ds.setT2f(ds.getPoint(ds.getNpoints()-1).getX());
             ds.setSerieName(f.getName());
-            patt1D.AddDataSerie(ds);
+            patt1D.addDataSerie(ds);
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
@@ -1084,10 +1090,10 @@ public final class DataFileUtils {
             dsDif.setSerieName(f.getName()+" ("+dsDif.getTipusSerie().toString()+")");
             dsHKL.setSerieName(f.getName()+" ("+dsHKL.getTipusSerie().toString()+")");
             dsHKL.setYOff(maxminXY[3]);
-            patt1D.AddDataSerie(dsObs);
-            patt1D.AddDataSerie(dsCal);
-            patt1D.AddDataSerie(dsDif);
-            patt1D.AddDataSerie(dsHKL);
+            patt1D.addDataSerie(dsObs);
+            patt1D.addDataSerie(dsCal);
+            patt1D.addDataSerie(dsDif);
+            patt1D.addDataSerie(dsHKL);
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
@@ -1099,68 +1105,7 @@ public final class DataFileUtils {
         
     }
     
-    public static boolean writeBKG_aprox(Pattern1D patt1D, int serie, int npoints, File outf, boolean overwrite){
-        if (outf.exists()&&!overwrite)return false;
-        if (outf.exists()&&overwrite)outf.delete();
-        
-        boolean written = true;
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
-        
-        try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            //primer escribim els comentaris
-            Iterator<String> itrComm = patt1D.getCommentLines().iterator();
-            while (itrComm.hasNext()){
-                String cline = itrComm.next();
-                out.println(cline);
-            }
-            //ara posem una linia comentari amb les wavelengths
-            if (FastMath.abs(ds.getWavelength()-patt1D.getOriginal_wavelength())>0.01){
-                out.println("# wavelength="+FileUtils.dfX_4.format(ds.getWavelength())+" (originalWL="+FileUtils.dfX_4.format(patt1D.getOriginal_wavelength())+")");                
-            }
-
-            if (FastMath.abs(ds.getZerrOff())>0.01f){
-                out.println("# zeroOffsetApplied="+FileUtils.dfX_3.format(ds.getZerrOff()));
-            }
-            if (ds.getScale()>1.05 || ds.getScale()<0.95){
-                out.println("# scaleFactorApplied="+FileUtils.dfX_2.format(ds.getScale()));
-            }
-            
-            if (ds.getNpoints()<npoints){
-                npoints = ds.getNpoints();
-            }
-            out.println(String.format("# %d BACKGROUND POINTS:", npoints));
-            
-            int sepN = FastMath.round(ds.getNpoints()/npoints);
-            int currSep = 0;
-            //escribim el primer punt (sempre)
-            String towrite = String.format(" %10.7e  %10.7e  %10.7e",ds.getPoint(0).getX(),ds.getPoint(0).getY(),ds.getPoint(0).getSdy());
-            towrite = towrite.replace(",", ".");
-            out.println(towrite);
-            int nwritten = 1;
-            for (int i=0; i<ds.getNpoints();i++){
-                if (currSep<sepN){
-                    currSep = currSep + 1;
-                    continue;
-                }
-                towrite = String.format(" %10.7e  %10.7e  %10.7e",ds.getPoint(i).getX(),ds.getPoint(i).getY(),ds.getPoint(i).getSdy());
-                towrite = towrite.replace(",", ".");
-                out.println(towrite);
-                nwritten = nwritten + 1;
-                currSep = 0;
-            }
-            out.println(String.format("# %d BACKGROUND POINTS WRITTEN (expected %d)", nwritten,npoints));
-
-            out.close();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            written = false;
-        }
-        return written;
-    }
-    
-    //this one interpolates
-    public static boolean writeBKG(Pattern1D patt1D, int serie, int npoints, File outf, boolean overwrite){
+    private static boolean writeBKG(Pattern1D patt1D, int serie, int npoints, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         
@@ -1226,7 +1171,7 @@ public final class DataFileUtils {
         return written;
     }
     
-    public static boolean writeDAT_ALBA(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeDAT_ALBA(Pattern1D patt1D, int serie, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         
@@ -1267,7 +1212,7 @@ public final class DataFileUtils {
         return written;
     }
     
-    public static boolean writeGR(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeGR(Pattern1D patt1D, int serie, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         
@@ -1311,7 +1256,7 @@ public final class DataFileUtils {
         return written;
     }
     
-    public static boolean writeDAT_FreeFormat(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeDAT_FreeFormat(Pattern1D patt1D, int serie, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
@@ -1371,7 +1316,7 @@ public final class DataFileUtils {
         return written;
     }
     
-    public static boolean writeGSA(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeGSA(Pattern1D patt1D, int serie, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
@@ -1384,7 +1329,7 @@ public final class DataFileUtils {
             String warn_msg = "";
             if (maxY>1e5){
                 top = (int)(maxY/1e5);
-                log.info(" !!!  WARNING : Counts devided by 10 to avoid overflow ");
+                log.warning("Counts devided by 10 to avoid overflow");
                 warn_msg = warn_msg + " -- !!!  WARNING : Counts devided by 10 to avoid overflow ";
                 top = 10.*top;
             }
@@ -1426,7 +1371,7 @@ public final class DataFileUtils {
         return written;
     }
     
-    public static boolean writeASC(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeASC(Pattern1D patt1D, int serie, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
@@ -1449,7 +1394,7 @@ public final class DataFileUtils {
     }
     
     //option list2t is to put the positionList and avoid error in 2theta when only ini and fin are given
-    public static boolean writeXRDML(Pattern1D patt1D, int serie, File outf,boolean list2T,boolean overwrite){
+    private static boolean writeXRDML(Pattern1D patt1D, int serie, File outf,boolean list2T,boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
@@ -1468,7 +1413,7 @@ public final class DataFileUtils {
                 out.println("            <ratioKAlpha2KAlpha1>1.0000</ratioKAlpha2KAlpha1>");
                 out.println("        </usedWavelength>");
             }else{
-                log.info("Warning, no wavelength given. It will not be written on the XRDML file");
+                log.warning("No wavelength given. It will not be written on the XRDML file");
             }
             out.println("        <scan appendNumber=\"0\" mode=\"Continuous\" scanAxis=\"Gonio\" status=\"Completed\">");
             out.println("            <header>");
@@ -1522,7 +1467,128 @@ public final class DataFileUtils {
         return written;
     }
     
-    public static double getScaleFactorToFit(Dimension original, Dimension toFit) {
+    private static boolean writePeaksTXT(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+	    if (outf.exists()&&!overwrite)return false;
+	    if (outf.exists()&&overwrite)outf.delete();
+	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
+	    boolean written = true;
+	    try {
+	        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
+	        
+	        Iterator<String> itrComm = patt1D.getCommentLines().iterator();
+	        while (itrComm.hasNext()){
+	            String cline = itrComm.next();
+	            if (!cline.startsWith("#"))cline = "# "+cline;
+	            out.println(cline);
+	        }
+	        out.println("# file generated with d1Dplot");
+	        //ARA ELS PICS
+	        for(int i=0;i<ds.getNpeaks();i++){
+	            String s = String.format(" %12.5f %15.3f %15.3f",ds.getPeak(i).getX(),ds.getPeak(i).getY(),ds.getPeak(i).getSdy());
+	            s = s.replace(",", ".");
+	            out.println(s);
+	        }
+	        
+	        out.close();
+	    } catch (Exception ex) {
+	        if (D1Dplot_global.isDebug())ex.printStackTrace();
+	        written = false;
+	    }
+	    return written;
+	    
+	}
+
+
+	private static DicvolDialog dvdiag; //el faig estatic perque es guardi els anteriors parametres
+	private static boolean writePeaksDIC(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+	    if (outf.exists()&&!overwrite)return false;
+	    if (outf.exists()&&overwrite)outf.delete();
+	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
+	    
+	    //preguntem els parametres
+	    if (dvdiag==null){
+	        dvdiag = new DicvolDialog(null,ds);
+	        dvdiag.visible(true);
+	    }else{
+	        dvdiag.updateDS(ds);
+	        dvdiag.visible(true);
+	    }
+	    
+	    
+	    //now we write
+	    if (!dvdiag.isEverythingOK()){
+	        log.warning("Error reading dicvol parameters");
+	        return false;
+	    }
+	    
+	    boolean written = true;
+	    try {
+	        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
+	        
+	        Iterator<String> itrComm = patt1D.getCommentLines().iterator();
+	        int ncom = 0;
+	        while (itrComm.hasNext()){
+	            String cline = itrComm.next();
+	            if (ncom>=2){
+	                if (!cline.startsWith("!"))cline = "! "+cline;
+	            }else{
+	                if (!cline.startsWith("#"))cline = "# "+cline;    
+	            }
+	            out.println(cline);
+	            ncom++;
+	        }
+	        out.println("# file generated with d1Dplot");
+	        int xun = 2;
+	        switch(ds.getxUnits()){
+	            case tth:
+	                xun = 2;
+	                break;
+	            case Q:
+	                xun = 4;
+	                break;
+	            case dsp:
+	                xun = 3;
+	                break;
+	            case dspInv:
+	                log.warning("1/dsp not supported by dicvol, please change xunits");
+	                break;
+	            default:
+	                xun = 2;
+	                break;
+	        }
+	        //N,ITYPE,JC,JT,JH,JO,JM,JTR
+	        String s = String.format("%4d %2d %2d %2d %2d %2d %2d %2d",dvdiag.getNpeaks(), xun, dvdiag.isCubicInt(), dvdiag.isTetraInt(), dvdiag.isHexaInt(), dvdiag.isOrtoInt(), dvdiag.isMonoInt(), dvdiag.isTricInt());
+	        s = s.replace(",", ".");
+	        out.println(s);
+	        //AMAX,BMAX,CMAX,VOLMIN,VOLMAX,BEMIN,BEMAX
+	        s = String.format("  %.2f %.2f %.2f %.2f %.2f %.2f %.2f", dvdiag.getAmax(),dvdiag.getBmax(),dvdiag.getCmax(),dvdiag.getVmin(),dvdiag.getVmax(),dvdiag.getBetamin(),dvdiag.getBetamax());
+	        s = s.replace(",", ".");
+	        out.println(s);
+	        //WAVE,POIMOL,DENS,DELDEN 
+	        s = String.format("  %.5f %.2f %.2f %.2f", dvdiag.getWavel(), dvdiag.getMw(),dvdiag.getDensity(),dvdiag.getDensityerr());
+	        s = s.replace(",", ".");
+	        out.println(s);
+	        //EPS,FOM,N_IMP,ZERO_S,ZERO_REF,OPTION 
+	        s = String.format("  %.2f %.2f %d %d %d %d", dvdiag.getEps(),dvdiag.getMinfom(),dvdiag.getSpurious(),dvdiag.isZeroRefInt(),dvdiag.isPrevzeroInt(),dvdiag.isDic06Int());
+	        s = s.replace(",", ".");
+	        out.println(s);
+	        
+	        //ARA ELS PICS
+	        for(int i=0;i<dvdiag.getNpeaks();i++){
+	            s = String.format(" %12.5f %15.2f %15.2f",ds.getPeak(i).getX(), ds.getPeak(i).getY(), ds.getPeak(i).getSdy());
+	            s = s.replace(",", ".");
+	            out.println(s);
+	        }
+	        
+	        out.close();
+	    } catch (Exception ex) {
+	        if (D1Dplot_global.isDebug())ex.printStackTrace();
+	        written = false;
+	    }
+	    return written;
+	}
+
+	public static double getScaleFactorToFit(Dimension original, Dimension toFit) {
         double dScale = 1d;
         if (original != null && toFit != null) {
             double dScaleWidth = getScaleFactor(original.width, toFit.width);
@@ -1533,7 +1599,7 @@ public final class DataFileUtils {
         return dScale;
     }
 
-    public static double getScaleFactor(int iMasterSize, int iTargetSize) {
+    private static double getScaleFactor(int iMasterSize, int iTargetSize) {
         double dScale = 1;
         if (iMasterSize > iTargetSize) {
             dScale = (double) iTargetSize / (double) iMasterSize;
@@ -1544,7 +1610,7 @@ public final class DataFileUtils {
     }
     
     
-    public static double searchForWavel(String s){
+    private static double searchForWavel(String s){
         double wl = -1;
         if (FileUtils.containsIgnoreCase(s, "wave")){
             //primer provem espais, seguent element
@@ -1585,5 +1651,13 @@ public final class DataFileUtils {
         
         return wl;
     }
+
+	private static boolean isComment(String ln){
+	    if (ln.trim().startsWith("#"))return true;
+	    if (ln.trim().startsWith("!"))return true;
+	    if (ln.trim().startsWith("/"))return true;
+	    if (ln.trim().startsWith("$"))return true;
+	    return false;
+	}
 
 }
