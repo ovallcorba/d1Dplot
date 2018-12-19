@@ -10,6 +10,7 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
@@ -29,7 +30,8 @@ import com.vava33.jutils.VavaLogger;
 public final class PattOps {
     
     
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(PattOps.class.getName());
+    private static final String className = "PattOps";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     private static DataSerie bkg_Bruchner_firstPass(DataSerie ds,double t2ini){  //no depen de N
         DataSerie ds0 = new DataSerie(ds,serieType.bkg,false);
@@ -209,23 +211,6 @@ public final class PattOps {
            return fons;
        }
     
-    //NOT USED ANYMORE
-    public static DataSerie subtractDataSeriesSamePoints(DataSerie dp1, DataSerie dp2, float factor){
-        if (dp1.getNpoints()!=dp2.getNpoints()){
-            log.debug("different number of points");
-            return null;
-        }
-        if (dp1.getPoint(0).getX()!=dp2.getPoint(0).getX()){
-            log.debug("different first point");
-            return null;
-        }
-        DataSerie result = new DataSerie(dp1,dp1.getTipusSerie(),false);
-        for (int i=0; i<dp1.getNpoints();i++){
-            result.addPoint(new DataPoint(dp1.getPoint(i).getX(),dp1.getPoint(i).getY()-factor*dp2.getPoint(i).getY(),dp1.getPoint(i).getSdy()-factor*dp2.getPoint(i).getSdy()));
-        }
-        return result;
-    }
-    
     //it returns the coincident zone only
     // double t2i,t2f for factor calculation in case factor < 1
     public static DataSerie subtractDataSeriesCoincidentPoints(DataSerie ds1, DataSerie ds2, float factor, double fac_t2i, double fac_t2f){
@@ -235,7 +220,7 @@ public final class PattOps {
         DataSerie result = new DataSerie(ds1,ds1.getTipusSerie(),false);
         double t2i = FastMath.max(ds1.getPoint(0).getX(), ds2.getPoint(0).getX());
         double t2f = FastMath.min(ds1.getPoint(ds1.getNpoints()-1).getX(), ds2.getPoint(ds2.getNpoints()-1).getX());    
-
+        
         
         DataPoint dp1ini = ds1.getClosestDP_xonly(t2i, tol);
         DataPoint dp1fin = ds1.getClosestDP_xonly(t2f, tol);
@@ -260,7 +245,7 @@ public final class PattOps {
         //PRIMER RECALCULEM EL FACTOR EN CAS DE SER NEGATIU (AUTO)
         if (factor<0) {
             factor = getScaleFactor(ds1,ds2,iinidp1,iinidp2,rangedp1,fac_t2i,fac_t2f) * percent_auto_factor;
-            log.info(String.format("subtracting factor used = %.2f",factor));
+            log.info(String.format("Subtraction factor used = %.2f",factor));
         }
 
         
@@ -323,7 +308,7 @@ public final class PattOps {
           totRange = totRange + rangedp[i];
       }
       if (totRange/dss.length != rangedp[0]){
-          log.info("inconsitency on nr of points in the coincident range");
+          log.debug("inconsitency on nr of points in the coincident range");
           return null;
       }
 
@@ -370,7 +355,6 @@ public final class PattOps {
     
     public static boolean haveSameNrOfPointsDS(DataSerie dp1, DataSerie dp2){
         if (dp1.getNpoints()!=dp2.getNpoints()){
-            log.debug("different number of points");
             return false;
         }
         return true;
@@ -429,6 +413,13 @@ public final class PattOps {
             if (d < min) min = d;
         }
         return min;
+    }
+    
+    public static double get2thRadFromDsp(double wave,double dsp) {
+    	return FastMath.asin(2*(wave/(2*dsp)));
+    }
+    public static double getDspFrom2ThetaRad(double wave,double tthRad) {
+    	return (wave/(2*FastMath.sin(tthRad/2)));
     }
     
 }
