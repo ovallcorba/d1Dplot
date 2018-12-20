@@ -30,6 +30,7 @@ import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.DicvolDialog;
+import com.vava33.d1dplot.PlotPanel;
 import com.vava33.d1dplot.auxi.DataSerie.serieType;
 import com.vava33.d1dplot.auxi.DataSerie.xunits;
 import com.vava33.jutils.VavaLogger;
@@ -281,53 +282,6 @@ public final class DataFileUtils {
         return true;
     }
     
-    public static Reference readREFFile(File d1file) {
-        // comprovem extensio
-        log.debug(d1file.toString());
-        String ext = FileUtils.getExtension(d1file).trim();
-
-        // this line returns the FORMAT in the ENUM or NULL
-        SupportedReadRefExtensions format = FileUtils.searchEnum(SupportedReadRefExtensions.class, ext);
-        
-        if (format != null) {log.debug("Format=" + format.toString());}
-
-        if (format == null) {
-            SupportedReadRefExtensions[] possibilities = SupportedReadRefExtensions.values();
-            SupportedReadRefExtensions s = (SupportedReadRefExtensions) JOptionPane.showInputDialog(null, "Input format:", "Read File",
-                            JOptionPane.PLAIN_MESSAGE, null, possibilities,possibilities[0]);
-            if (s == null) {return null;}
-            format = s;
-        }
-
-        Reference ref = null;
-        switch (format) {
-        case REF:
-        	ref = readREF(d1file);
-        	break;
-        case HKL:
-        	ref = readHKL(d1file);
-        	break;
-        case DAT:
-        	ref = readREF(d1file);
-        	break;
-        default:
-        	ref = readUNKref(d1file); //TXT
-        	break;
-        }
-        
-        if (ref==null){
-        	//ho tornem a intentar...
-        	ref = readUNKref(d1file);
-        	if (ref==null) {
-                log.debug("Error reading reference file "+d1file.getAbsolutePath());
-                return null;        		
-        	}
-        }
-        
-        return ref;
-
-    }
-    
     public static File writePatternFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite) {
         // comprovem extensio
         log.debug(d1File.toString());
@@ -518,11 +472,6 @@ public final class DataFileUtils {
             return false;
         }
     }
-    
-    private static Reference readUNKref(File datFile) {
-//    	log.info("unknown ref file");
-    	return null;
-    }
 
     
     //only 1 serie
@@ -594,74 +543,6 @@ public final class DataFileUtils {
         }
     }
     
-    //ref is a list of 2theta values, you can use in comments wave X.XXXX
-    private static Reference readREF(File datFile) {
-        double wave = -1;
-        Reference ref = new Reference(FileUtils.getFNameNoExt(datFile.getName()));
-        
-        try {
-            Scanner sf = new Scanner(datFile);
-            while (sf.hasNextLine()){
-                String line = sf.nextLine();
-                if (isComment(line)){
-                    double wl = searchForWavel(line);
-                    if (wl>0){
-                        wave = wl;
-                    }
-                    continue;
-                }
-                if (line.trim().isEmpty()){
-                    continue;
-                }
-                
-                String values[] = line.trim().split("\\s+");
-
-                double t2 = -1;
-                try {
-                	t2 = Double.parseDouble(values[0]);	
-                }catch(Exception ex) {
-                	log.fine("error parsing t2");
-                	continue;
-                }
-                double inten = 0.0;
-                try{
-                    inten = Double.parseDouble(values[1]);                    
-                }catch(Exception ex){
-                    log.fine("error parsing inten");
-                }
-//                double sdev = 0.0;
-//                try{
-//                    sdev = Double.parseDouble(values[2]);
-//                }catch(Exception ex){
-//                    log.fine("error parsing sdev");
-//                }
-                
-                if (t2>0) {
-                	//convert to dspacing
-                	if (wave<=0) {
-                		wave = FileUtils.DialogAskForPositiveDouble(null,"Wavelength (Ang) =","Wavelength required to calculate d-spacings from 2-theta values","");
-                		if (wave<=0){
-                			log.warning("Invalid wavelength entered");
-                			sf.close();
-                			return null;
-                		}
-                	}
-                	ref.addDspInten(PattOps.getDspFrom2ThetaRad(wave, FastMath.toRadians(t2)), inten);	
-                }
-            }
-            sf.close();
-
-        }catch(Exception e){
-            if (D1Dplot_global.isDebug())e.printStackTrace();
-            return null;
-        }
-        return ref;
-    }
-    
-    private static Reference readHKL(File hklfile) {
-    	FileUtils.InfoDialog(null, "HKL reading not implemented yet!", "Not implemented"); //TODO
-    	return null;
-    }
     
     private static boolean readGR(File datFile, Pattern1D patt1D) {
         boolean firstLine = true;
@@ -1103,6 +984,237 @@ public final class DataFileUtils {
         
         
         
+    }
+    
+    //TODO seria millor que plotpanel tingues un "toString" que t'ho passes tot ja directament
+    //TODO lo seu seria guardar TOTES les dades i no dependre de fitxers... seria portable pero podria ocupar bastant...
+    // s'hauria de preguntar al guardar (relative paths to files or all packed)
+    public static boolean writeProject(File stateFile, PlotPanel p) {
+    	
+        boolean written = true;
+    	
+        try {
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(stateFile,false)));
+            
+        	//guardar axis info, zoom, bounds, etc...
+        	String theme = Boolean.toString(PlotPanel.isLightTheme());
+        	String bkg = Boolean.toString(p.isShowBackground());
+        	String hkl = Boolean.toString(p.isHkllabels());
+        	String gridX = Boolean.toString(p.isShowGridX());
+        	String gridY = Boolean.toString(p.isShowGridY());
+        	String legend = Boolean.toString(p.isShowLegend());
+        	String autoLeg = Boolean.toString(p.isAutoPosLegend());
+        	String legX = Integer.toString(p.getLegendX());
+        	String legY = Integer.toString(p.getLegendY());
+        	String yVert = Boolean.toString(PlotPanel.isVerticalYAxe());
+        	String yVertLabel = Boolean.toString(PlotPanel.isVerticalYlabel());
+        	String yVertNeg = Boolean.toString(p.isNegativeYAxisLabels());
+        	
+        	String incXprim = Double.toString(p.getDiv_incXPrim());
+        	String incXsec = Double.toString(p.getDiv_incXSec());
+        	String incYprim = Double.toString(p.getDiv_incYPrim());
+        	String incYsec = Double.toString(p.getDiv_incYSec());
+        	String startValX = Double.toString(p.getDiv_startValX());
+        	String startValY = Double.toString(p.getDiv_startValY());
+        	String incX = Double.toString(p.getIncX());
+        	String incY = Double.toString(p.getIncY());
+        	String scaleX = Double.toString(p.getScalefitX());
+        	String scaleY = Double.toString(p.getScalefitY());
+        	String xMax = Double.toString(p.getxMax());
+        	String xMin = Double.toString(p.getxMin());
+        	String xRangeMax = Double.toString(p.getXrangeMax());
+        	String xRangeMin = Double.toString(p.getXrangeMin());
+        	String yMax = Double.toString(p.getyMax());
+        	String yMin = Double.toString(p.getyMin());
+        	
+        	String xLabel = p.getXlabel();
+        	String yLabel = p.getYlabel();
+        	
+            out.println(String.format("%s %s %s %s %s %s %s %s %s %s %s %s", theme,bkg,hkl,gridX,gridY,legend,autoLeg,legX,legY,yVert,yVertLabel,yVertNeg));
+            out.println(String.format("%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s",incXprim,incXsec,incYprim,incYsec,startValX,startValY,incX,incY,scaleX,scaleY,xMax,xMin,xRangeMax,xRangeMin,yMax,yMin));
+            out.println(xLabel);
+            out.println(yLabel);
+            out.println("-----------");
+            
+        	//guardar patterns/series amb tots els seus paràmetres de visualització
+        	
+        	Iterator <Pattern1D> itrP = p.getPatterns().iterator();
+        	int np = 0;
+        	while (itrP.hasNext()) {
+        		Pattern1D pat = itrP.next();
+        		String filePath = pat.getFile().getAbsolutePath();
+        		out.println(String.format("%d %s", np, filePath));
+        		Iterator<DataSerie> itrD = pat.getSeriesIterator();
+        		int nd = 0;
+        		while (itrD.hasNext()) {
+        			DataSerie d = itrD.next();
+        			
+        			String nam = d.getSerieName();
+        			String col = Integer.toString(d.getColor().getRGB());
+        			String sca = Double.toString(d.getScale());
+        			String zof = Double.toString(d.getZerrOff());
+        			String wav = Double.toString(d.getWavelength());
+        			String xun = d.getxUnits().getName();
+        			String yof = Double.toString(d.getYOff());
+        			String mar = Double.toString(d.getMarkerSize());
+        			String lin = Double.toString(d.getLineWidth());
+        			String err = Boolean.toString(d.isShowErrBars());
+        			String plo = Boolean.toString(d.isPlotThis());
+        			
+        			if (d.getTipusSerie()==serieType.bkg) {
+        				//TODO: cal guardarla tota
+        			}
+        			if (d.getTipusSerie()==serieType.ref) {
+        				//TODO: cal guardarla tota
+        				
+        			}
+        			
+        			out.println(String.format("%d %s", nd, nam)); //el nom podria tenir espais!! per aixo el deixo com a ultim
+        			out.println(String.format("%s %s %s %s %s %s %s %s %s %s", col,sca,zof,wav,xun,yof,mar,lin,err,plo));
+        			
+        			nd=nd+1;
+        		}
+        		np=np+1;
+        		out.println("-----------");
+        	}
+        	
+        	out.close();
+        }catch(Exception ex) {
+        	if (D1Dplot_global.isDebug())ex.printStackTrace();
+        	written = false;
+        }
+    	return written;
+    }
+    
+    public static boolean readProject(File stateFile, PlotPanel p) {
+    	boolean readed = true;
+    
+        try {
+            Scanner sf = new Scanner(stateFile);
+            
+            //4 primere linies fixes
+            String line = sf.nextLine();
+            String[] vals1 = line.trim().split("\\s+");
+            
+            line = sf.nextLine();
+            String[] vals2 = line.trim().split("\\s+");
+            
+        	String xlabel = sf.nextLine();
+        	String ylabel = sf.nextLine();
+
+        	
+//            line = sf.nextLine(); //----
+            
+            //ara els patterns series
+            while (sf.hasNextLine()){
+                line = sf.nextLine();
+                log.debug(line);
+                
+                if (line.startsWith("---")) {
+                	//new pattern if nextline
+                	if (sf.hasNextLine()) {
+                		line = sf.nextLine();	
+                		log.debug(line);
+                		if (line.trim().isEmpty())break;
+//                		vals = line.trim().split("\\s+");
+//                		int npat = Integer.parseInt(vals[0]);
+                		String fname = line.substring(line.indexOf(" "));
+                		log.debug(fname);
+                		Pattern1D pat = new Pattern1D();
+                		DataFileUtils.readPatternFile(new File(fname.trim()), pat);
+                		p.getPatterns().add(pat);
+                		continue; //seguim llegint les dataseries
+                	}else {
+                		break;
+                	}
+                }
+                if (line.trim().isEmpty())continue;
+                
+                //aqui estem dins un pattern
+                
+                String[] vals = line.trim().split("\\s+");
+                int nds = Integer.parseInt(vals[0]);
+                String dsname = line.substring(line.indexOf(" "));
+                
+                Pattern1D currentPatt = p.getPatterns().get(p.getPatterns().size()-1);
+                DataSerie ds = currentPatt.getSerie(nds);
+                ds.setSerieName(dsname.trim());
+                
+                //seguent linia
+                line = sf.nextLine();
+                log.debug(line);
+                vals = line.trim().split("\\s+");
+                
+                
+                ds.setColor(FileUtils.getColor(Integer.parseInt(vals[0])));
+                ds.setScale(Float.parseFloat(vals[1]));
+                ds.setZerrOff(Double.parseDouble(vals[2]));
+                ds.setWavelength(Double.parseDouble(vals[3]));
+//                ds.setxUnits(vals[4]));
+                ds.setYOff(Double.parseDouble(vals[5]));
+                ds.setMarkerSize(Float.parseFloat(vals[6]));
+                ds.setLineWidth(Float.parseFloat(vals[7]));
+                ds.setShowErrBars(Boolean.parseBoolean(vals[8]));
+                ds.setPlotThis(Boolean.parseBoolean(vals[9]));
+            }
+            sf.close();
+            
+            
+    	    p.getMainframe().updateData(true);
+    	    p.getMainframe().showTableTab();
+            
+            
+            //apliquem (aqui sota perque primer hem d'inicialitzar??)
+            try {
+            	PlotPanel.setLightTheme(Boolean.parseBoolean(vals1[0]));
+            	p.setShowBackground(Boolean.parseBoolean(vals1[1]));
+            	p.setHkllabels(Boolean.parseBoolean(vals1[2]));
+            	p.setShowGridX(Boolean.parseBoolean(vals1[3]));
+            	p.setShowGridY(Boolean.parseBoolean(vals1[4]));
+            	p.setShowLegend(Boolean.parseBoolean(vals1[5]));
+            	p.setAutoPosLegend(Boolean.parseBoolean(vals1[6]));
+            	p.setLegendX(Integer.parseInt(vals1[7]));
+            	p.setLegendY(Integer.parseInt(vals1[8]));
+            	PlotPanel.setVerticalYAxe(Boolean.parseBoolean(vals1[9]));
+            	PlotPanel.setVerticalYlabel(Boolean.parseBoolean(vals1[10]));
+            	p.setNegativeYAxisLabels(Boolean.parseBoolean(vals1[11]));
+            }catch(Exception e) {
+            	e.printStackTrace();
+            }
+            
+            try {
+            	p.setDiv_incXPrim(Double.parseDouble(vals2[0]));
+            	p.setDiv_incXSec(Double.parseDouble(vals2[1]));
+            	p.setDiv_incYPrim(Double.parseDouble(vals2[2]));
+            	p.setDiv_incYSec(Double.parseDouble(vals2[3]));
+            	p.setDiv_startValX(Double.parseDouble(vals2[4]));
+            	p.setDiv_startValY(Double.parseDouble(vals2[5]));
+            	p.setIncX(Double.parseDouble(vals2[6]));
+            	p.setIncY(Double.parseDouble(vals2[7]));
+            	p.setScalefitX(Double.parseDouble(vals2[8]));
+            	p.setScalefitY(Double.parseDouble(vals2[9]));
+            	p.setxMax(Double.parseDouble(vals2[10]));
+            	p.setxMin(Double.parseDouble(vals2[11]));
+            	p.setXrangeMax(Double.parseDouble(vals2[12]));
+            	p.setXrangeMin(Double.parseDouble(vals2[13]));
+            	p.setyMax(Double.parseDouble(vals2[14]));
+            	p.setyMin(Double.parseDouble(vals2[15]));
+
+            	p.setXlabel(xlabel);
+            	p.setYlabel(ylabel);
+            	
+            	
+            }catch(Exception e) {
+            	e.printStackTrace();
+            }
+            
+            
+            }catch(Exception ex) {
+            	if (D1Dplot_global.isDebug())ex.printStackTrace();
+            	readed = false;
+            }
+        
+        return readed;
     }
     
     private static boolean writeBKG(Pattern1D patt1D, int serie, int npoints, File outf, boolean overwrite){
