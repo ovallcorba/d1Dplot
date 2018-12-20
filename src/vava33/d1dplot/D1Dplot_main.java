@@ -119,7 +119,7 @@ public class D1Dplot_main {
     private BackgroundDialog bkgDiag;
     private FindPeaksDialog FindPksDiag;
     private SubtractDialog subDiag;
-    private HKLreferenceDialog refDiag;
+    private Database DBDiag;
     private Plot2DPanel p2;
     private AboutDialog aboutDiag;
     private boolean customXtitle = false;
@@ -184,7 +184,11 @@ public class D1Dplot_main {
     private JCheckBox chckbxVerticalYAxis;
     private JMenuItem mntmCheckForUpdates;
     private JButton btnReassignColors;
-    private JMenuItem mntmReferenceReflectionPositions;
+    private JMenuItem mntmDB;
+    private JCheckBox chckbxPngTransp;
+    private JSeparator separator_4;
+    private JMenuItem mntmSaveProject;
+    private JMenuItem mntmOpenProject;
     
     /**
      * Launch the application.
@@ -196,6 +200,7 @@ public class D1Dplot_main {
         FileUtils.setLocale(null);
         D1Dplot_global.readParFile();
         D1Dplot_global.initPars();
+        D1Dplot_global.checkDBs();
         
         //LOGGER
         log = D1Dplot_global.getVavaLogger(className);
@@ -427,7 +432,7 @@ public class D1Dplot_main {
         JPanel panel = new JPanel();
         scrollPane_1.setViewportView(panel);
         panel.setBorder(null);
-        panel.setLayout(new MigLayout("", "[][grow][][][][][][][][][]", "[][][][]"));
+        panel.setLayout(new MigLayout("", "[][grow][][][][][][][][][][][][]", "[][][][]"));
         
         JLabel lblXTitle = new JLabel("X title");
         panel.add(lblXTitle, "cell 0 0,alignx trailing");
@@ -439,7 +444,7 @@ public class D1Dplot_main {
             }
         });
         txtXtitle.setText("xtitle");
-        panel.add(txtXtitle, "cell 1 0 2 1,growx");
+        panel.add(txtXtitle, "cell 1 0 3 1,growx");
         txtXtitle.setColumns(10);
         
         txtXtitle.getDocument().addDocumentListener(new DocumentListener() {
@@ -462,7 +467,7 @@ public class D1Dplot_main {
         
         separator = new JSeparator();
         separator.setOrientation(SwingConstants.VERTICAL);
-        panel.add(separator, "cell 3 0 1 3,growy");
+        panel.add(separator, "cell 4 0 1 3,growy");
         
         chckbxShowLegend = new JCheckBox("Legend");
         chckbxShowLegend.setSelected(true);
@@ -471,23 +476,23 @@ public class D1Dplot_main {
                 do_chckbxShowLegend_itemStateChanged(arg0);
             }
         });
-        panel.add(chckbxShowLegend, "cell 4 0 2 1");
+        panel.add(chckbxShowLegend, "cell 5 0 2 1");
         
         separator_1 = new JSeparator();
         separator_1.setOrientation(SwingConstants.VERTICAL);
-        panel.add(separator_1, "cell 6 0 1 3,growy");
+        panel.add(separator_1, "cell 7 0 1 3,growy");
         
         JLabel lblHklTickSize = new JLabel("HKL tick size (PRF)");
-        panel.add(lblHklTickSize, "cell 7 0");
+        panel.add(lblHklTickSize, "cell 8 0");
         
         txtHklTickSize = new JTextField();
         txtHklTickSize.setText(Integer.toString(Pattern1D.getHklticksize()));
-        panel.add(txtHklTickSize, "cell 8 0,growx");
+        panel.add(txtHklTickSize, "cell 9 0,growx");
         txtHklTickSize.setColumns(3);
         
         separator_3 = new JSeparator();
         separator_3.setOrientation(SwingConstants.VERTICAL);
-        panel.add(separator_3, "cell 9 0 1 3,growy");
+        panel.add(separator_3, "cell 10 0 1 3,growy");
         
         chckbxShowGridY = new JCheckBox("Grid Y");
         chckbxShowGridY.addItemListener(new ItemListener() {
@@ -495,7 +500,10 @@ public class D1Dplot_main {
                 do_chckbxShowGridLines_itemStateChanged(e);
             }
         });
-        panel.add(chckbxShowGridY, "flowx,cell 10 0");
+        panel.add(chckbxShowGridY, "flowx,cell 11 0");
+        
+        separator_4 = new JSeparator();
+        panel.add(separator_4, "cell 12 0 1 3,growy");
         
         JLabel lblYTitle = new JLabel("Y title");
         panel.add(lblYTitle, "cell 0 1,alignx trailing");
@@ -523,7 +531,7 @@ public class D1Dplot_main {
             }
         });
         txtYtitle.setText("ytitle");
-        panel.add(txtYtitle, "cell 1 1 2 1,growx");
+        panel.add(txtYtitle, "cell 1 1 3 1,growx");
         txtYtitle.setColumns(10);
         
         chckbxIntensityWithBackground = new JCheckBox("Bkg Inten (PRF)");
@@ -540,8 +548,8 @@ public class D1Dplot_main {
                 do_chckbxAutopos_itemStateChanged(e);
             }
         });
-        panel.add(chckbxAutopos, "cell 4 1 2 1");
-        panel.add(chckbxIntensityWithBackground, "cell 7 1 2 1");
+        panel.add(chckbxAutopos, "cell 5 1 2 1");
+        panel.add(chckbxIntensityWithBackground, "cell 8 1 2 1");
         
         chckbxShowNegativeLabels = new JCheckBox("Negative Yaxis labels");
         chckbxShowNegativeLabels.addItemListener(new ItemListener() {
@@ -549,7 +557,15 @@ public class D1Dplot_main {
                 do_chckbxShowNegativeLabels_itemStateChanged(arg0);
             }
         });
-        panel.add(chckbxShowNegativeLabels, "cell 10 1");
+        panel.add(chckbxShowNegativeLabels, "cell 13 2");
+        
+        chckbxShowGridX = new JCheckBox("Grid X");
+        chckbxShowGridX.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent arg0) {
+                do_chckbxShowGridX_itemStateChanged(arg0);
+            }
+        });
+        panel.add(chckbxShowGridX, "cell 11 1");
         
         JLabel lbltheme = new JLabel("Theme");
         panel.add(lbltheme, "cell 0 2,alignx trailing");
@@ -585,8 +601,12 @@ public class D1Dplot_main {
         	}
         });
         panel.add(btnReassignColors, "cell 2 2");
+        
+        chckbxPngTransp = new JCheckBox("PNG transp bkg");
+        chckbxPngTransp.setSelected(true);
+        panel.add(chckbxPngTransp, "cell 3 2");
         txtLegendx.setText("legendX");
-        panel.add(txtLegendx, "cell 4 2,growx");
+        panel.add(txtLegendx, "cell 5 2,growx");
         txtLegendx.setColumns(5);
         
         txtLegendy = new JTextField();
@@ -597,10 +617,10 @@ public class D1Dplot_main {
             }
         });
         txtLegendy.setText("legendY");
-        panel.add(txtLegendy, "cell 5 2,growx");
+        panel.add(txtLegendy, "cell 6 2,growx");
         txtLegendy.setColumns(5);
         chckbxHklLabels.setSelected(true);
-        panel.add(chckbxHklLabels, "cell 7 2 2 1");
+        panel.add(chckbxHklLabels, "cell 8 2 2 1");
         
         chckbxVerticalYLabel = new JCheckBox("Vertical Y label");
         chckbxVerticalYLabel.addItemListener(new ItemListener() {
@@ -608,15 +628,7 @@ public class D1Dplot_main {
                 do_chckbxVerticalYLabel_itemStateChanged(e);
             }
         });
-        panel.add(chckbxVerticalYLabel, "cell 10 2");
-        
-        chckbxShowGridX = new JCheckBox("Grid X");
-        chckbxShowGridX.addItemListener(new ItemListener() {
-            public void itemStateChanged(ItemEvent arg0) {
-                do_chckbxShowGridX_itemStateChanged(arg0);
-            }
-        });
-        panel.add(chckbxShowGridX, "cell 10 0");
+        panel.add(chckbxVerticalYLabel, "cell 13 1");
         
         chckbxVerticalYAxis = new JCheckBox("Vertical Y axis");
         chckbxVerticalYAxis.addItemListener(new ItemListener() {
@@ -625,7 +637,7 @@ public class D1Dplot_main {
             }
         });
         chckbxVerticalYAxis.setSelected(true);
-        panel.add(chckbxVerticalYAxis, "cell 10 3");
+        panel.add(chckbxVerticalYAxis, "cell 13 0");
 
         
         scrollPane_2 = new JScrollPane();
@@ -633,7 +645,7 @@ public class D1Dplot_main {
         tAOut = new LogJTextArea();
         scrollPane_2.setViewportView(tAOut);
 
-        panel_plot = new PlotPanel();
+        panel_plot = new PlotPanel(this);
         splitPane.setLeftComponent(panel_plot.getPlotPanel());
         //        panel_plot = (PlotPanel) new JPanel();
 //        panel_plot.getGraphPanel().setBorder(new BevelBorder(EtchedBorder.LOWERED, null, null, null, null));
@@ -645,7 +657,7 @@ public class D1Dplot_main {
         mnFile.setMnemonic('f');
         menuBar.add(mnFile);
         
-        mntmOpen = new JMenuItem("Open...");
+        mntmOpen = new JMenuItem("Open Data File...");
         mntmOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_MASK));
         mntmOpen.setMnemonic('o');
         mntmOpen.addActionListener(new ActionListener() {
@@ -662,7 +674,7 @@ public class D1Dplot_main {
             }
         });
         
-        mntmSaveAs = new JMenuItem("Save as...");
+        mntmSaveAs = new JMenuItem("Save Data as...");
         mntmSaveAs.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
                 do_mntmSaveAs_actionPerformed(arg0);
@@ -685,6 +697,22 @@ public class D1Dplot_main {
                 do_mntmExportAsSvg_actionPerformed(e);
             }
         });
+        
+        mntmSaveProject = new JMenuItem("Save project...");
+        mntmSaveProject.addActionListener(new ActionListener() {
+        	public void actionPerformed(ActionEvent e) {
+        		do_mntmSaveProject_actionPerformed(e);
+        	}
+        });
+        mnFile.add(mntmSaveProject);
+        
+        mntmOpenProject = new JMenuItem("Open project...");
+        mntmOpenProject.addActionListener(new ActionListener() {
+        	public void actionPerformed(ActionEvent e) {
+        		do_mntmOpenProject_actionPerformed(e);
+        	}
+        });
+        mnFile.add(mntmOpenProject);
         mnFile.add(mntmClose);
         
         mntmCloseAll = new JMenuItem("Close All");
@@ -720,13 +748,13 @@ public class D1Dplot_main {
         });
         mnPlot.add(mntmSequentialyOffset);
         
-        mntmReferenceReflectionPositions = new JMenuItem("Reference hkl");
-        mntmReferenceReflectionPositions.addActionListener(new ActionListener() {
+        mntmDB = new JMenuItem("Compound Database");
+        mntmDB.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
-        		do_mntmReferenceReflectionPositions_actionPerformed(e);
+        		do_mntmDB_actionPerformed(e);
         	}
         });
-        mnPlot.add(mntmReferenceReflectionPositions);
+        mnPlot.add(mntmDB);
         mntm2Dplot.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntm2Dplot_actionPerformed(e);
@@ -939,6 +967,10 @@ public class D1Dplot_main {
 	    }
 	}
 
+	public void showTableTab() {
+		tabbedPanel_bottom.setSelectedIndex(0);
+	}
+	
 	//creem aquest per l'argument launcher
 	public Pattern1D readDataFile(File datfile){
 	    Pattern1D patt = new Pattern1D();
@@ -1213,8 +1245,13 @@ public class D1Dplot_main {
 	//        g2d.fillRect(0, 0, width, height);
 	//        g2d.setComposite(AlphaComposite.Src);
 	        g2d.scale(scaleFactor, scaleFactor);
-	        panel_plot.getGraphPanel().setTransp(true);
-	        panel_plot.getGraphPanel().setOpaque(false);
+	        if (this.chckbxPngTransp.isSelected()) {
+	        	panel_plot.getGraphPanel().setTransp(true);	
+	        	panel_plot.getGraphPanel().setOpaque(false);
+	        }else {
+	        	panel_plot.getGraphPanel().setTransp(false);
+	        	panel_plot.getGraphPanel().setOpaque(true);
+	        }
 	        panel_plot.getGraphPanel().paintComponent(g2d);
 	//        panel_plot.getGraphPanel().paintPNG(g2d,width,height);
 	        panel_plot.getGraphPanel().setTransp(false);
@@ -1626,29 +1663,7 @@ public class D1Dplot_main {
         Object[] row = {nP,nS,fname,c,scale,zoff,wavel,xunits,yoffset,markersize,linewidth,errbars,show};
         model.addRow(row);
     }
-        
-    
-    
-    
-    
-    
 
-    
-    
-    
-    
-
-
-    
-    
-    
-    
-
-    
-    
-    
-
-    
 
     private void do_mainFrame_windowClosing(WindowEvent e) {
     	if (D1Dplot_global.isKeepSize()) {
@@ -2242,11 +2257,11 @@ public class D1Dplot_main {
 		this.reassignColorPatterns();
 	}
 	
-	private void do_mntmReferenceReflectionPositions_actionPerformed(ActionEvent e) {
-        if (refDiag == null) {
-            refDiag = new HKLreferenceDialog(this);
+	private void do_mntmDB_actionPerformed(ActionEvent e) {
+        if (DBDiag == null) {
+        	DBDiag = new Database(this.getPanel_plot());
         }
-        refDiag.visible(true);
+        DBDiag.visible(true);
 	}
 	
     public JFrame getMainFrame() {
@@ -2317,5 +2332,24 @@ public class D1Dplot_main {
 	    if (D1Dplot_global.isDebug()){
 	        log.debug(s);
 	    }
+	}
+	
+	private void do_mntmSaveProject_actionPerformed(ActionEvent e) {
+		FileNameExtensionFilter[] filt = new FileNameExtensionFilter[1];
+		filt[0] = new FileNameExtensionFilter("d1Dplot project","d1d");
+		File f = FileUtils.fchooserSaveAsk(this.mainFrame, D1Dplot_global.getWorkdirFile(), filt, "d1d", "Save d1Dplot project");
+		if (f!=null) {
+			DataFileUtils.writeProject(f, this.getPanel_plot());
+		}
+	}
+	private void do_mntmOpenProject_actionPerformed(ActionEvent e) {
+		FileNameExtensionFilter[] filt = new FileNameExtensionFilter[1];
+		filt[0] = new FileNameExtensionFilter("d1Dplot project","d1d");
+		File f = FileUtils.fchooserOpen(this.mainFrame, D1Dplot_global.getWorkdirFile(), filt, 0);
+		if (f!=null) {
+			DataFileUtils.readProject(f, this.getPanel_plot());
+		}
+		this.updateData(false);
+		
 	}
 }
