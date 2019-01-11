@@ -45,8 +45,12 @@ public final class ArgumentLauncher {
     
     public static void readArguments(D1Dplot_main mf, String[] args){
     	
-    	ConsoleWritter.stat(D1Dplot_global.welcomeMSG);
-    	
+    	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 65));
+    	ConsoleWritter.afegirSaltLinia();
+        ConsoleWritter.afegirText(false, false, "              ");
+    	ConsoleWritter.afegirText(true, false, D1Dplot_global.welcomeMSG);
+    	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 65));
+
         if (args.length==0)return; //no hi ha res
         
         if (args[0].trim().equalsIgnoreCase("-macro")){
@@ -137,6 +141,7 @@ public final class ArgumentLauncher {
             }
         }
         mf.updateData(true);
+        mf.showTableTab();
     }
     
     public static void startInteractive(D1Dplot_main mf, String[] args){
