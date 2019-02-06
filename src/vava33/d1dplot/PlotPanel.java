@@ -42,6 +42,9 @@ import com.vava33.d1dplot.auxi.DataHKL;
 import com.vava33.d1dplot.auxi.DataPoint;
 import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.d1dplot.auxi.Pattern1D;
+import com.vava33.d1dplot.auxi.DataSerie.xunits;
+import com.vava33.d1dplot.auxi.PDCompound;
+import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -76,6 +79,7 @@ public class PlotPanel {
     private static final Color Dark_Legend_bkg = Color.DARK_GRAY.darker();
     private static final Color Dark_Legend_line = Color.WHITE;
     private static boolean lightTheme = true;
+    private static Color colorDBcomp = Color.blue;
     
     //PARAMETRES VISUALS
     private static int gapAxisTop = 18;
@@ -158,11 +162,14 @@ public class PlotPanel {
     private boolean showGridX = false;
     
     boolean showPeaks = true;
-    boolean showBackground = false;
+	boolean showBackground = false;
     boolean selectingBkgPoints = false;
     boolean deletingBkgPoints = false;
     boolean selectingPeaks = false;
     boolean deletingPeaks = false;
+    boolean showDBCompound = false;
+    boolean showDBCompoundIntensity = false;
+    PDCompound dbCompound; 
     DataSerie bkgseriePeakSearch;
     public ArrayList<DataSerie> selectedSeries;
     
@@ -189,7 +196,7 @@ public class PlotPanel {
     private JLabel lblDsp;
     private JLabel lblHkl;
 
-//    private D1Dplot_main mainframe;
+    private D1Dplot_main mainframe;
     private JPanel panel;
     private JPanel panel_1;
     private JPanel plotPanel;
@@ -197,8 +204,8 @@ public class PlotPanel {
 	/**
      * Create the panel.
      */
-    public PlotPanel() {
-//        this.mainframe = mf;
+    public PlotPanel(D1Dplot_main m) {
+        this.setMainframe(m);
         this.plotPanel = new JPanel();
         this.plotPanel.setBackground(Color.WHITE);
         this.plotPanel.setLayout(new MigLayout("insets 0", "[grow]", "[][grow][]"));
@@ -464,12 +471,33 @@ public class PlotPanel {
     public void actualitzaPlot() {
 		this.getGraphPanel().repaint();
 	}
-	    
+
 	    // ajusta la imatge al panell, mostrant-la tota sencera (calcula l'scalefit inicial)
 	public void fitGraph() {
 	    this.resetView(false);
 	}
 
+	public void setShowDBCompound(boolean show, PDCompound c) {
+		if (!arePatterns()){return;}
+		this.showDBCompound = show;
+		if (c == null){
+			this.showDBCompound = false;
+			this.dbCompound = null;
+			return;
+		}
+		if (this.getFirstPlottedSerie().getWavelength() <= 0){ //TODO: ho faig global pero podria ser nomes quan units = tth
+			log.warning("Wavelength missing");
+			//missatge
+			FileUtils.InfoDialog(this.plotPanel, "Please set the wavelength to the first serie", "Wavelength missing");
+			this.showDBCompound = false;
+			this.dbCompound = null;
+			log.debug("setShowRings: NO WAVELENGTH");
+			return;
+		}
+		this.dbCompound = c;
+		this.actualitzaPlot();
+	}
+	
 		private void resetView(boolean resetAxes) {
 	        this.calcMaxMinXY();
 	        this.setXrangeMax(this.getxMax());
@@ -483,11 +511,11 @@ public class PlotPanel {
 	        if (!checkIfDiv() || resetAxes){
 	            this.autoDivLines();
 	        }
-
+	        
 	        this.actualitzaPlot();
 	    }
 
-	private boolean isOneSerieSelected(){
+	public boolean isOneSerieSelected(){
         if (this.getSelectedSeries().isEmpty()){
             log.warning("Select a serie first");
             return false;
@@ -969,7 +997,7 @@ public class PlotPanel {
 	                    Iterator<Pattern1D> itrPt = this.getPatterns().iterator();
 	                    while (itrPt.hasNext()){
 	                        Pattern1D p = itrPt.next();
-	                        if (!p.isPrf())continue;
+//	                        if (!p.isPrf())continue; //TODO: 190206 desactivat
 	                        Iterator<DataSerie> ids = p.getSeriesIterator();
 	                        while (ids.hasNext()){
 	                            ds = ids.next();
@@ -1654,6 +1682,22 @@ public static int getGapAxisTop() {
 	public void setShowPeaks(boolean showPeaks) {
 	    this.showPeaks = showPeaks;
 	}
+	
+    public boolean isShowDBCompoundIntensity() {
+		return showDBCompoundIntensity;
+	}
+
+	public void setShowDBCompoundIntensity(boolean showDBCompoundInten) {
+		this.showDBCompoundIntensity = showDBCompoundInten;
+	}
+
+	public boolean isShowDBCompound() {
+		return showDBCompound;
+	}
+
+//	public void setShowDBCompound(boolean showDBCompound) {
+//		this.showDBCompound = showDBCompound;
+//	}
 
 	public ArrayList<DataSerie> getSelectedSeries() {
 	    return selectedSeries;
@@ -1711,7 +1755,23 @@ public static int getGapAxisTop() {
 	    this.deletingPeaks = deletingPeaks;
 	}
 
-//  ------------------------------------ PANELL DE DIBUIX
+public D1Dplot_main getMainframe() {
+		return mainframe;
+	}
+
+	public void setMainframe(D1Dplot_main mainframe) {
+		this.mainframe = mainframe;
+	}
+
+	public static Color getColorDBcomp() {
+		return colorDBcomp;
+	}
+
+	public static void setColorDBcomp(Color colorDBcomp) {
+		PlotPanel.colorDBcomp = colorDBcomp;
+	}
+
+	//  ------------------------------------ PANELL DE DIBUIX
     class Plot1d extends JPanel {
 
         private static final long serialVersionUID = 1L;
@@ -1899,6 +1959,10 @@ public static int getGapAxisTop() {
                         drawPatternLine(g2,bkgseriePeakSearch,bkgseriePeakSearch.getColor());
                     }
                 }
+                
+				if (isShowDBCompound()){
+					if (dbCompound != null)drawPDCompound(g2,dbCompound,colorDBcomp);
+				}
 
                 fillWindowValues();
                 
@@ -2297,11 +2361,36 @@ public static int getGapAxisTop() {
 //            log.debug("drawHKL exit");
         }
         
+        private void drawPDCompound(Graphics2D g1, PDCompound pdc, Color col) {
+			DataSerie ds = PattOps.getPDCompoundAsDspDataSerie(pdc);
+			
+			//ara mirem si podem convertir a les unitats de la primera dataserie
+			DataSerie first = getFirstPlottedSerie();			
+			if (first!=null) {
+				if (first.getxUnits()==xunits.tth) {
+					//necessitem la wavelength
+					double wave = first.getWavelength();
+					if (wave<=0) {
+						wave = FileUtils.DialogAskForPositiveDouble(getMainframe().getMainFrame(),"Wavelength (Ang) =","Wavelength required to add reference in 2Theta units", "");	
+					}
+					if (wave<=0) {
+						log.warning("Wavelength required to convert to 2-theta");
+						return;
+					}
+					ds.setWavelength(wave);
+				}
+				ds = ds.convertToXunits(first.getxUnits());
+			}
+			
+			this.drawREF(g1, ds, col);
+        }
+        
         //draw vertical lines
         private void drawREF(Graphics2D g1, DataSerie serie, Color col){
 //            log.fine("drawREF entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
+                serie.setLineWidth(1.2f);
                 BasicStroke stroke = new BasicStroke(serie.getLineWidth());
                 switch (FastMath.round(serie.getMarkerSize())) {
                     case 1:
@@ -2326,23 +2415,35 @@ public static int getGapAxisTop() {
 
                 //despres del canvi a private de seriePoints
                 double tth = serie.getPoint(i).getX();
-
-                //la X es la 2THETA i s'ha de fer una linea de dalt a baix
+                double inten = serie.getPoint(i).getY(); //normalitzada a 100
+                
                 double fx = getFrameXFromDataPointX(tth);
-                Point2D.Double ptop = new Point2D.Double(fx, getGapAxisTop()+padding);
-                Point2D.Double pbot = new Point2D.Double(fx, panelH-getGapAxisBottom()-padding);
+            	int ytop = getGapAxisTop()+padding;
+            	int ybot = panelH-getGapAxisBottom()-padding;
+                Point2D.Double ptop = new Point2D.Double(fx, ytop);
+                Point2D.Double pbot = new Point2D.Double(fx, ybot);
+                if (isShowDBCompoundIntensity()) {
+                	int dist = FastMath.abs(ybot-ytop); //faig abs per si de cas...
+                    ptop = new Point2D.Double(fx, ybot - dist * (inten/100.));
+                    pbot = new Point2D.Double(fx, ybot);
+                }
+                //la X es la 2THETA i s'ha de fer una linea de dalt a baix
 
-                //comprovem que tot estigui dins
-//                if (!isFramePointInsideGraphArea(ptop) || !isFramePointInsideGraphArea(pbot)){
-//                    continue;
-//                }
-
-                //ara dibuixem la linia
-                g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
+                
+//                if ((isFramePointInsideGraphArea(ptop))&&isFramePointInsideGraphArea(pbot)){
+                
+                if (isFramePointInsideGraphArea(new Point2D.Double(ptop.x,ptop.y+1))){
+                    //ara dibuixem la linia
+                    g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
+                	
+                }
+                
+                
 
             }
 //            log.debug("drawREF exit");
         }
+        
 
         private void drawLegend(Graphics2D g1){
 
@@ -2544,184 +2645,7 @@ public static int getGapAxisTop() {
             w_h[1] =  font.getStringBounds(s, frc).getHeight();
             return w_h;
         }
-
-        
-        //TODO: TEST PER FER UN ESCALAT REAL
-        private void paintPNG(Graphics g, int w, int h) {
-//          if (g2 == null) {
-//              super.paintComponent(g);
-//          }else {
-//              super.paintComponent(g2);    
-//          }
-          
-          super.paintComponent(g);
-          log.debug("paintComponent PlotPanel");
-          
-//          n=n+1;
-//          if (n>6) {
-//              log.debug("n>6 exiting");
-//              return;
-//          }
-          
-          
-//          final Graphics2D g2 = (Graphics2D) g;
-
-
-          if (!this.saveTransp){
-              if (lightTheme){
-                  this.setBackground(Light_bkg);
-              }else{
-                  this.setBackground(Dark_bkg);
-              }
-          }
-          
-//          final Graphics2D g1 = (Graphics2D) g2.create();
-
-          if (getPatterns().size() > 0) {
-
-              panelW = this.getWidth();
-              panelH = this.getHeight();
-              
-              BufferedImage off_Image = null;
-//              int fsz = this.getFont().getSize();
-//              int diff = svgFontSize-fsz;
-              if (isSaveSVG()) {
-//                  PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()+diff);
-//                  PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()+diff);
-                  g2 = (Graphics2D) g;
-                  g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
-                          RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
-                }else {
-                    off_Image =
-                            new BufferedImage(w, h,
-                                              BufferedImage.TYPE_INT_ARGB);
-                    g2 = off_Image.createGraphics();
-                    
-                    g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
-                      RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
-                }
-              
-
-              
-              //primer caculem els limits -- ho trec, no crec que faci falta...
-//              calcMaxMinXY();
-              if (getScalefitY()<0){
-                  calcScaleFitY();    
-              }
-              if (getScalefitX()<0){
-                  calcScaleFitX();    
-              }
-
-
-//              if (mouseBox == true && zoomRect != null) {
-//                  //dibuixem el rectangle
-//                  g2.setColor(Color.darkGray);
-//                  BasicStroke stroke = new BasicStroke(3f);
-//                  g2.setStroke(stroke);
-//                  g2.draw(zoomRect);
-//                  Color gristransp = new Color(Color.LIGHT_GRAY.getRed(), Color.LIGHT_GRAY.getGreen(),Color.LIGHT_GRAY.getBlue(), 128 );
-//                  g2.setColor(gristransp);
-//                  g2.fill(zoomRect);
-//                  return; //no cal seguir pintant...
-//              }
-//              if (continuousRepaint)this.repaint();
-
-
-              //1st draw axes (and optionally grid)
-              this.drawAxes(g2,showGridY,showGridX);
-
-              Iterator<Pattern1D> itrp = getPatterns().iterator();
-              int npatt = getPatterns().size();
-              int ipatt = 0;
-              while (itrp.hasNext()){
-                  log.debug(String.format("Patt %d of %d", ipatt,npatt));
-                  Pattern1D patt = itrp.next();
-                  for (int i=0; i<patt.getNseries(); i++){
-                      DataSerie ds = patt.getSerie(i);
-                      if (!ds.isPlotThis())continue;
-                      
-                      switch (ds.getTipusSerie()){
-                          case hkl:
-                              drawHKL(g2,ds,ds.getColor());
-                              break;
-                          case ref:
-                              drawREF(g2,ds,ds.getColor());
-                              break;
-                          default: //dibuix linea normal, (dat, dif, gr, ...)
-                              if(ds.getLineWidth()>0)drawPatternLine(g2,ds,ds.getColor()); 
-                              if(ds.getMarkerSize()>0)drawPatternPoints(g2,ds,ds.getColor());
-                              break;
-                      }
-                      
-                      
-//                      if(ds.getTipusSerie()==DataSerie.serieType.hkl){
-//                          drawHKL(g2,ds,ds.getColor());
-//                      }else{
-//                          if(ds.getLineWidth()>0)drawPatternLine(g2,ds,ds.getColor()); 
-//                          if(ds.getMarkerSize()>0)drawPatternPoints(g2,ds,ds.getColor());
-//                      }
-                      
-                      if (patt.getSerie(i).isShowErrBars()){
-                          drawErrorBars(g2,patt.getSerie(i),patt.getSerie(i).getColor());
-                      }
-                  }
-                  ipatt=ipatt+1;
-              }
-
-              log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
-              log.debug(Float.toString(PlotPanel.getDef_axis_fsize()));
-              log.debug(Boolean.toString(isSaveSVG()));
-              
-              if(showLegend){
-                  drawLegend(g2);
-              }
-
-              if (showPeaks){
-                  drawPeaks(g2);
-                  if (bkgseriePeakSearch.getNpoints()>0){
-                      drawPatternLine(g2,bkgseriePeakSearch,bkgseriePeakSearch.getColor());
-                  }
-              }
-
-//              if (isShowBackground()){
-//                  logdebug("showbackground");
-//                  if (bkgserie.getNpoints()!=0){
-//                      drawPatternLine(g2,bkgserie,bkgserie.getColor()); 
-//                      drawPatternPoints(g2,bkgserie,bkgserie.getColor());
-//                  }
-//                  if (bkgEstimPoints.getNpoints()!=0){
-//                      drawPatternPoints(g2,bkgEstimPoints,bkgEstimPoints.getColor());
-//                  }
-//              }
-
-//              g1.dispose();
-//              g2.dispose();
-
-              fillWindowValues();
-              
-              if (mouseBox == true && zoomRect != null) {
-                  //dibuixem el rectangle
-                  g2.setColor(Color.darkGray);
-                  BasicStroke stroke = new BasicStroke(3f);
-                  g2.setStroke(stroke);
-                  g2.draw(zoomRect);
-                  Color gristransp = new Color(Color.LIGHT_GRAY.getRed(), Color.LIGHT_GRAY.getGreen(),Color.LIGHT_GRAY.getBlue(), 128 );
-                  g2.setColor(gristransp);
-                  g2.fill(zoomRect);
-              }
-              
-              if (!isSaveSVG()) {
-                  g.drawImage(off_Image, 0, 0, null);
-                }else {
-//                    PlotPanel.setDef_axis_fsize(PlotPanel.getDef_axis_fsize()-diff);
-//                    PlotPanel.setDef_axisL_fsize(PlotPanel.getDef_axisL_fsize()-diff);
-                }
-//              g2.dispose();
-//              if(continuousRepaint)this.repaint();
-          }
-      }
-        
-        
+      
     }
     
     

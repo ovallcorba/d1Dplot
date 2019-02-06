@@ -11,8 +11,6 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -32,6 +30,7 @@ import javax.swing.SwingWorker;
 import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.auxi.DataSerie.xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -44,12 +43,6 @@ public final class PDDatabase {
     private static String currentDB;
     private static ArrayList<PDCompound> DBcompList = new ArrayList<PDCompound>();  
     private static ArrayList<PDSearchResult> DBsearchresults = new ArrayList<PDSearchResult>();
-    
-    //quicklist
-    private static String localQL = System.getProperty("user.dir") + D1Dplot_global.separator + "quicklist.db";  // local DB default file
-    private static String currentQL;
-    private static ArrayList<PDCompound> QLcompList = new ArrayList<PDCompound>();  
-    private static boolean QLmodified = false;
     private static boolean DBmodified = false;
     
     private static final String className = "PDdatabase";
@@ -60,33 +53,9 @@ public final class PDDatabase {
         nCompounds = 0;
     }
     
-    public static void resetQL(boolean updateComboMF){
-        QLcompList.clear();
-        if (updateComboMF){
-            MainFrame.updateQuickList();
-        }
-        setQLmodified(true);
-    }
-    
     public static void addCompoundDB(PDCompound c){
         DBcompList.add(c);
         nCompounds = nCompounds + 1;
-    }
-    
-    public static void addCompoundQL(PDCompound c, boolean updateComboMF){
-        QLcompList.add(c);
-        if (updateComboMF){
-            MainFrame.updateQuickList();
-        }
-        setQLmodified(true);
-
-    }
-
-    public static Iterator<PDCompound> getQuickListIterator(){
-        if (QLcompList==null){
-            QLcompList = new ArrayList<PDCompound>();
-        }
-        return getQLCompList().iterator();
     }
     
     public static int getnCompounds() {
@@ -99,10 +68,6 @@ public final class PDDatabase {
 
     public static ArrayList<PDCompound> getDBCompList() {
         return DBcompList;
-    }
-
-    public static ArrayList<PDCompound> getQLCompList() {
-        return QLcompList;
     }
     
     public static void setDBCompList(ArrayList<PDCompound> compList) {
@@ -177,11 +142,6 @@ public final class PDDatabase {
         return f.getAbsolutePath();
     }
     
-    public static String getDefaultQLpath(){
-        File f = new File(localQL);
-        return f.getAbsolutePath();
-    }
-    
     public static ArrayList<PDSearchResult> getDBSearchresults() {
         return DBsearchresults;
     }
@@ -191,43 +151,6 @@ public final class PDDatabase {
         return PDDatabase.getDBCompList().size()+1;
     }
 
-    //sets the QLDB modified (useful for the first run)
-    public static boolean populateQuickList(final boolean setDBModified){
-        
-        //llegirem la default QL db
-        File QLfile = new File(getDefaultQLpath());
-        if (!QLfile.exists()){return false;}
-        openDBfileWorker openDBFwk = new PDDatabase.openDBfileWorker(new File(getDefaultQLpath()),true);
-        openDBFwk.addPropertyChangeListener(new PropertyChangeListener() {
-            @Override
-            public void propertyChange(PropertyChangeEvent evt) {
-              //log.debug("hello from propertyChange");
-              log.debug(evt.getPropertyName());
-              if ("progress" == evt.getPropertyName() ) {
-                  if (evt.getSource() instanceof openDBfileWorker){
-                      openDBfileWorker sw = (openDBfileWorker)evt.getSource();
-                      if (sw.isDone()) {
-                          //s'hauria d'actualitzar el mainframe combo_lat -- o potser ho fem al fer addcompound?
-                          MainFrame.updateQuickList();
-                          setQLmodified(setDBModified);
-                      }                      
-                  }
-
-              }
-            }
-        });
-        //reset current Database
-        PDDatabase.resetQL(true);
-        //read database file, executing the swingworker task
-        openDBFwk.execute();
-        return true;
-    } 
-    
-    
-    public static boolean isQLmodified() {
-        return QLmodified;
-    }
-    
     public static boolean isDBmodified() {
         return DBmodified;
     }
@@ -239,18 +162,7 @@ public final class PDDatabase {
     public static void setLocalDB(String localDB) {
         PDDatabase.localDB = localDB;
     }
-
-    public static String getLocalQL() {
-        return localQL;
-    }
-
-    public static void setLocalQL(String localQL) {
-        PDDatabase.localQL = localQL;
-    }
-
-    public static void setQLmodified(boolean qLmodified) {
-        QLmodified = qLmodified;
-    }
+    
     public static void setDBmodified(boolean dBmodified) {
         DBmodified = dBmodified;
     }
@@ -263,25 +175,15 @@ public final class PDDatabase {
         PDDatabase.currentDB = currentDB;
     }
 
-    public static String getCurrentQL() {
-        return currentQL;
-    }
-
-    public static void setCurrentQL(String currentQL) {
-        PDDatabase.currentQL = currentQL;
-    }
-
     //Aixo llegira el fitxer per omplir la base de dades o la quicklist
     public static class openDBfileWorker extends SwingWorker<Integer,Integer> {
 
         private File dbfile;
         private boolean stop;
-        private boolean toQuickList;
         
-        public openDBfileWorker(File datafile, boolean useQuickList) {
+        public openDBfileWorker(File datafile) {
             this.dbfile = datafile;
             this.stop = false;
-            this.toQuickList=useQuickList;
         }
         
         @Override
@@ -450,32 +352,24 @@ public final class PDDatabase {
                                 
                                 
                             } catch (Exception e) {
-                                if(D2Dplot_global.isDebug())e.printStackTrace();
+                                if(D1Dplot_global.isDebug())e.printStackTrace();
                                 log.warning("Error reading compound: "+comp.getCompName());
                             }                        
                             
                         }
                         
-                        if (toQuickList){
-                            addCompoundQL(comp,true);
-                        }else{
-                            addCompoundDB(comp);    
-                        }
+                        addCompoundDB(comp);    
                     }
                 }
                 scDBfile.close();
             }catch(Exception e){
-                if(D2Dplot_global.isDebug())e.printStackTrace();
+                if(D1Dplot_global.isDebug())e.printStackTrace();
                 log.warning("Error reading DB file");
                 this.cancel(true);
                 return 1;
             }
             setProgress(100);
-            if (toQuickList) {
-                setCurrentQL(dbfile.toString());
-            }else {
-                setCurrentDB(dbfile.toString());    
-            }
+            setCurrentDB(dbfile.toString());    
             return 0;
         }
         
@@ -494,12 +388,10 @@ public final class PDDatabase {
 
         private File dbfile;
         private boolean stop;
-        private boolean toQuickList;
         
-        public saveDBfileWorker(File datafile, boolean useQuickList) {
+        public saveDBfileWorker(File datafile) {
             this.dbfile = FileUtils.canviExtensio(datafile,"db");
             this.stop = false;
-            this.toQuickList=useQuickList;
         }
         
         @Override
@@ -512,20 +404,15 @@ public final class PDDatabase {
                 int icomp = 0;
                 
                 //passos previs depenents de si QL or DB
-                if (toQuickList){
-                    ncomp = getQLCompList().size();
-                    itC = QLcompList.iterator();
-                }else{
-                    ncomp = getDBCompList().size();
-                    itC = DBcompList.iterator();
-                }
+                ncomp = getDBCompList().size();
+                itC = DBcompList.iterator();
                 
                 log.writeNameNumPairs("config", true, "ncomp", ncomp);
                 
 //                SimpleDateFormat fHora = new SimpleDateFormat("[yyyy-MM-dd 'at' HH:mm]");
 //                String dt = fHora.format(new Date());
                 
-                String dt = D2Dplot_global.getStringTimeStamp("[yyyy-MM-dd 'at' HH:mm]");
+                String dt = D1Dplot_global.getStringTimeStamp("[yyyy-MM-dd 'at' HH:mm]");
                 
                 output.println("# ====================================================================");
                 output.println("#         D2Dplot compound database "+dt);
@@ -590,11 +477,7 @@ public final class PDDatabase {
                 return 1;
             }
             setProgress(100);
-            if (toQuickList) {
-                setCurrentQL(dbfile.toString());
-            }else {
-                setCurrentDB(dbfile.toString());    
-            }
+            setCurrentDB(dbfile.toString());    
             return 0;
         }
         
@@ -621,10 +504,10 @@ public final class PDDatabase {
         private ArrayList<Float> intList;
         private boolean stop;
         private float mindsp;
-        private Pattern2D patt2D;
+        private DataSerie dataserie;
         
-        public searchDBWorker(Pattern2D patt2d, float mindsp) {
-            this.patt2D=patt2d;
+        public searchDBWorker(DataSerie ds, float mindsp) {
+            this.dataserie=ds;
             this.mindsp=mindsp;
             dspList = new ArrayList<Float>();
             intList = new ArrayList<Float>();
@@ -641,25 +524,29 @@ public final class PDDatabase {
             
             //generem les llistes de dspacing i intensitats a partir dels punts seleccionats a un pattern2D i un mindsp
             //(ho hem passat aquí perque es costos, sobretot l'extraccio d'intensitats)
-            float[] t2deglist = new float[patt2D.getPuntsCercles().size()];
-            Iterator<PuntClick> itrPks = patt2D.getPuntsCercles().iterator();
-            int n=0;
-            while (itrPks.hasNext()){
-                PuntClick pc = itrPks.next();
-                float dsp = (float) patt2D.calcDsp(pc.getT2rad());
+        	
+        	if(dataserie.getNpeaks()<=0) {
+        		log.warning("no peaks selected");
+        		return -1;
+        	}
+        	
+            //convert dataserie to dsp:
+//            xunits initialUnits = dataserie.getxUnits(); //save initial to come back afterwards
+            DataSerie dspDS = dataserie.convertToXunits(xunits.dsp);
+//            dspDS.copySeriePoints(dataserie);
+//            dspDS.copySeriePeaks(dataserie);
+            
+            for (int i=0; i<dspDS.getNpeaks(); i++) {
+            	DataPoint pk = dspDS.getPeak(i);
+            	float dsp = (float) pk.getX();
+            	float inten = (float) pk.getY();
                 if (dsp > mindsp){
                     dspList.add(dsp);
-                    t2deglist[n]=(float) FastMath.toDegrees(pc.getT2rad());
-                    n = n +1;
+                    intList.add(inten);
                 }
-            }
-            float[] circleIntensities = ImgOps.radialIntegrationVarious2th(patt2D, t2deglist, -1, false, false,true, this);
-            for (int i=0;i<circleIntensities.length;i++){
-                intList.add(circleIntensities[i]);    
             }
             
             float maxIslist = Collections.max(intList);
-            
             PDSearchResult.setMinDSPin(Collections.min(dspList));
             PDSearchResult.setnDSPin(dspList.size());
             

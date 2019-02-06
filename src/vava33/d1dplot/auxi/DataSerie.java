@@ -12,7 +12,10 @@ package com.vava33.d1dplot.auxi;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 //import org.apache.commons.math3.util.FastMath;
 
@@ -28,6 +31,9 @@ import com.vava33.jutils.VavaLogger;
 public class DataSerie {
     private static float def_markerSize=0;
     private static float def_lineWidth=1;
+    
+    private static final String className = "DataSerie";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     public enum serieType {
         dat, obs, cal, hkl, diff, bkg, bkgEstimP, gr, ref
@@ -69,7 +75,6 @@ public class DataSerie {
     private Pattern1D Patt1D;
     private xunits xUnits;
     private serieType tipusSerie;
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(DataSerie.class.getName());
     private String serieName;
     
     //prf exclusive
@@ -136,6 +141,16 @@ public class DataSerie {
         this.setWavelength(wavel);
     }
 
+    public void copySeriePoints(DataSerie inDS) {
+    	this.setSeriePoints(inDS.seriePoints);
+    }
+    public void copySeriePeaks(DataSerie inDS) {
+    	this.setSeriePeaks(inDS.peaks);
+    }
+    public void copySerieHKL(DataSerie inDS) {
+    	this.setSerieHKL(inDS.serieHKL);
+    }
+    
     public DataPoint getPoint(int arrayPosition){
         DataPoint dp = this.seriePoints.get(arrayPosition);
         DataPoint ndp = new DataPoint(dp.getX()+this.zerrOff,dp.getY()*this.scale+this.getYOff(),dp.getSdy()*this.scale,dp.getyBkg()*this.scale);
@@ -166,6 +181,52 @@ public class DataSerie {
             ndp.setY(ndp.getY()+(ndp.getyBkg()*this.scale));
         }
         return ndp; 
+    }
+    
+    public float[] getListT2Peaks(boolean inRadians) {
+    	Iterator<DataPoint> itr = this.peaks.iterator();
+    	float[] pksT2 = new float[this.peaks.size()];
+    	int count = 0;
+    	while (itr.hasNext()){
+    		DataPoint pk = itr.next();
+    		if (inRadians) {
+    			pksT2[count]=(float) FastMath.toRadians(pk.getX()+this.zerrOff);
+    		}else {//direct in degrees
+    			pksT2[count] = (float) (pk.getX()+this.zerrOff);
+    		}
+    		count++;
+    	}
+    	return pksT2;
+    }
+    
+    //dobs = wave/(2*np.sin(np.radians(t2obs)/2.))
+    public float[] getListPeaksDsp() {
+    	Iterator<DataPoint> itr = this.peaks.iterator();
+    	float[] pksDsp = new float[this.peaks.size()];
+    	int count = 0;
+    	while (itr.hasNext()){
+    		DataPoint pk = itr.next();
+  			float t2rad =(float) FastMath.toRadians(pk.getX()+this.zerrOff);
+  			pksDsp[count] = (float) (this.getWavelength()/(2*FastMath.sin(t2rad/2.f)));
+  			count++;
+    	}
+    	return pksDsp;
+    }
+    
+    //dobs = wave/(2*np.sin(np.radians(t2obs)/2.))
+    public float getMinPeakDsp() {
+    	Iterator<DataPoint> itr = this.peaks.iterator();
+    	float[] pksDsp = new float[this.peaks.size()];
+    	int count = 0;
+    	float mindsp = Float.MAX_VALUE;
+    	while (itr.hasNext()){
+    		DataPoint pk = itr.next();
+  			float t2rad =(float) FastMath.toRadians(pk.getX()+this.zerrOff);
+  			pksDsp[count] = (float) (this.getWavelength()/(2*FastMath.sin(t2rad/2.f)));
+  			if (pksDsp[count]<mindsp)mindsp = pksDsp[count];
+  			count++;
+    	}
+    	return mindsp;
     }
     
     public DataHKL getHKLPoint(int arrayPosition){
@@ -398,6 +459,8 @@ public class DataSerie {
     public DataSerie convertToXunits(xunits destXunits){
         DataSerie newDS = new DataSerie(this,this.getTipusSerie(),false);
         Iterator<DataPoint> itdp = this.seriePoints.iterator();
+        Iterator<DataPoint> itdpk = this.peaks.iterator();
+        //TODO: afegir serieHKL?
         
         logdebug(String.format("convert from %s to %s",this.getxUnits(), destXunits));
         
@@ -417,6 +480,12 @@ public class DataSerie {
                             double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
                             newDS.addPoint(new DataPoint(dsp,dp.getY(),dp.getSdy()));
                         }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double t2 = dp.getX();
+                            double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
+                            newDS.addPeak(new DataPoint(dsp,dp.getY(),dp.getSdy()));
+                        }
                         //Zero and scale
                         newDS.setScale(this.getScale());
 //                        float zer = (float) (this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(this.getZerrOff()/2.))));
@@ -431,6 +500,12 @@ public class DataSerie {
                             double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
                             newDS.addPoint(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
                         }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double t2 = dp.getX();
+                            double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
+                            newDS.addPeak(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+                        }
                         //Zero and scale
                         newDS.setScale(this.getScale());
 //                        zer = (float) (this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(this.getZerrOff()/2.))));
@@ -444,6 +519,12 @@ public class DataSerie {
                             double t2 = dp.getX();
                             double q = (4*FastMath.PI*FastMath.sin(FastMath.toRadians(t2/2.)))/this.getWavelength();
                             newDS.addPoint(new DataPoint(q,dp.getY(),dp.getSdy()));
+                        }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double t2 = dp.getX();
+                            double q = (4*FastMath.PI*FastMath.sin(FastMath.toRadians(t2/2.)))/this.getWavelength();
+                            newDS.addPeak(new DataPoint(q,dp.getY(),dp.getSdy()));
                         }
                         //Zero and scale
                         newDS.setScale(this.getScale());
@@ -466,6 +547,12 @@ public class DataSerie {
                             double t2 = 2*FastMath.asin(this.getWavelength()/(2*dsp));
                             newDS.addPoint(new DataPoint(FastMath.toDegrees(t2),dp.getY(),dp.getSdy()));
                         }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double dsp = dp.getX();
+                            double t2 = 2*FastMath.asin(this.getWavelength()/(2*dsp));
+                            newDS.addPeak(new DataPoint(FastMath.toDegrees(t2),dp.getY(),dp.getSdy()));
+                        }
                         //Zero and scale
                         newDS.setScale(this.getScale());
 //                        float zer = (float) (2*FastMath.asin(this.getWavelength()/2*this.getZerrOff()));
@@ -483,6 +570,11 @@ public class DataSerie {
                             double dsp = dp.getX();
                             newDS.addPoint(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
                         }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double dsp = dp.getX();
+                            newDS.addPeak(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+                        }
                         //Zero and scale
                         newDS.setScale(this.getScale());
 //                        newDS.setZerrOff(1/this.getZerrOff());
@@ -495,6 +587,12 @@ public class DataSerie {
                             double dsp = dp.getX();
                             double q = (1/dsp) * FastMath.PI*2;
                             newDS.addPoint(new DataPoint(q,dp.getY(),dp.getSdy()));
+                        }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double dsp = dp.getX();
+                            double q = (1/dsp) * FastMath.PI*2;
+                            newDS.addPeak(new DataPoint(q,dp.getY(),dp.getSdy()));
                         }
                         //Zero and scale
                         newDS.setScale(this.getScale());
@@ -517,6 +615,12 @@ public class DataSerie {
                             double t2 = 2*FastMath.asin(this.getWavelength()/(2*dsp));
                             newDS.addPoint(new DataPoint(FastMath.toDegrees(t2),dp.getY(),dp.getSdy()));
                         }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double dsp = 1/dp.getX();
+                            double t2 = 2*FastMath.asin(this.getWavelength()/(2*dsp));
+                            newDS.addPeak(new DataPoint(FastMath.toDegrees(t2),dp.getY(),dp.getSdy()));
+                        }
                         //Zero and scale
                         newDS.setScale(this.getScale());
 //                        float zer = (float) (2*FastMath.asin(this.getWavelength()/2*(1/this.getZerrOff())));
@@ -529,6 +633,11 @@ public class DataSerie {
                             DataPoint dp = itdp.next();
                             double dsp = dp.getX();
                             newDS.addPoint(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+                        }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double dsp = dp.getX();
+                            newDS.addPeak(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
                         }
                         //Zero and scale
                         newDS.setScale(this.getScale());
@@ -546,6 +655,12 @@ public class DataSerie {
                             double dsp = 1/dp.getX();
                             double q = (1/dsp) * FastMath.PI*2;
                             newDS.addPoint(new DataPoint(q,dp.getY(),dp.getSdy()));
+                        }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double dsp = 1/dp.getX();
+                            double q = (1/dsp) * FastMath.PI*2;
+                            newDS.addPeak(new DataPoint(q,dp.getY(),dp.getSdy()));
                         }
                         //Zero and scale
                         newDS.setScale(this.getScale());
@@ -567,6 +682,12 @@ public class DataSerie {
                             double tth = FastMath.toDegrees(2*FastMath.asin((this.getWavelength()*q)/(4*FastMath.PI)));
                             newDS.addPoint(new DataPoint(tth,dp.getY(),dp.getSdy()));
                         }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double q = dp.getX();
+                            double tth = FastMath.toDegrees(2*FastMath.asin((this.getWavelength()*q)/(4*FastMath.PI)));
+                            newDS.addPeak(new DataPoint(tth,dp.getY(),dp.getSdy()));
+                        }
                         //Zero and scale
                         newDS.setScale(this.getScale());
 //                        float zer = (float) FastMath.toDegrees(2*FastMath.asin(this.getWavelength()*this.getZerrOff()/4*FastMath.PI));
@@ -581,6 +702,12 @@ public class DataSerie {
                             double dsp = (2*FastMath.PI)/q;
                             newDS.addPoint(new DataPoint(dsp,dp.getY(),dp.getSdy()));
                         }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double q = dp.getX();
+                            double dsp = (2*FastMath.PI)/q;
+                            newDS.addPeak(new DataPoint(dsp,dp.getY(),dp.getSdy()));
+                        }
                         //Zero and scale
                         newDS.setScale(this.getScale());
 //                        zer = (float) (2*FastMath.PI/this.getZerrOff());
@@ -594,6 +721,12 @@ public class DataSerie {
                             double q = dp.getX();
                             double dsp = (2*FastMath.PI)/q;
                             newDS.addPoint(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+                        }
+                        while (itdpk.hasNext()){
+                            DataPoint dp = itdpk.next();
+                            double q = dp.getX();
+                            double dsp = (2*FastMath.PI)/q;
+                            newDS.addPeak(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
                         }
                         //Zero and scale
                         newDS.setScale(this.getScale());
@@ -621,14 +754,14 @@ public class DataSerie {
         newDS.setWavelength(this.getWavelength());
         
         //DEBUG print 10 first points of DS and newDS
-        double[] ds10 = new double[10];
-        double[] nds10 = new double[10];
-        for (int i=0; i<10;i++){
-            ds10[i]=this.getPoint(i).getX();
-            nds10[i]=newDS.getPoint(i).getX();
-        }
-        if(D1Dplot_global.isDebug())log.writeNameNums("CONFIG", true, "ds10", ds10);
-        if(D1Dplot_global.isDebug())log.writeNameNums("CONFIG", true, "nds10", nds10);
+//        double[] ds10 = new double[10];
+//        double[] nds10 = new double[10];
+//        for (int i=0; i<10;i++){
+//            ds10[i]=this.getPoint(i).getX();
+//            nds10[i]=newDS.getPoint(i).getX();
+//        }
+//        if(D1Dplot_global.isDebug())log.writeNameNums("CONFIG", true, "ds10", ds10);
+//        if(D1Dplot_global.isDebug())log.writeNameNums("CONFIG", true, "nds10", nds10);
         return newDS;
 
     }
@@ -830,6 +963,10 @@ public class DataSerie {
             }
         }
         return bkg;
+    }
+    
+    public void addPeak(DataPoint dp){
+        peaks.add(dp);
     }
     
     public void addPeak(double xpeak){
