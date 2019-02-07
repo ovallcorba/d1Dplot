@@ -1,6 +1,5 @@
 package com.vava33.d1dplot;
 
-
 /**
  * D1Dplot
  * 
@@ -9,7 +8,10 @@ package com.vava33.d1dplot;
  * @author Oriol Vallcorba
  * Licence: GPLv3
  * 
- */import java.awt.Image;
+ */
+
+import java.awt.Color;
+import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.io.BufferedWriter;
@@ -17,19 +19,24 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Scanner;
 
 import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.d1dplot.auxi.Pattern1D;
+import com.vava33.d1dplot.Database;
+import com.vava33.d1dplot.auxi.PDDatabase;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
 public final class D1Dplot_global {
 
     public static final int version = 1901; //nomes canviare la versio global quan faci un per distribuir
-    public static final int build_date = 181213; //nomes canviare la versio global quan faci un per distribuir
+    public static final int build_date = 181220; //nomes canviare la versio global quan faci un per distribuir
     public static final String welcomeMSG = "d1Dplot v"+version+" ("+build_date+") by O.Vallcorba\n\n"
-    		+ "*** This is a BETA version, please USE WITH CAUTION. Report of errors or comments about the program are appreciated***\n";
+    		+ " This is a BETA version, please USE WITH CAUTION.\n"
+    		+ " Report of errors or comments about the program are appreciated.\n";
     
     private static final String className = "d1Dplot_global";
     public static final String separator = System.getProperty("file.separator");
@@ -38,7 +45,6 @@ public final class D1Dplot_global {
     public static final String usersGuidePath = System.getProperty("user.dir") + separator + "d1Dplot_userguide.pdf";
     public static final String loggingFilePath = System.getProperty("user.dir") + separator + "log.txt";
     public static Boolean configFileReaded = null; //true=readed false=errorReading null=notFound
-    
     
     //symbols and characters
     public static final String theta = "\u03B8";
@@ -50,16 +56,21 @@ public final class D1Dplot_global {
     
     public static VavaLogger log;
     
-    private static final boolean overrideLogLevelConfigFile = true;
+    private static final boolean overrideLogLevelConfigFile = false;
 //    public static final boolean isdebug = false; // EN CAS QUE HAGI D'ACTIVAR COSES EXTRES (per mi basicament)
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     //global 
-    private static boolean loggingConsole = true; //console
+    private static boolean loggingConsole = false; //console
     private static boolean loggingFile = false; //file
     private static boolean loggingTA = true; //textArea -- NO ESCRIT AL FITXER DE CONFIGURACIO JA QUE VOLEM SEMPRE ACTIVAT
-    private static String loglevel = "config"; //info, config, etc...
+    private static String loglevel = "info"; //info, config, etc...
     private static String workdir = System.getProperty("user.dir");
+    
+    //DB
+    public static String DBfile;
+    private static Float minDspacingToSearch;
+    private static Color colorDBcomp;
     
     //mainframe
     private static Integer def_Width;
@@ -155,6 +166,11 @@ public final class D1Dplot_global {
 	    LandF=null;
 	    askForDeleteOriginals=null;
 	    
+        //DB (dels DBfiles ja s'encarrega checkDBs
+        DBfile=null;
+        minDspacingToSearch=null;
+        colorDBcomp = null;
+
 	    //plotpanel
 	    lightTheme = null;
 	    gapAxisTop = null;
@@ -214,6 +230,18 @@ public final class D1Dplot_global {
 	    }else{
 	        D1Dplot_main.setAskForDeleteOriginals(askForDeleteOriginals.booleanValue());
 	    }
+        //DB (dels DBfiles ja s'encarrega checkDBs
+        if (minDspacingToSearch == null){
+            minDspacingToSearch = Database.getMinDspacingToSearch();    
+        }else{
+            Database.setMinDspacingToSearch(minDspacingToSearch.floatValue());
+        }
+        if (colorDBcomp == null){
+            colorDBcomp = PlotPanel.getColorDBcomp();
+        }else{
+        	PlotPanel.setColorDBcomp(colorDBcomp);
+        }
+        
 	    //from PlotPanel
 	    if (lightTheme == null){
 	        lightTheme = PlotPanel.isLightTheme();
@@ -354,6 +382,14 @@ public final class D1Dplot_global {
 	    }
 	}
 
+    public static void checkDBs(){
+        if (DBfile==null){
+            DBfile = PDDatabase.getLocalDB();    
+        }else{
+            PDDatabase.setLocalDB(DBfile);
+        }
+    } 
+	
 	//POSEM SEMPRE LA COMPROVACIO DE SI EL VALOR PARSEJAT ES NULL PERQUÈ EN AQUEST CAS FEM SERVIR EL QUE VE DE INITPARS
 	// QUE PODRIA NO SER NULL!!!   //added parameters (they already have the default value)
 	public static boolean readParFile(){
@@ -396,6 +432,23 @@ public final class D1Dplot_global {
 	                }
 	            }
 	            
+                if (FileUtils.containsIgnoreCase(line, "CompoundDB")){
+                    String sDBfile = (line.substring(iigual, line.trim().length()).trim());
+                    if (new File(sDBfile).exists())DBfile = sDBfile;
+                }
+	            
+                if (FileUtils.containsIgnoreCase(line, "minDspacingToSearch")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Float fvalue = parseFloat(value);
+                    if(fvalue!=null)minDspacingToSearch = fvalue.floatValue();
+                }
+                
+                if (FileUtils.containsIgnoreCase(line, "colorDBcomp")){
+                    String value = (line.substring(iigual, line.trim().length()).trim());
+                    Color cvalue = FileUtils.parseColorName(value);
+                    if (cvalue!=null)colorDBcomp = cvalue;
+                }
+                
 	            if (FileUtils.containsIgnoreCase(line, "LookAndFeel")){
 	                String value = (line.substring(iigual, line.trim().length()).trim());
 	                if(value!=null)LandF = value;
@@ -622,7 +675,12 @@ public final class D1Dplot_global {
 	            if (ZOOM_BORRAR==MouseEvent.BUTTON2)but="Middle";
 	            if (ZOOM_BORRAR==MouseEvent.BUTTON1)but="Left";
 	            output.println("MouseButtonZoom = "+but);
-	
+
+	            output.println("# Compound DB");
+	            output.println("defCompoundDB = "+DBfile);
+	            output.println(String.format(Locale.ROOT,"%s = %.4f", "minDspacingToSearch",minDspacingToSearch));
+	            output.println("colorDBcomp = "+FileUtils.getColorName(colorDBcomp));
+
 	            output.println("# Plotting");
 	            String col = "Light";
 	            if (!isLightTheme())col="Dark";
@@ -689,6 +747,10 @@ public final class D1Dplot_global {
 	  if (ZOOM_BORRAR==MouseEvent.BUTTON2)but="Middle";
 	  if (ZOOM_BORRAR==MouseEvent.BUTTON1)but="Left";
 	  log.printmsg(loglevel,"MouseButtonZoom = "+but);
+	  log.printmsg(loglevel,"# Compound DB");
+	  log.printmsg(loglevel,"defCompoundDB = "+DBfile);
+	  log.printmsg(loglevel,String.format(Locale.ROOT,"%s = %.4f", "minDspacingToSearch",minDspacingToSearch));
+	  log.printmsg(loglevel,"colorDBcomp = "+FileUtils.getColorName(colorDBcomp));
 	  log.printmsg(loglevel,"# Plotting");
 	  String col = "Light";
 	  if (!isLightTheme())col="Dark";
@@ -880,6 +942,9 @@ public final class D1Dplot_global {
 	    }
 	    return i;
 	}
-    
+    public static String getStringTimeStamp(String simpleDateFormatStr){
+        SimpleDateFormat fHora = new SimpleDateFormat(simpleDateFormatStr);
+        return fHora.format(new Date());
+    }
     
 }
