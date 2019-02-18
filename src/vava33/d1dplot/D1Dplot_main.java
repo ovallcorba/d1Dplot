@@ -3,19 +3,19 @@ package com.vava33.d1dplot;
 /**    
  * D1Dplot
  * Program to plot 1D X-ray Powder Diffraction Patterns
- *
+ *       
  * It uses the following libraries from the same author:
  *  - com.vava33.jutils
- *
+ *  
  * And the following 3rd party libraries: 
  *  - net.miginfocom.swing.MigLayout
  *  - org.apache.commons.math3.util.FastMath
  *  - org.apache.batik
  *  - org.w3c.dom
- *   
+ *  
  * @author Oriol Vallcorba
  * Licence: GPLv3
- *   
+ *  
  */
 
 import java.awt.Color;
@@ -86,6 +86,7 @@ import javax.swing.table.DefaultTableModel;
 
 import net.miginfocom.swing.MigLayout;
 
+import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.d1dplot.auxi.ArgumentLauncher;
 import com.vava33.d1dplot.auxi.ColorEditor;
 import com.vava33.d1dplot.auxi.ColorRenderer;
@@ -189,6 +190,7 @@ public class D1Dplot_main {
     private JSeparator separator_4;
     private JMenuItem mntmSaveProject;
     private JMenuItem mntmOpenProject;
+    private JMenuItem mntmDebug;
     
     /**
      * Launch the application.
@@ -205,6 +207,8 @@ public class D1Dplot_main {
         //LOGGER
         log = D1Dplot_global.getVavaLogger(className);
         System.out.println(log.logStatus());
+        CellSymm_global.setLogLevel(log.getLogLevelString());
+        CellSymm_global.setLogging(D1Dplot_global.isLoggingConsole(), D1Dplot_global.isLoggingFile(), D1Dplot_global.isLoggingTA());
                 
         try {
             if (FileUtils.containsIgnoreCase(D1Dplot_global.getLandF(), "system")){
@@ -846,6 +850,14 @@ public class D1Dplot_main {
         	}
         });
         mnHelp.add(mntmCheckForUpdates);
+        
+        mntmDebug = new JMenuItem("debug");
+        mntmDebug.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_mntmDebug_actionPerformed(e);
+            }
+        });
+        mnHelp.add(mntmDebug);
                 
         inicia();
     }
@@ -1663,8 +1675,8 @@ public class D1Dplot_main {
         Object[] row = {nP,nS,fname,c,scale,zoff,wavel,xunits,yoffset,markersize,linewidth,errbars,show};
         model.addRow(row);
     }
-
-
+        
+    
     private void do_mainFrame_windowClosing(WindowEvent e) {
     	if (D1Dplot_global.isKeepSize()) {
     		D1Dplot_global.setDef_Height(this.getMainFrame().getHeight());
@@ -2352,4 +2364,8 @@ public class D1Dplot_main {
 		this.updateData(false);
 		
 	}
+    protected void do_mntmDebug_actionPerformed(ActionEvent e) {
+        debug_latgen dl = new debug_latgen(this);
+        dl.visible(true);
+    }
 }

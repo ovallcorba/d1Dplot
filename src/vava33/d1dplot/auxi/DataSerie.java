@@ -12,19 +12,8 @@ package com.vava33.d1dplot.auxi;
 
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
-
-//import org.apache.commons.math3.util.FastMath;
-
-
-
-
-
 import org.apache.commons.math3.util.FastMath;
-
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.jutils.VavaLogger;
 
@@ -61,6 +50,7 @@ public class DataSerie {
     
     private ArrayList<DataPoint> seriePoints;
     private ArrayList<DataPoint> peaks;
+    private ArrayList<DataPoint_hkl> serieHKL;
     
     private double wavelength = -1;
     private float markerSize;
@@ -77,13 +67,11 @@ public class DataSerie {
     private serieType tipusSerie;
     private String serieName;
     
-    //prf exclusive
-    private ArrayList<DataHKL> serieHKL;
     
     //empty dataserie
     public DataSerie(){
         this.setSeriePoints(new ArrayList<DataPoint>());
-        this.setSerieHKL(new ArrayList<DataHKL>());
+        this.setSerieHKL(new ArrayList<DataPoint_hkl>());
         this.setSeriePeaks(new ArrayList<DataPoint>());
         this.setPlotThis(true);
         this.setPatt1D(null);
@@ -134,7 +122,7 @@ public class DataSerie {
         this.setWavelength(wavel);
     }
     
-    public DataSerie(ArrayList<DataHKL> punts, Pattern1D patt, double wavel){
+    public DataSerie(ArrayList<DataPoint_hkl> punts, Pattern1D patt, double wavel){
         this();
         this.setSerieHKL(punts);
         this.setPatt1D(patt);
@@ -213,6 +201,20 @@ public class DataSerie {
     	return pksDsp;
     }
     
+    public double[] getListPeaksQ() {
+    	Iterator<DataPoint> itr = this.peaks.iterator();
+    	double[] pksQ = new double[this.peaks.size()];
+    	int count = 0;
+    	while (itr.hasNext()){
+    		DataPoint pk = itr.next();
+  			double t2rad = FastMath.toRadians(pk.getX()+this.zerrOff);
+  			double dsp = this.getWavelength()/(2*FastMath.sin(t2rad/2.f));
+  			pksQ[count] = 1/(dsp*dsp);
+  			count++;
+    	}
+    	return pksQ;
+    }
+    
     //dobs = wave/(2*np.sin(np.radians(t2obs)/2.))
     public float getMinPeakDsp() {
     	Iterator<DataPoint> itr = this.peaks.iterator();
@@ -229,16 +231,53 @@ public class DataSerie {
     	return mindsp;
     }
     
-    public DataHKL getHKLPoint(int arrayPosition){
-        DataHKL dhkl = this.serieHKL.get(arrayPosition);
-        return new DataHKL(dhkl.getH(),dhkl.getK(),dhkl.getL(),dhkl.getTth()+this.zerrOff);
+    public float getMaxPeakDsp() {
+    	Iterator<DataPoint> itr = this.peaks.iterator();
+    	float[] pksDsp = new float[this.peaks.size()];
+    	int count = 0;
+    	float maxdsp = Float.MIN_VALUE;
+    	while (itr.hasNext()){
+    		DataPoint pk = itr.next();
+  			float t2rad =(float) FastMath.toRadians(pk.getX()+this.zerrOff);
+  			pksDsp[count] = (float) (this.getWavelength()/(2*FastMath.sin(t2rad/2.f)));
+  			if (pksDsp[count]>maxdsp)maxdsp = pksDsp[count];
+  			count++;
+    	}
+    	return maxdsp;
+    }
+    
+    //dobs = wave/(2*np.sin(np.radians(t2obs)/2.))
+    public float[] getMinMaxPeakDsp() {
+    	Iterator<DataPoint> itr = this.peaks.iterator();
+    	float[] pksDsp = new float[this.peaks.size()];
+    	int count = 0;
+    	float mindsp = Float.MAX_VALUE;
+    	float maxdsp = Float.MIN_VALUE;
+    	while (itr.hasNext()){
+    		DataPoint pk = itr.next();
+  			float t2rad =(float) FastMath.toRadians(pk.getX()+this.zerrOff);
+  			pksDsp[count] = (float) (this.getWavelength()/(2*FastMath.sin(t2rad/2.f)));
+  			if (pksDsp[count]<mindsp)mindsp = pksDsp[count];
+  			if (pksDsp[count]>maxdsp)maxdsp = pksDsp[count];
+  			count++;
+    	}
+    	return new float[] {mindsp,maxdsp};
+    }
+    
+    
+    //TODO l'he borrat perquè m'interessa que això ho faci al plot, no aqui
+    public DataPoint_hkl getHKLPoint(int arrayPosition){
+//        DataPoint_hkl dhkl = this.serieHKL.get(arrayPosition);
+//        return new DataPoint_hkl(dhkl.getH(),dhkl.getK(),dhkl.getL(),dhkl.getTth()+this.zerrOff);
+        return  this.serieHKL.get(arrayPosition).returnCopyWithZoff(this.zerrOff);
+        
     }
     
     public void addPoint(DataPoint dp){
         this.seriePoints.add(dp);
     }
 
-    public void addHKLPoint(DataHKL dhkl){
+    public void addHKLPoint(DataPoint_hkl dhkl){
         this.serieHKL.add(dhkl);
     }
     
@@ -257,7 +296,7 @@ public class DataSerie {
         logdebug(Boolean.toString(removed));
     }
 
-    public void removeHKLPoint(DataHKL dhkl){
+    public void removeHKLPoint(DataPoint_hkl dhkl){
         this.serieHKL.remove(dhkl);
     }
     
@@ -278,7 +317,7 @@ public class DataSerie {
         this.seriePoints = seriePoints;
     }
 
-    private void setSerieHKL(ArrayList<DataHKL> seriehkl) {
+    private void setSerieHKL(ArrayList<DataPoint_hkl> seriehkl) {
         this.serieHKL = seriehkl;
     }
     
@@ -497,14 +536,18 @@ public class DataSerie {
                         while (itdp.hasNext()){
                             DataPoint dp = itdp.next();
                             double t2 = dp.getX();
-                            double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
-                            newDS.addPoint(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+//                            double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
+//                            newDS.addPoint(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+                            double dsp2 = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)))*this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
+                            newDS.addPoint(new DataPoint(1/dsp2,dp.getY(),dp.getSdy()));
                         }
                         while (itdpk.hasNext()){
                             DataPoint dp = itdpk.next();
                             double t2 = dp.getX();
-                            double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
-                            newDS.addPeak(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+//                            double dsp = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
+//                            newDS.addPeak(new DataPoint(1/dsp,dp.getY(),dp.getSdy()));
+                            double dsp2 = this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)))*this.getWavelength()/(2*FastMath.sin(FastMath.toRadians(t2/2.)));
+                            newDS.addPoint(new DataPoint(1/dsp2,dp.getY(),dp.getSdy()));
                         }
                         //Zero and scale
                         newDS.setScale(this.getScale());
@@ -806,12 +849,12 @@ public class DataSerie {
         YOff = yOff;
     }
     
-    public ArrayList<DataHKL> getClosestReflections(double centralTTh, double tol){
+    public ArrayList<DataPoint_hkl> getClosestReflections(double centralTTh, double tol){
         if (tol<0) tol = 0.025;
-        ArrayList<DataHKL> found = new ArrayList<DataHKL>();
+        ArrayList<DataPoint_hkl> found = new ArrayList<DataPoint_hkl>();
         if (this.getTipusSerie()!=serieType.hkl)return found;
         for (int i=0;i<this.getNpoints();i++){
-            if (FastMath.abs(centralTTh-this.getHKLPoint(i).getTth())<tol){
+            if (FastMath.abs(centralTTh-this.getHKLPoint(i).get2th())<tol){
                 found.add(this.getHKLPoint(i));
             }
         }

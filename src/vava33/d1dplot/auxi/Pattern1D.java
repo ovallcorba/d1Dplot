@@ -26,7 +26,7 @@ public class Pattern1D {
     private double original_wavelength = -1f;
     private ArrayList<String> commentLines;
     private ArrayList<DataSerie> series; //usually one, maybe more (eg. PRF files) 
-    private static int globalNseries = 0; //TOTAL EN TOTES LES CLASSES
+    private static int globalNseries = 0; //TOTAL EN TOTES LES CLASSES (pel color)
 
     //prf exclusive
     private boolean isPrf = false;
@@ -238,10 +238,6 @@ public class Pattern1D {
         this.commentLines = commentLines;
     }
 
-//    public ArrayList<DataSerie> getSeries() {
-//        return series;
-//    }
-
     public DataSerie getSerie(int index){
         return series.get(index);
     }
@@ -257,10 +253,6 @@ public class Pattern1D {
     public int indexOfSerie(DataSerie ds){
         return series.indexOf(ds);
     }
-    
-//    public void setSeries(ArrayList<DataSerie> series) {
-//        this.series = series;
-//    }
 
     public double getOriginal_wavelength() {
         return original_wavelength;

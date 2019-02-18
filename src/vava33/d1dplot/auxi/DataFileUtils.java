@@ -472,7 +472,7 @@ public final class DataFileUtils {
             return false;
         }
     }
-
+    
     
     //only 1 serie
     private static boolean readDAT(File datFile, Pattern1D patt1D) {
@@ -897,7 +897,7 @@ public final class DataFileUtils {
     }
 
         
-    
+    //TODO: cal revisar la lectura, posar mes excepcions, etc...
     private static boolean readPRF(File f, Pattern1D patt1D){
         boolean startData = false;
         boolean starthkl = false;
@@ -942,7 +942,7 @@ public final class DataFileUtils {
                     int h = Integer.parseInt(shkl[0]);
                     int k = Integer.parseInt(shkl[1]);
                     int l = Integer.parseInt(shkl[2]);
-                    dsHKL.addHKLPoint(new DataHKL(h,k,l,t2i));
+                    dsHKL.addHKLPoint(new DataPoint_hkl(h,k,l,t2i,dsObs.getWavelength()));
                 }else{
                     double Iobs = Double.parseDouble(values[1]);
                     double Ical = Double.parseDouble(values[2]);

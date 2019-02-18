@@ -38,8 +38,8 @@ import java.util.Iterator;
 
 import javax.swing.JPanel;
 
-import com.vava33.d1dplot.auxi.DataHKL;
 import com.vava33.d1dplot.auxi.DataPoint;
+import com.vava33.d1dplot.auxi.DataPoint_hkl;
 import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.d1dplot.auxi.Pattern1D;
 import com.vava33.d1dplot.auxi.DataSerie.xunits;
@@ -1001,17 +1001,17 @@ public class PlotPanel {
 	                        Iterator<DataSerie> ids = p.getSeriesIterator();
 	                        while (ids.hasNext()){
 	                            ds = ids.next();
-	                            ArrayList<DataHKL> dhkl = new ArrayList<DataHKL>();
+	                            ArrayList<DataPoint_hkl> dhkl = new ArrayList<DataPoint_hkl>();
 	                            if (ds.getTipusSerie()==DataSerie.serieType.hkl){
 	                                double tol = FastMath.min(10*getXunitsPerPixel(), 0.025); //provem el minim entre 10 pixels o 0.025º 2th
 	                                dhkl = ds.getClosestReflections(dtth,tol);
 	                            }
 	                            if (dhkl.size()>0){
-	                                Iterator<DataHKL> itrhkl = dhkl.iterator();
+	                                Iterator<DataPoint_hkl> itrhkl = dhkl.iterator();
 	                                StringBuilder shkl = new StringBuilder();
 	                                shkl.append("hkl(s)= ");
 	                                while (itrhkl.hasNext()){
-	                                    DataHKL hkl = itrhkl.next();
+	                                    DataPoint_hkl hkl = itrhkl.next();
 	                                    shkl.append(hkl.toString()).append(" ; ");
 	                                }
 	                                lblHkl.setText(shkl.substring(0, shkl.length()-2));
@@ -2339,7 +2339,7 @@ public D1Dplot_main getMainframe() {
                 g1.setStroke(stroke);
 
                 //despres del canvi a private de seriePoints
-                double tth = serie.getHKLPoint(i).getTth();
+                double tth = serie.getHKLPoint(i).get2th();
 
                 //la X es la 2THETA pero la Y hauria de ser el punt de menor intensitat de OBS més un hkloffset (en pixels, definit a patt1d)
                 double fx = getFrameXFromDataPointX(tth);
@@ -2645,15 +2645,7 @@ public D1Dplot_main getMainframe() {
             w_h[1] =  font.getStringBounds(s, frc).getHeight();
             return w_h;
         }
-      
+
     }
-    
-    
-    
- 
-    
-    
-    
-    
-    
+   
 }

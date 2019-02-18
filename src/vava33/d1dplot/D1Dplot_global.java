@@ -142,6 +142,13 @@ public final class D1Dplot_global {
 		if (loggingConsole || loggingFile || loggingTA) return true;
 		return false;
 	}
+    
+    public static boolean isLoggingConsole() {
+        return loggingConsole;
+    }
+    public static boolean isLoggingFile() {
+        return loggingFile;
+    }
 
 	//returns true if logging is enabled and level is <= config
 	public static boolean isDebug(){

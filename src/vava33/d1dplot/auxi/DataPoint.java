@@ -1,4 +1,5 @@
-package vava33.d1dplot.auxi;
+package com.vava33.d1dplot.auxi;
+
 
 /**
  * D1Dplot
@@ -10,7 +11,7 @@ package vava33.d1dplot.auxi;
  * 
  */
 
-public class DataPoint {
+public class DataPoint implements Comparable<DataPoint>{
 
     private double x;
     private double y;
@@ -64,7 +65,14 @@ public class DataPoint {
         }else{
             return false;
         }
-        
     }
     
+	@Override
+	public int compareTo(DataPoint otherDP) {
+		if (this.x>otherDP.x) {
+			return -1; //otherDP va primer
+		}else {
+			return 1;
+		}
+	}
 }
