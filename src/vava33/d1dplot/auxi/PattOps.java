@@ -11,6 +11,7 @@ package com.vava33.d1dplot.auxi;
  */
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Locale;
 
@@ -27,8 +28,9 @@ import org.apache.commons.math3.util.FastMath;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.auxi.DataSerie.serieType;
 import com.vava33.d1dplot.auxi.DataSerie.xunits;
-import com.vava33.d1dplot.auxi.IndexResult.indexSolucio;
+import com.vava33.d1dplot.auxi.IndexSolutionGrid;
 import com.vava33.d1dplot.auxi.PDReflection;
+import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
 
@@ -497,7 +499,7 @@ public final class PattOps {
     
     //list of 2-theta values and lists of every parameter for combination, ANGLES IN RADIANS
     //tornara ranked list of 50 best solutions?? o algo així? hauriem de crear classe solucio o fer un array de floats
-    public static ArrayList<indexSolucio> index(float[] dobs, float factor, float wave, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
+    public static ArrayList<IndexSolutionGrid> indexGridSearchBrute(float[] dobs, float factor, float wave, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
     	int[] lengths = new int[] { aL.length, bL.length, cL.length, alL.length, beL.length, gaL.length };
     	
         int totalComb = aL.length*bL.length*cL.length*alL.length*beL.length*gaL.length;
@@ -507,7 +509,7 @@ public final class PattOps {
         log.info(String.format("Thread #%d: %d combinations of parameters will be evaluated! (%d*%d*%d*%d*%d*%d)", threadN, totalComb,aL.length,bL.length,cL.length,alL.length,beL.length,gaL.length));
 
     	//llista de solucions TODO
-    	IndexResult iResult = new IndexResult();
+    	IndexGrid iResult = new IndexGrid();
 
     	long startTime = System.currentTimeMillis();
     	
@@ -541,9 +543,9 @@ public final class PattOps {
             int hmax = (int) (factor*a/3); //TODO: he afegit el /2 i he tret el +1 a hklmax
             int kmax = (int) (factor*b/3);
             int lmax = (int) (factor*c/3);
-            int[] hs = PattOps.range(-hmax, hmax, 1);
-            int[] ks = PattOps.range(-kmax, kmax, 1);
-            int[] ls = PattOps.range(-lmax, lmax, 1);
+            int[] hs = FileUtils.range(-hmax, hmax, 1);
+            int[] ks = FileUtils.range(-kmax, kmax, 1);
+            int[] ls = FileUtils.range(-lmax, lmax, 1);
             
             int[] lenHKL = new int[] { hs.length, ks.length, ls.length };
             
@@ -604,7 +606,7 @@ public final class PattOps {
             }
             
             //ara ja tenim el residual per aquest joc de paràmetres, l'afegim com a solució
-            indexSolucio is = iResult.new indexSolucio(a, b, c, al, be, ga, paramResidual);
+            IndexSolutionGrid is = new IndexSolutionGrid(a, b, c, al, be, ga, paramResidual);
             is.sethklmaxmin(-hmax, hmax, -kmax, kmax, -lmax, lmax);
             iResult.addSolucio(is);
 //            iResult.addSolucio(a, b, c, al, be, ga, paramResidual);
@@ -627,7 +629,7 @@ public final class PattOps {
 //    		log.info(String.format("sol %d: %8.4f %8.4f %8.4f %6.2f %6.2f %6.2f res=%8.4f", i+1, sols[i][0],sols[i][1],sols[i][2],sols[i][3],sols[i][4],sols[i][5],sols[i][6]));
 //    	}
     	
-    	ArrayList<indexSolucio> sols = iResult.get50bestSolutions();
+    	ArrayList<IndexSolutionGrid> sols = iResult.get50bestSolutions();
     	return sols;
     }
     
@@ -655,22 +657,6 @@ public final class PattOps {
 //        return dcalc;
     }
     
-    //TODO: passar a fileutils ORI, he començat amb double pero provare amb float suposo que no passa res per indexar
-    public static float[] arange(float ini, float fin, float step) {
-    	int size = FastMath.round((fin-ini)/step);
-    	float[] ret = new float[size];
-    	for (int i=0; i<ret.length; i++) {
-    		ret[i] = ini + i*step; 
-    	}
-    	return ret;
-    }
-    public static int[] range(int ini, int fin, int step) {
-    	int size = (fin-ini)/step;
-    	int[] ret = new int[size];
-    	for (int i=0; i<ret.length; i++) {
-    		ret[i] = ini + i*step; 
-    	}
-    	return ret;
-    }
+
     
 }

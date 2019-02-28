@@ -18,8 +18,6 @@ import java.awt.event.ActionListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
-import java.util.Iterator;
-
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
@@ -35,14 +33,19 @@ import javax.swing.border.TitledBorder;
 
 import org.apache.commons.math3.util.FastMath;
 
-import com.vava33.d1dplot.auxi.CartesianProduct;
+import com.vava33.cellsymm.Cell;
 import com.vava33.d1dplot.auxi.DataSerie;
-import com.vava33.d1dplot.auxi.IndexResult;
+import com.vava33.d1dplot.auxi.IndexDichotomy;
+import com.vava33.d1dplot.auxi.IndexSolution;
+import com.vava33.d1dplot.auxi.IndexSolutionDichotomy;
+import com.vava33.d1dplot.auxi.IndexSolutionGrid;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
 import net.miginfocom.swing.MigLayout;
+import javax.swing.JRadioButton;
+import javax.swing.ButtonGroup;
 
 public class IndexDialog {
 
@@ -97,12 +100,12 @@ public class IndexDialog {
 //    private float bestep = 0.5f;
 //    private float gastep = 0.5f;
     
-    private float amax=5.6f;
-    private float bmax=5.6f;
-    private float cmax=5.6f;
-    private float amin=5.3f;
-    private float bmin=5.3f;
-    private float cmin=5.3f;
+    private float amax=6f;
+    private float bmax=6f;
+    private float cmax=6f;
+    private float amin=5f;
+    private float bmin=5f;
+    private float cmin=5f;
     private float alfamin=90.0f;
     private float alfamax=90.0f;
     private float betamin=90.0f;
@@ -137,13 +140,15 @@ public class IndexDialog {
     
     private boolean zeroRef = true;
     private boolean prevzero = false;
-    private boolean dic06 = false;
-    
+//    private boolean dic06 = false;
     private int npeaks = 20;
     
     private DataSerie ds;
+    ProgressMonitor pm;
+    IndexGridSearchBruteWorker gridSwk;
+    DichothomyWorker dicW;
     
-    private boolean everythingOK = true;
+//    private boolean everythingOK = true;
     private JLabel lblMin;
     private JLabel lblMax;
     private JLabel lblMin_1;
@@ -170,7 +175,11 @@ public class IndexDialog {
     private JTextField txtAlstep;
     private JTextField txtBestep;
     private JTextField txtGastep;
-
+    private JPanel panel_1;
+    private JLabel lblMethod;
+    private JRadioButton rdbtnGridSearch;
+    private JRadioButton rdbtnDicothomy;
+    private final ButtonGroup buttonGroupMethod = new ButtonGroup();
     
 	public IndexDialog(JFrame parent, PlotPanel p, DataSerie datas) {
         this.plotpanel=p;
@@ -178,11 +187,11 @@ public class IndexDialog {
         this.contentPanel = new JPanel();
         this.indexDialog = new JDialog(parent,"Index",false);
         this.indexDialog.setIconImage(D1Dplot_global.getIcon());
-        this.indexDialog.setBounds(100, 100, 700, 500);
+        this.indexDialog.setBounds(100, 100, 700, 568);
         this.indexDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         this.indexDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);
-        contentPanel.setLayout(new MigLayout("", "[grow][grow][]", "[][][][grow]"));
+        contentPanel.setLayout(new MigLayout("", "[grow][grow][]", "[][][][grow][grow]"));
         {
             JLabel lblNrPeaksTo = new JLabel("Nr. Peaks to use=");
             contentPanel.add(lblNrPeaksTo, "cell 0 0,alignx trailing");
@@ -516,6 +525,26 @@ public class IndexDialog {
             }
         }
         {
+        	panel_1 = new JPanel();
+        	contentPanel.add(panel_1, "cell 0 4 3 1,grow");
+        	panel_1.setLayout(new MigLayout("", "[][][]", "[]"));
+        	{
+        		lblMethod = new JLabel("Method:");
+        		panel_1.add(lblMethod, "cell 0 0");
+        	}
+        	{
+        		rdbtnGridSearch = new JRadioButton("Grid Search");
+        		buttonGroupMethod.add(rdbtnGridSearch);
+        		panel_1.add(rdbtnGridSearch, "cell 1 0");
+        	}
+        	{
+        		rdbtnDicothomy = new JRadioButton("Dicothomy");
+        		rdbtnDicothomy.setSelected(true);
+        		buttonGroupMethod.add(rdbtnDicothomy);
+        		panel_1.add(rdbtnDicothomy, "cell 2 0");
+        	}
+        }
+        {
             JPanel buttonPane = new JPanel();
             buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
             this.indexDialog.getContentPane().add(buttonPane, BorderLayout.SOUTH);
@@ -546,54 +575,53 @@ public class IndexDialog {
     }
 
     private void inicia(){
-        if (this.getNpeaks()>ds.getNpeaks())this.setNpeaks(ds.getNpeaks());
-        txtNpeaks.setText(String.valueOf(this.getNpeaks()));
-        txtAmax.setText(FileUtils.dfX_2.format(this.getAmax()));
-        txtBmax.setText(FileUtils.dfX_2.format(this.getBmax()));
-        txtCmax.setText(FileUtils.dfX_2.format(this.getCmax()));
+        if (this.npeaks>ds.getNpeaks())this.npeaks=ds.getNpeaks();
+        txtNpeaks.setText(String.valueOf(this.npeaks));
+        txtAmax.setText(FileUtils.dfX_2.format(this.amax));
+        txtBmax.setText(FileUtils.dfX_2.format(this.bmax));
+        txtCmax.setText(FileUtils.dfX_2.format(this.cmax));
         txtAmin.setText(FileUtils.dfX_2.format(this.amin));
         txtBmin.setText(FileUtils.dfX_2.format(this.bmin));
         txtCmin.setText(FileUtils.dfX_2.format(this.cmin));
         txtAlfaMin.setText(FileUtils.dfX_2.format(this.alfamin));
         txtAlfaMax.setText(FileUtils.dfX_2.format(this.alfamax));
-        txtBetamin.setText(FileUtils.dfX_2.format(this.getBetamin()));
-        txtBetamax.setText(FileUtils.dfX_2.format(this.getBetamax()));
-        txtGaMin.setText(FileUtils.dfX_2.format(this.betamin));
-        txtGaMax.setText(FileUtils.dfX_2.format(this.betamax));
+        txtBetamin.setText(FileUtils.dfX_2.format(this.betamin));
+        txtBetamax.setText(FileUtils.dfX_2.format(this.betamax));
+        txtGaMin.setText(FileUtils.dfX_2.format(this.gammamin));
+        txtGaMax.setText(FileUtils.dfX_2.format(this.gammamax));
         txtAstep.setText(FileUtils.dfX_2.format(this.astep));
         txtBstep.setText(FileUtils.dfX_2.format(this.bstep));
         txtCstep.setText(FileUtils.dfX_2.format(this.cstep));
         txtAlstep.setText(FileUtils.dfX_2.format(this.alstep));
         txtBestep.setText(FileUtils.dfX_2.format(this.bestep));
         txtGastep.setText(FileUtils.dfX_2.format(this.gastep));
-        txtVmin.setText(FileUtils.dfX_2.format(this.getVmin()));
-        txtVmax.setText(FileUtils.dfX_2.format(this.getVmax()));
-        if (this.getWavel()<0){
-            //mirem el de la dataserie
-            txtWave.setText(FileUtils.dfX_5.format(ds.getWavelength()));
-        }else{
-            txtWave.setText(FileUtils.dfX_5.format(this.getWavel()));    
-        }
+        txtVmin.setText(FileUtils.dfX_2.format(this.vmin));
+        txtVmax.setText(FileUtils.dfX_2.format(this.vmax));
+//        if (this.getWavel()<0){
+//            //mirem el de la dataserie
+//            txtWave.setText(FileUtils.dfX_5.format(ds.getWavelength()));
+//        }else{
+//            txtWave.setText(FileUtils.dfX_5.format(this.getWavel()));    
+//        }
 
-        txtMw.setText(FileUtils.dfX_2.format(this.getMw()));
-        txtDensity.setText(FileUtils.dfX_2.format(this.getDensity()));
-        txtDensityerr.setText(FileUtils.dfX_2.format(this.getDensityerr()));
-        txtEps.setText(FileUtils.dfX_2.format(this.getEps()));
-        txtFom.setText(FileUtils.dfX_2.format(this.getMinfom()));
-        txtSpurious.setText(String.valueOf(this.getSpurious()));
+        txtMw.setText(FileUtils.dfX_2.format(this.mw));
+        txtDensity.setText(FileUtils.dfX_2.format(this.density));
+        txtDensityerr.setText(FileUtils.dfX_2.format(this.densityerr));
+        txtEps.setText(FileUtils.dfX_2.format(this.eps));
+        txtFom.setText(FileUtils.dfX_2.format(this.minfom));
+        txtSpurious.setText(String.valueOf(this.spurious));
         
         //checkboxes
-        chckbxCubic.setSelected(this.isCubic());
-        chckbxTetragonal.setSelected(this.isTetra());
-        chckbxHexagonal.setSelected(this.isHexa());
-        chckbxOrthorhombic.setSelected(this.isOrto());
-        chckbxMonoclinic.setSelected(this.isMono());
-        chckbxTriclinic.setSelected(this.isTric());
-        chckbxZeroRefienment.setSelected(this.isZeroRef());
-        chckbxPrevZeroSearch.setSelected(this.isPrevzero());
-        chckbxDicvolOpt.setSelected(this.isDic06());
+        chckbxCubic.setSelected(this.cubic);
+        chckbxTetragonal.setSelected(this.tetra);
+        chckbxHexagonal.setSelected(this.hexa);
+        chckbxOrthorhombic.setSelected(this.orto);
+        chckbxMonoclinic.setSelected(this.mono);
+        chckbxTriclinic.setSelected(this.tric);
+        chckbxZeroRefienment.setSelected(this.zeroRef);
+        chckbxPrevZeroSearch.setSelected(this.prevzero);
         
-        everythingOK = true;
+//        everythingOK = true;
     }
 
     private void updateDS(DataSerie newds){
@@ -610,8 +638,9 @@ public class IndexDialog {
     }
     protected void do_okButton_actionPerformed(ActionEvent e) {
         //PARSE ALL
+    	boolean everythingOK=true;
         try{
-            this.setAmax(Float.parseFloat(txtAmax.getText()));
+        	this.amax=Float.parseFloat(txtAmax.getText());
         }catch(Exception ex){
             log.warning("Error reading amax");
             everythingOK=false;
@@ -629,7 +658,7 @@ public class IndexDialog {
             everythingOK=false;
         }
         try{
-            this.setBmax(Float.parseFloat(txtBmax.getText()));
+            this.bmax=Float.parseFloat(txtBmax.getText());
         }catch(Exception ex){
             log.warning("Error reading bmax");
             everythingOK=false;
@@ -647,7 +676,7 @@ public class IndexDialog {
             everythingOK=false;
         }
         try{
-            this.setCmax(Float.parseFloat(txtCmax.getText()));
+            this.cmax=Float.parseFloat(txtCmax.getText());
         }catch(Exception ex){
             log.warning("Error reading cmax");
             everythingOK=false;
@@ -683,13 +712,13 @@ public class IndexDialog {
             everythingOK=false;
         }
         try{
-            this.setBetamin(Float.parseFloat(txtBetamin.getText()));
+            this.betamin=Float.parseFloat(txtBetamin.getText());
         }catch(Exception ex){
             log.warning("Error reading Beta min");
             everythingOK=false;
         }
         try{
-            this.setBetamax(Float.parseFloat(txtBetamax.getText()));
+            this.betamax=Float.parseFloat(txtBetamax.getText());
         }catch(Exception ex){
             log.warning("Error reading Beta max");
             everythingOK=false;
@@ -719,81 +748,54 @@ public class IndexDialog {
             everythingOK=false;
         }
         try{
-            this.setVmin(Float.parseFloat(txtVmin.getText()));
+            this.vmin=Float.parseFloat(txtVmin.getText());
         }catch(Exception ex){
             log.warning("Error reading vmin");
             everythingOK=false;
         }
         try{
-            this.setVmax(Float.parseFloat(txtVmax.getText()));
+            this.vmax=Float.parseFloat(txtVmax.getText());
         }catch(Exception ex){
             log.warning("Error reading vmax");
             everythingOK=false;
         }
         try{
-            this.setWavel(Float.parseFloat(txtWave.getText()));
-        }catch(Exception ex){
-            log.warning("Error reading wavelength");
-            everythingOK=false;
-        }
-        
-        try{
-            this.setMw(Float.parseFloat(txtMw.getText()));
-        }catch(Exception ex){
-            log.warning("Error reading MW");
-            everythingOK=false;
-        }
-        try{
-            this.setDensity(Float.parseFloat(txtDensity.getText()));
-        }catch(Exception ex){
-            log.warning("Error reading Density");
-            everythingOK=false;
-        }
-        try{
-            this.setDensityerr(Float.parseFloat(txtDensityerr.getText()));
-        }catch(Exception ex){
-            log.warning("Error reading Density Desv");
-            everythingOK=false;
-        }
-        try{
-            this.setEps(Float.parseFloat(txtEps.getText()));
+            this.eps=Float.parseFloat(txtEps.getText());
         }catch(Exception ex){
             log.warning("Error reading Eps");
             everythingOK=false;
         }
         try{
-            this.setMinfom(Float.parseFloat(txtFom.getText()));
+            this.minfom=Float.parseFloat(txtFom.getText());
         }catch(Exception ex){
             log.warning("Error reading min FOM");
             everythingOK=false;
         }
         
         try{
-            this.setNpeaks(Integer.parseInt(txtNpeaks.getText()));
-            if (this.getNpeaks()>this.ds.getNpeaks()){
-                this.setNpeaks(this.ds.getNpeaks());
-            }
+            this.npeaks=Integer.parseInt(txtNpeaks.getText());
         }catch(Exception ex){
             log.warning("Error reading Npeaks");
             everythingOK=false;
         }
         try{
-            this.setSpurious(Integer.parseInt(txtSpurious.getText()));
+            this.spurious=Integer.parseInt(txtSpurious.getText());
         }catch(Exception ex){
             log.warning("Error reading Spurious");
             everythingOK=false;
         }
         
+        //TODO:comprovacio de wavelengh dins de DS
+        
         //checkboxes
-        this.setCubic(chckbxCubic.isSelected());
-        this.setTetra(chckbxTetragonal.isSelected());
-        this.setHexa(chckbxHexagonal.isSelected());
-        this.setOrto(chckbxOrthorhombic.isSelected());
-        this.setMono(chckbxMonoclinic.isSelected());
-        this.setTric(chckbxTriclinic.isSelected());
-        this.setZeroRef(chckbxZeroRefienment.isSelected());
-        this.setPrevzero(chckbxPrevZeroSearch.isSelected());
-        this.setDic06(chckbxDicvolOpt.isSelected());
+        this.cubic=chckbxCubic.isSelected();
+        this.tetra=chckbxTetragonal.isSelected();
+        this.hexa=chckbxHexagonal.isSelected();
+        this.orto=chckbxOrthorhombic.isSelected();
+        this.mono=chckbxMonoclinic.isSelected();
+        this.tric=chckbxTriclinic.isSelected();
+        this.zeroRef=chckbxZeroRefienment.isSelected();
+        this.prevzero=chckbxPrevZeroSearch.isSelected();
         
         if (!everythingOK) {
         	//TODO: complain message
@@ -801,19 +803,39 @@ public class IndexDialog {
         	return;
         }
         
-        //NOW WE START INDEXING
-        float[] avals = PattOps.arange(this.amin, this.amax, this.astep);
-        float[] bvals = PattOps.arange(this.bmin, this.bmax, this.bstep);
-        float[] cvals = PattOps.arange(this.cmin, this.cmax, this.cstep);
-        float[] alvals = PattOps.arange((float) FastMath.toRadians(this.alfamin), (float) FastMath.toRadians(this.alfamax), (float) FastMath.toRadians(this.alstep));
+        //METHOD SELECTION AND START INDEXING
+        if (rdbtnGridSearch.isSelected()) {
+        	this.executeGridSearch();
+        }
+        
+        if (rdbtnDicothomy.isSelected()) {
+        	IndexDichotomy id = new IndexDichotomy(ds,this.npeaks,this.eps);
+        	id.setMaxPars(this.amax, this.bmax, this.cmax, this.alfamax, this.betamax, this.gammamax, true);
+        	id.setMinPars(this.amin, this.bmin, this.cmin, this.alfamin, this.betamin, this.gammamin, true);
+        	id.setSystemsSearch(this.cubic, this.tetra, this.hexa, this.orto, this.mono, this.tric);
+        	this.executeDicothomy(id);
+        }
+        
+
+       
+        
+    }
+  
+    //TODO afegir STOP button
+    private void executeGridSearch() {
+    	
+    	float[] avals = FileUtils.arange(this.amin, this.amax, this.astep);
+        float[] bvals = FileUtils.arange(this.bmin, this.bmax, this.bstep);
+        float[] cvals = FileUtils.arange(this.cmin, this.cmax, this.cstep);
+        float[] alvals = FileUtils.arange((float) FastMath.toRadians(this.alfamin), (float) FastMath.toRadians(this.alfamax), (float) FastMath.toRadians(this.alstep));
         if (alvals.length==0) {
         	alvals = new float[] {(float) FastMath.toRadians(this.alfamin)};
         }
-        float[] bevals = PattOps.arange((float) FastMath.toRadians(this.betamin), (float) FastMath.toRadians(this.betamax), (float) FastMath.toRadians(this.bestep));
+        float[] bevals = FileUtils.arange((float) FastMath.toRadians(this.betamin), (float) FastMath.toRadians(this.betamax), (float) FastMath.toRadians(this.bestep));
         if (bevals.length==0) {
         	bevals = new float[] {(float) FastMath.toRadians(this.betamin)};
         }
-        float[] gavals = PattOps.arange((float) FastMath.toRadians(this.gammamin), (float) FastMath.toRadians(this.gammamax), (float) FastMath.toRadians(this.gastep));
+        float[] gavals = FileUtils.arange((float) FastMath.toRadians(this.gammamin), (float) FastMath.toRadians(this.gammamax), (float) FastMath.toRadians(this.gastep));
         if (gavals.length==0) {
         	gavals = new float[] {(float) FastMath.toRadians(this.gammamin)};
         }
@@ -830,7 +852,7 @@ public class IndexDialog {
         //TODO aqui hauriem de partir problema per fer multithreading cridant la funcio index per cada thread
         
         
-        this.execute(dobs, factor, this.getWavel(), avals, bvals, cvals, alvals, bevals, gavals, 1);
+//        this.executeGridSearch(dobs, factor, this.getWavel(), avals, bvals, cvals, alvals, bevals, gavals, 1);
         
 //        PattOps.index(dobs, factor, avals, bvals, cvals, alvals, bevals, gavals, 1);
         
@@ -848,19 +870,13 @@ public class IndexDialog {
 //        	count++;
 //        }
 //        System.out.println("total "+count+" combinations (should be "+totalComb+")");
-       
-        
-    }
-    ProgressMonitor pm;
-    indexWorker sumwk;
-    //TODO afegir STOP button
-    private void execute(float[] dobs, float factor, float wavel, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
+    	
         pm = new ProgressMonitor(this.indexDialog,
                 "Indexing...",
                 "", 0, 100);
         pm.setProgress(0);
-        sumwk = new indexWorker(dobs, factor, wavel, aL, bL, cL, alL, beL, gaL, 1);
-        sumwk.addPropertyChangeListener(new PropertyChangeListener() {
+        gridSwk = new IndexGridSearchBruteWorker(dobs, factor, wavel, avals, bvals, cvals, alvals, bevals, gavals, 1);
+        gridSwk.addPropertyChangeListener(new PropertyChangeListener() {
     
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
@@ -869,10 +885,10 @@ public class IndexDialog {
                     int progress = (Integer) evt.getNewValue();
                     pm.setProgress(progress);
                     pm.setNote(String.format("%d%%\n", progress));
-                    if (pm.isCanceled() || sumwk.isDone()) {
+                    if (pm.isCanceled() || gridSwk.isDone()) {
                         Toolkit.getDefaultToolkit().beep();
                         if (pm.isCanceled()) {
-                            sumwk.cancel(true);
+                            gridSwk.cancel(true);
                             log.info("Sum canceled");
                         } else {
                             log.info("Sum finished!!");
@@ -880,9 +896,9 @@ public class IndexDialog {
                         pm.close();
                     }
                 }
-                if (sumwk.isDone()){
+                if (gridSwk.isDone()){
                 	log.debug("finished indexing worker");
-                	fillSolucions();
+//                	fillSolucions(gridSwk.getSolucions());
                 	//TODO afegir llista solucions per plotejar les posicions de les reflexions i executar d'ajust per fer fit!! PATTERN MATCHING 
                 	
 //                    Pattern2D suma = sumwk.getpattSum();
@@ -898,303 +914,107 @@ public class IndexDialog {
                 }
             }
         });
-        sumwk.execute();
+        gridSwk.execute();
     }
 
-    private void fillSolucions() {
-    	ArrayList<IndexResult.indexSolucio> sols = sumwk.getSolucions();
-    	Iterator<IndexResult.indexSolucio> itrS = sols.iterator();
-    	int i = 0;
-    	while (itrS.hasNext()) {
-    		IndexResult.indexSolucio is = itrS.next();
-    		//TODO print and fill table to select solution to plot?
-    		log.info(String.format("sol %d: %s", i+1,is.toString()));
-    		
-    		//també afegim la llista d'hkl per aquesta solucio
-    		
-            int[] hs = PattOps.range(is.hmin, is.hmax, 1);
-            int[] ks = PattOps.range(is.kmin, is.kmax, 1);
-            int[] ls = PattOps.range(is.lmin, is.lmax, 1);
-            
-            int[] lenHKL = new int[] { hs.length, ks.length, ls.length };
-//            log.info(String.format("sol: %f %f %f %f %f %f", is.a, is.b, is.c, is.al, is.be, is.ga));
-            for (int[] indexHKL : new CartesianProduct(lenHKL)) {
-            	int h = hs[indexHKL[0]];
-            	int k = ks[indexHKL[1]];
-            	int l = ls[indexHKL[2]];
-            	
-            	if ((h==0)&&(k==0)&&(l==0))continue;
-            	
-            	float dsp = PattOps.dspFromHKL(is.a, is.b, is.c, is.al, is.be, is.ga, h, k, l);
-            	
-//            	log.info(String.format("%d %d %d dcalc=%f",h,k,l,dsp)); //fins aquí dcalc esta be... igual que al calcul anterior
-            	
-            	is.addRef(h, k, l, dsp, this.getWavel());
+    private void executeDicothomy(IndexDichotomy id) {
+//    	float incPar = 0.5f;
+//    	float incAng = 1.0f;
+//        float[] Qobs = ds.getListPeaksQ(); //TODO IMPLEMENTAR LIMIT DE PICS
+//        int numIter = 6;
+//
+//        //to improve factor
+////        float[] dobs = ds.getListPeaksDsp(); //TODO IMPLEMENTAR LIMIT DE PICS
+//        float hsqmin = 1/ds.getMinPeakDsp();
+//        float factor = (float) (2*FastMath.sqrt(hsqmin));
+//        
+//        IndexCell ic = new IndexCell(this.amin,this.bmin,this.cmin,this.alfamin,this.betamin,this.gammamin,false);
+//        ic.setMaxCell(this.amax,this.bmax,this.cmax,this.alfamax,this.betamax,this.gammamax,false);
+//        
+//        float[] avals = ic.getAVals(incPar);
+//        float[] bvals = ic.getBVals(incPar);
+//        float[] cvals = ic.getCVals(incPar);
+//        float[] alvals = ic.getAlVals(incAng);
+//        float[] bevals = ic.getBeVals(incAng);
+//        float[] gavals = ic.getGaVals(incAng);
+//        
+        pm = new ProgressMonitor(this.indexDialog,"Indexing...","", 0, 100);
+        pm.setProgress(0);
+        dicW = new DichothomyWorker(id);
+        dicW.addPropertyChangeListener(new PropertyChangeListener() {
+    
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                log.debug(evt.getPropertyName());
+                if ("progress" == evt.getPropertyName() ) {
+                    int progress = (Integer) evt.getNewValue();
+                    pm.setProgress(progress);
+                    pm.setNote(String.format("%d%%\n", progress));
+                    if (pm.isCanceled() || dicW.isDone()) {
+                        Toolkit.getDefaultToolkit().beep();
+                        if (pm.isCanceled()) {
+                        	dicW.cancel(true);
+                            log.info("Indexing canceled");
+                        } else {
+                            log.info("Indexing finished!!");
+                        }
+                        pm.close();
+                    }
+                }
+                if (dicW.isDone()){
+                	log.debug("finished indexing worker");
+                	fillSolucions(dicW.getSolutions());
+                	//TODO afegir llista solucions per plotejar les posicions de les reflexions i executar d'ajust per fer fit!! PATTERN MATCHING 
+                	
+//                    Pattern2D suma = sumwk.getpattSum();
+//                    if (suma==null){
+//                        log.warning("Error summing files");
+//                        return;
+//                    }else{
+//                        suma.recalcMaxMinI();
+//                        suma.calcMeanI();
+//                        suma.recalcExcludedPixels();
+//                        updatePatt2D(suma,true,true);    
+//                    }
+                }
             }
-    		i++;
-    	}
-    	//test for now plot only the first one
-    	ds.getPatt1D().addDataSerie(sols.get(0).hkls);
-//    	plotpanel.actualitzaPlot();
-    	plotpanel.getMainframe().updateData(false);
-    	
-//		log.info(String.format("sol %d: %8.4f %8.4f %8.4f %6.2f %6.2f %6.2f res=%8.4f", i+1, sols[i][0],sols[i][1],sols[i][2],sols[i][3],sols[i][4],sols[i][5],sols[i][6]));
+        });
+        dicW.execute();
+    }
+
+    
+    //TODO: CLARAMENT HO HE DE PENSAR MILLOR, podria retornar objecte Indexing (interface que hagin de implementar tots els metodes, amb Qobs,... altres condicions i apart les solucions (que també han de ser un interface??).. un pel confus
+    private void fillSolucions(ArrayList<IndexSolution> sols) {
+        
+//        ArrayList<Cell> refinedCells = new ArrayList<Cell>();
+        
+        for (IndexSolution s:sols) {
+            Cell c = s.getRefinedCell();
+            log.info("ref cell= "+c.toStringCellParamOnly());
+            double m20 = s.getM20();
+            double i20 = s.getI20();
+        }
 
     }
     
-    private float getAmax() {
-        return amax;
-    }
-
-    private void setAmax(float amax) {
-        this.amax = amax;
-    }
-
-    private float getBmax() {
-        return bmax;
-    }
-
-    private void setBmax(float bmax) {
-        this.bmax = bmax;
-    }
-
-    private float getCmax() {
-        return cmax;
-    }
-
-    private void setCmax(float cmax) {
-        this.cmax = cmax;
-    }
-
-    private float getBetamin() {
-        return betamin;
-    }
-
-    private void setBetamin(float betamin) {
-        this.betamin = betamin;
-    }
-
-    private float getBetamax() {
-        return betamax;
-    }
-
-    private void setBetamax(float betamax) {
-        this.betamax = betamax;
-    }
-
-    private float getVmin() {
-        return vmin;
-    }
-
-    private void setVmin(float vmin) {
-        this.vmin = vmin;
-    }
-
-    private float getVmax() {
-        return vmax;
-    }
-
-    private void setVmax(float vmax) {
-        this.vmax = vmax;
-    }
-
-    private float getWavel() {
-        return wavel;
-    }
-
-    private void setWavel(float wavel) {
-        this.wavel = wavel;
-    }
-
-    private float getMw() {
-        return mw;
-    }
-
-    private void setMw(float mw) {
-        this.mw = mw;
-    }
-
-    private float getDensity() {
-        return density;
-    }
-
-    private void setDensity(float density) {
-        this.density = density;
-    }
-
-    private float getDensityerr() {
-        return densityerr;
-    }
-
-    private void setDensityerr(float densityerr) {
-        this.densityerr = densityerr;
-    }
-
-    private float getEps() {
-        return eps;
-    }
-
-    private void setEps(float eps) {
-        this.eps = eps;
-    }
-
-    private float getMinfom() {
-        return minfom;
-    }
-
-    private void setMinfom(float minfom) {
-        this.minfom = minfom;
-    }
-
-    private int getSpurious() {
-        return spurious;
-    }
-
-    private void setSpurious(int spurious) {
-        this.spurious = spurious;
-    }
-
-    private boolean isCubic() {
-        return cubic;
-    }
-    private int isCubicInt() {
-        if (cubic) return 1;
-        return 0;
-    }
-
-    private void setCubic(boolean cubic) {
-        this.cubic = cubic;
-    }
-
-    private boolean isTetra() {
-        return tetra;
-    }
-    private int isTetraInt() {
-        if (tetra) return 1;
-        return 0;
-    }
-
-    private void setTetra(boolean tetra) {
-        this.tetra = tetra;
-    }
-
-    private boolean isHexa() {
-        return hexa;
-   }
-    private int isHexaInt() {
-        if (hexa) return 1;
-        return 0;
-    }
-
-    private void setHexa(boolean hexa) {
-        this.hexa = hexa;
-    }
-
-    private boolean isOrto() {
-        return orto;
-    }
-    private int isOrtoInt() {
-        if (orto) return 1;
-        return 0;
-    }
-    
-    private void setOrto(boolean orto) {
-        this.orto = orto;
-    }
-
-    private boolean isMono() {
-        return mono;
-    }
-    private int isMonoInt() {
-        if (mono) return 1;
-        return 0;
-    }
-    
-    private void setMono(boolean mono) {
-        this.mono = mono;
-    }
-
-    private boolean isTric() {
-        return tric;
-    }
-    private int isTricInt() {
-        if (tric) return 1;
-        return 0;
-    }
-    
-    private void setTric(boolean tric) {
-        this.tric = tric;
-    }
-
-    private boolean isZeroRef() {
-        return zeroRef;
-    }
-    private int isZeroRefInt() {
-        if (zeroRef) return 1;
-        return 0;
-    }
-
-    private void setZeroRef(boolean zeroRef) {
-        this.zeroRef = zeroRef;
-    }
-
-    private boolean isPrevzero() {
-        return prevzero;
-    }
-    private int isPrevzeroInt() {
-        if (prevzero) return 1;
-        return 0;
-    }
-
-    private void setPrevzero(boolean prevzero) {
-        this.prevzero = prevzero;
-    }
-
-    private boolean isDic06() {
-        return dic06;
-    }
-    private int isDic06Int() {
-        if (dic06) return 1;
-        return 0;
-    }
-
-    private void setDic06(boolean dic06) {
-        this.dic06 = dic06;
-    }
-
-    private int getNpeaks() {
-        return npeaks;
-    }
-
-    private void setNpeaks(int npeaks) {
-        this.npeaks = npeaks;
-    }
-
-    private boolean isEverythingOK() {
-        return everythingOK;
-    }
-
-    private void setEverythingOK(boolean everythingOK) {
-        this.everythingOK = everythingOK;
-    }
     
     public void visible(boolean vis) {
     	this.indexDialog.setVisible(vis);
     }
     
-    public static class indexWorker extends SwingWorker<Integer,Integer> {
+    public static class IndexGridSearchBruteWorker extends SwingWorker<Integer,Integer> {
 
 		@Override
 		protected Integer doInBackground() throws Exception {
-			sols = PattOps.index(dobs, factor, wave, aL, bL, cL, alL, beL, gaL, threadN);
+			sols = PattOps.indexGridSearchBrute(dobs, factor, wave, aL, bL, cL, alL, beL, gaL, threadN);
 			return 0;
 		}
-    	ArrayList<IndexResult.indexSolucio> sols;
+    	ArrayList<IndexSolutionGrid> sols;
 		float[] dobs,aL,bL,cL,alL,beL,gaL;
 		float factor,wave;
 		int threadN;
 		
-		public indexWorker(float[] dobs, float factor, float wavel, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
+		public IndexGridSearchBruteWorker(float[] dobs, float factor, float wavel, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
 			this.dobs=dobs;
 			this.factor=factor;
 			this.wave=wavel;
@@ -1207,8 +1027,34 @@ public class IndexDialog {
 			this.threadN=threadN;
 		}
 		
-		public ArrayList<IndexResult.indexSolucio> getSolucions() {
+		public ArrayList<IndexSolutionGrid> getSolucions() {
 			return sols;
 		}
+    }
+    
+    public static class DichothomyWorker extends SwingWorker<Integer,Integer> {
+
+		@Override
+		protected Integer doInBackground() throws Exception {
+			
+			sols = id.runIndexing(-1, -1, -1); 
+			return 0;
+		}
+		
+		IndexDichotomy id;
+		ArrayList<IndexSolutionDichotomy> sols;
+		
+		public DichothomyWorker(IndexDichotomy id) {
+			this.id=id;
+		}
+		
+		public ArrayList<IndexSolution> getSolutions(){
+		    ArrayList<IndexSolution> iss = new ArrayList<IndexSolution>();
+		    for (IndexSolutionDichotomy sol:this.sols) {
+		        iss.add(sol.getIS());
+		    }
+		    return iss;
+		}
+		
     }
 }

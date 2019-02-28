@@ -47,6 +47,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.vava33.cellsymm.Cell;
+import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.cellsymm.SpaceGroup;
 import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.d1dplot.auxi.FilteredListModel;
@@ -507,12 +508,6 @@ public class Database  {
         listCompounds.setModel(lm);
 //        tAOut.ln(" Reading default database: "+PDDatabase.getDefaultDBpath());//TODO no cal dir-ho ja que es diu al llegir-ho
         this.readDB(true);
-        //select the first compound
-        //set the log of cellsymmetry to the same level
-        Cell.setLogEnabled(log.isEnabled());
-        Cell.setLogLevel(log.getLogLevelString());
-        SpaceGroup.setLogEnabled(log.isEnabled());
-        SpaceGroup.setLogLevel(log.getLogLevelString());
     }
 
 	//es una manera de posar al log tot el que surt pel txtArea local
@@ -1173,7 +1168,7 @@ public class Database  {
         if (cf.getSgNum()==0) return;
         //else calculem reflexions, utilitzem directament cf que ha estat corregit si era necessari
         Cell cel = new Cell(cf);
-        cel.latgen(minDspacingLatGen);
+        cel.generateHKLsAsymetricUnitCrystalFamily(1/(minDspacingLatGen*minDspacingLatGen), true, true, true, true);
         cel.calcInten(true);
         cel.normIntensities(100);
         this.textAreaDsp.setText("");
@@ -1182,11 +1177,7 @@ public class Database  {
     }
     
     protected void do_btnCalcRefl_actionPerformed(ActionEvent e) {
-        SpaceGroup sg = new SpaceGroup(txtSpaceGroup.getText().trim());
-        if (sg.getSGnum()<=0) {
-//            FileUtils.InfoDialog(this, "SG not found, calculation of reflections not possible", "SG not found");
-            return; //el info dialog esta dins de SpaceGroup
-        }
+        SpaceGroup sg = CellSymm_global.getSpaceGroupByName(txtSpaceGroup.getText().trim(),true);
         String cell = txtCellParameters.getText().trim();
         String[] cellp = cell.split("\\s+");
         float a,b,c,alfa,beta,gamma;
@@ -1202,8 +1193,8 @@ public class Database  {
             JOptionPane.showMessageDialog(DBdialog, "Cell parameters needed (a b c alpha beta gamma) to parse hkl file");
             return;
         }
-        Cell cel = new Cell(a,b,c,alfa,beta,gamma,sg.getSGnum());
-        cel.latgen(1.0f);
+        Cell cel = new Cell(a,b,c,alfa,beta,gamma,true,sg);
+        cel.generateHKLsAsymetricUnitCrystalFamily(1, true, true, true, true);
         
         this.textAreaDsp.setText("");
         this.textAreaDsp.setText(cel.getListAsString_HKLMerged_dsp_Fc2());
