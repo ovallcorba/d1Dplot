@@ -1,4 +1,4 @@
-package com.vava33.d1dplot.auxi;
+package com.vava33.d1dplot.index;
 
 /*
  * Implementation of indexing solution for dichotomy
@@ -8,14 +8,23 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.HKLrefl;
 import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.data.DataPoint_hkl;
+import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -53,13 +62,15 @@ public class IndexSolutionDichotomy implements IndexSolution{
         }
     }
     
-    ArrayList<Qinterval> Qintervals;
+    List<Qinterval> Qintervals;
     Cell cell_base;
     float incPar, incAngRAD; //les Seguents!! les de la propera iteracio
     double[] Qobs;
     double Qmax, Qerr;
-    double m20,f20;
-    int i20;
+    double m20,f20,q20;
+    boolean m20Calc;
+    Cell cell_refined;
+    int i20,n20;
     
     public IndexSolutionDichotomy(Cell celMin, float currentIncPar, float currentIncAng,double[] qobs, double qmax, double deltaQerr) {
         this.cell_base=celMin;
@@ -69,6 +80,18 @@ public class IndexSolutionDichotomy implements IndexSolution{
         this.Qerr=deltaQerr;
         this.Qmax=qmax;
         this.Qintervals = new ArrayList<Qinterval>();
+        this.m20Calc=false;
+    }
+    
+    //copia les cel·les, intervals i Q's
+    public IndexSolutionDichotomy(IndexSolutionDichotomy is) {
+        this(is.cell_base,is.incPar,is.incAngRAD,is.Qobs,is.Qmax,is.Qerr);
+        this.cell_refined=new Cell(is.getRefinedCell());
+    }
+    
+    @Override
+    public IndexSolution getDuplicate() {
+        return new IndexSolutionDichotomy(this);
     }
     
     public boolean areAllQobsInsideHKLQintervals(){
@@ -85,7 +108,7 @@ public class IndexSolutionDichotomy implements IndexSolution{
         for (int k=0; k<Qobs.length;k++) {
             log.config("*** checking reflection with qobs="+Qobs[k]);
             //mirem que estigui a algun interval de Q
-            if (!this.checkIfinQintevals(Qobs[k])) {
+            if (!this.checkIfinQintevals(Qobs[k],true)) {
                 //només que una reflexio no es trobi podem ja passar a la següent cel·la base (TODO: a no ser que implementem impureses que seria facil posar-ho aquí com un contador)
                 log.config("not in interval");
                 esSolucio=false;
@@ -123,9 +146,7 @@ public class IndexSolutionDichotomy implements IndexSolution{
     }
     
     //uses variable Qintervals in the current state
-    public boolean checkIfinQintevals(double qval) {
-
-        
+    public boolean checkIfinQintevals(double qval, boolean breakOnFirst) {
         Iterator<Qinterval> itQ = Qintervals.iterator();
         boolean containsIt = false;
         while (itQ.hasNext()) {
@@ -138,7 +159,7 @@ public class IndexSolutionDichotomy implements IndexSolution{
                 qinter.hkl_qobs=qval;
                 log.config("... in interval "+qinter.printLong());
 //              log.info(String.format("checking interval [%.3f,%.3f] %d %d %d --> %b", qinter.Qlow,qinter.Qhigh,qinter.h,qinter.k,qinter.l,containsIt));
-                break;
+                if(breakOnFirst)break;
             }
 //          log.info(String.format("checking interval [%.3f,%.3f] %d %d %d --> %b", qinter.Qlow,qinter.Qhigh,qinter.h,qinter.k,qinter.l,containsIt));
         }
@@ -182,8 +203,8 @@ public class IndexSolutionDichotomy implements IndexSolution{
     public float[] getGaVals(float gaMax) {
         if (gaMax<0) gaMax = this.getGaBaseRad()+(incAngRAD*2);
         return FileUtils.arange(this.getGaBaseRad(), gaMax, incAngRAD);
-    }   
-
+    }
+    
     public float getAbase() {
         return (float) this.cell_base.getCellParameters(false)[0];
     }
@@ -205,7 +226,10 @@ public class IndexSolutionDichotomy implements IndexSolution{
 
     @Override
     public Cell getRefinedCell() {
-        return this.cell_base.refineCellByQobs(Qobs, Qmax);
+        if(this.cell_refined==null) {
+            this.cell_refined=this.cell_base.refineCellByQobs(Qobs, Qmax);
+        }
+        return this.cell_refined;
     }
 
     @Override
@@ -214,22 +238,29 @@ public class IndexSolutionDichotomy implements IndexSolution{
     }
     @Override
     public double getM20() {
-        calcM20();
         return m20;
     }
     @Override
     public int getI20() {
         return i20;
     }
+    @Override
+    public double getQ20() {
+        return q20;
+    }
+    @Override
+    public int getN20() {
+        return n20;
+    }
     
-    private void calcM20() {
-        double Q20=0;
+    @Override
+    public void calcM20() {
         i20=0;
         if (Qobs.length>=20) {
-            Q20=Qobs[19];
+            q20=Qobs[19];
             i20=20;
         }else {
-            Q20=Qobs[Qobs.length-1];
+            q20=Qobs[Qobs.length-1];
             i20=Qobs.length;
         }
         
@@ -241,9 +272,8 @@ public class IndexSolutionDichotomy implements IndexSolution{
          * 3- calcular intervalsQ
          * 4- calcular desviacions, i.e. M20
          */
-        Cell c = getRefinedCell();   
 //        ArrayList<HKLrefl> hkls = c.generateHKLsAsymetricUnitCrystalFamily(Q20);
-        ArrayList<HKLrefl> hkls = c.generateHKLsAsymetricUnitCrystalFamily(Q20+Qerr, false, false, true, false, true); //afegeixo Qerr pero no se si caldria...
+        List<HKLrefl> hkls = getRefinedCell().generateHKLsAsymetricUnitCrystalFamily(q20+Qerr, true, true, true, false, true); //afegeixo Qerr pero no se si caldria... tenia false false al centering i sg però millor ho tinc en compte i així puc reutilitzar canviant la cel·la
 //        int N20 = hkls.size();
 //        ArrayList<Qinterval> finalQintervals = new ArrayList<Qinterval>();
         //TODO: solapo la variable Qintervals... potser no faria falta una variable per això ja que només ho farem servir aquí no? bé, en tot cas millor solapar perquè si ens interessa és a partir d'aquí
@@ -255,31 +285,70 @@ public class IndexSolutionDichotomy implements IndexSolution{
         }
         //Posem cada Qobs al seu interval, i.e. fem matching de reflexions (ja que algunes no seran observades)
         for (int k=0; k<Qobs.length;k++) {
-            this.checkIfinQintevals(Qobs[k]); //aixo ja grava hkl_qobs dins l'interval si es que hi és
+            this.checkIfinQintevals(Qobs[k],false); //aixo ja grava hkl_qobs dins l'interval si es que hi és
         }
         //ara ja podem calcular les diferencies acumulades i la M20 mirant reflexio per reflexio de cada interval
         double acumDiff=0;
-        int N20=0;
+        n20=0;
         for(Qinterval qint:Qintervals) {
-            if (qint.hkl_qobs>Q20) {//ja estem a la Qmax, de totes formes nomes he generat fins a Q20... es comprovacio redundant
+            if (qint.hkl_qobs>q20) {//ja estem a la Qmax, de totes formes nomes he generat fins a Q20... es comprovacio redundant
                 break;
             }
-            N20++;
+            n20++;
             if (qint.hkl_qobs>0) { //vol dir que tenim reflexio observada dins l'interval 
                 double qcalc = qint.hkl.calcQvalue();
                 acumDiff = acumDiff + FastMath.abs(qcalc-qint.hkl_qobs);
             }
             //fem un print per pantalla equivalent al dicvol
-            log.infof("%d %d %d Qcalc=%.5f Qobs=%.5f",qint.hkl.getHKLindices()[0],qint.hkl.getHKLindices()[1],qint.hkl.getHKLindices()[2],qint.hkl.calcQvalue(),qint.hkl_qobs);
+            log.configf("%d %d %d Qcalc=%.5f Qobs=%.5f",qint.hkl.getHKLindices()[0],qint.hkl.getHKLindices()[1],qint.hkl.getHKLindices()[2],qint.hkl.calcQvalue(),qint.hkl_qobs);
         }
         
         double meandiff = acumDiff/i20;
-        this.m20=Q20/(2*meandiff*N20);
+        this.m20=q20/(2*meandiff*n20);
         
-        log.infof("m20=%.3f i20=%d N20=%d Q20=%.5f",m20,i20,N20,Q20);
-        
-        
+        log.infof("m20=%.3f i20=%d N20=%d Q20=%.5f",m20,i20,n20,q20);
+
+        this.m20Calc=true;
     }
     
+    @Override
+    public String getInfoAsStringToSaveResults() {
+        if (!this.m20Calc)this.calcM20();        
+        
+        StringBuilder sb = new StringBuilder();
+        String LS = D1Dplot_global.lineSeparator;
+        sb.append(this.getRefinedCell().toStringCellParamOnly()+LS);
+        
+        n20=0;
+        sb.append("  h  k  l    Qcalc     Qobs"+LS);
+        for(Qinterval qint:Qintervals) {
+            //fem un print per pantalla equivalent al dicvol
+            sb.append(String.format(" %2d %2d %2d %8.5f %8.5f",qint.hkl.getHKLindices()[0],qint.hkl.getHKLindices()[1],qint.hkl.getHKLindices()[2],qint.hkl.calcQvalue(),qint.hkl_qobs)+LS);
+            n20++;
+        }
+//        out.println(String.format("m20=%.3f i20=%d N20=%d Q20=%.5f",m20,i20,N20,Qintervals.get(Qintervals.size()-1).hkl_qobs));
+//        sb.append(String.format("     M20=%3f",m20)+LS);
+//        sb.append(String.format("     i20=%d",i20)+LS);
+//        sb.append(String.format("     Q20=%3f",q20)+LS); //Qintervals.get(Qintervals.size()-1).hkl_qobs)+LS)
+//        sb.append(String.format("     Nrefs up to Q20=%d",n20)+LS);
+        sb.append(String.format("     M(%d)=%.2f",i20,m20)+LS);
+//        sb.append(String.format("     i20=%d",i20)+LS);
+        sb.append(String.format("     Q(%d)=%.5f",i20,q20)+LS); //Qintervals.get(Qintervals.size()-1).hkl_qobs)+LS)
+        sb.append(String.format("     Nrefs up to Q(%d)=%d",i20,n20)+LS);
+
+//        out.println(FileUtils.getCharLine('-', 80));
+        log.info(sb.toString());
+        return sb.toString();
+    }
+
+    @Override
+    public DataSerie getAsHKL_dsp_dataserie() {
+        DataSerie ds = new DataSerie(SerieType.hkl,Xunits.dsp, null);
+        for (HKLrefl pdr:this.getRefinedCell().generateHKLsAsymetricUnitCrystalFamily(Qmax, true,true,true,true,true)) {
+            ds.addPoint(new DataPoint_hkl(pdr.getDsp(),pdr.getYcalc(),0,pdr));
+        }
+        ds.serieName=this.getRefinedCell().toStringCellParamOnly();
+        return ds;
+    }
 }
     

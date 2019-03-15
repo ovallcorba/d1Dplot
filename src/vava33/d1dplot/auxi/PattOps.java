@@ -10,10 +10,7 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Locale;
+import java.util.List;
 
 import javax.swing.table.DefaultTableModel;
 
@@ -26,10 +23,12 @@ import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.d1dplot.D1Dplot_global;
-import com.vava33.d1dplot.auxi.DataSerie.serieType;
-import com.vava33.d1dplot.auxi.DataSerie.xunits;
-import com.vava33.d1dplot.auxi.IndexSolutionGrid;
-import com.vava33.d1dplot.auxi.PDReflection;
+import com.vava33.d1dplot.data.DataPoint;
+import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.Plottable_point;
+import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.index.IndexGrid;
+import com.vava33.d1dplot.index.IndexSolutionGrid;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -42,8 +41,8 @@ public final class PattOps {
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     private static DataSerie bkg_Bruchner_firstPass(DataSerie ds,double t2ini){  //no depen de N
-        DataSerie ds0 = new DataSerie(ds,serieType.bkg,false);
-        double[] vals = ds.calcYmeanYDesvYmaxYmin(); 
+        DataSerie ds0 = new DataSerie(ds,SerieType.bkg,false);
+        double[] vals = ds.calcYmeanYDesvYmaxYmin(false); 
         double Imean = vals[0];
         double Imin = vals[3];
         
@@ -51,9 +50,9 @@ public final class PattOps {
         
         //ara corregim els punts
         for(int i=0; i<ds.getNpoints(); i++){
-            double x = ds.getPoint(i).getX();
+            double x = ds.getPointWithCorrections(i,false).getX();
             if (x<t2ini)continue;
-            double y = ds.getPoint(i).getY();
+            double y = ds.getPointWithCorrections(i,false).getY();
             
             if(y>(Imean+10*(Imean-Imin))){
                 ds0.addPoint(new DataPoint(x,Imean+10*(Imean-Imin),0));
@@ -69,19 +68,19 @@ public final class PattOps {
         
         //primer fem el pas preliminar (es guarda a PATT[1])
         DataSerie ds0 = bkg_Bruchner_firstPass(ds,t2ini);
-        DataSerie ds1 = new DataSerie(ds0,serieType.bkg,false);
+        DataSerie ds1 = new DataSerie(ds0,SerieType.bkg,false);
 
         for(int p=0;p<niter;p++){
-            ds1 = new DataSerie(ds0,serieType.bkg,false);
+            ds1 = new DataSerie(ds0,SerieType.bkg,false);
             
             for(int i=0; i<ds0.getNpoints(); i++){
                 //rempla�arem cada punt i del diagrama per un de fons, que es la mitja dels +-N veins
                 
-                if(ds0.getPoint(i).getX()<t2ini)continue;
+                if(ds0.getPointWithCorrections(i,false).getX()<t2ini)continue;
                 
                 //en cas que tinguem N variable:
                 if(multi){
-                    double t2punt= ds0.getPoint(i).getX();
+                    double t2punt= ds0.getPointWithCorrections(i,false).getX();
                     int rows = m.getRowCount();
                     for(int j=0;j<rows;j++){//per cada fila mirem
                             double Ti = (Double) (m.getValueAt(j, 0));
@@ -99,9 +98,9 @@ public final class PattOps {
                         //agafem intensitat del primer punt si s'ha triat NORMAL
                         //ORI2: AGAFEM LA COMPLEMENTARIA INVERTIDA si s'ha triat INVERT
                         if(edgenormal){
-                            sumI=sumI+ds0.getPoint(0).getY();
+                            sumI=sumI+ds0.getPointWithCorrections(0,false).getY();
                         }else{
-                            sumI=sumI+ds0.getPoint(0).getY()+(ds0.getPoint(0).getY()-ds0.getPoint(-j).getY());
+                            sumI=sumI+ds0.getPointWithCorrections(0,false).getY()+(ds0.getPointWithCorrections(0,false).getY()-ds0.getPointWithCorrections(-j,false).getY());
                         }
                         continue;
 
@@ -109,7 +108,7 @@ public final class PattOps {
                     //AQUI FALTA IMPLEMENTAR LA COMPLEMENTARIA INVERTIDA TAMB�
                     if(j>=ds0.getNpoints()-1){
                         //agafem intensitat de l'ultim punt
-                        sumI=sumI+ds0.getPoint(ds0.getNpoints()-1).getY();
+                        sumI=sumI+ds0.getPointWithCorrections(ds0.getNpoints()-1,false).getY();
                         continue;
                     }
                     if(j==i){
@@ -117,17 +116,17 @@ public final class PattOps {
                         continue;
                     }
                     //cas punt "centre" diagrama
-                    sumI=sumI+ds0.getPoint(j).getY();
+                    sumI=sumI+ds0.getPointWithCorrections(j,false).getY();
                 }
 
                //CANVI 130313: Comparem Ynew amb diagrama original (Patt[0]) i ens quedem amb la intensitat m�s petita
                 double Ynew=sumI/(2*nveins);
-                if(Ynew<ds0.getPoint(i).getY()){
+                if(Ynew<ds0.getPointWithCorrections(i,false).getY()){
                     //agafem el nou
-                    ds1.addPoint(new DataPoint(ds0.getPoint(i).getX(),Ynew,0));
+                    ds1.addPoint(new DataPoint(ds0.getPointWithCorrections(i,false).getX(),Ynew,0));
                 }else{
                     //ens quedem l'Yobs original
-                    ds1.addPoint(new DataPoint(ds0.getPoint(i).getX(),ds0.getPoint(i).getY(),0));
+                    ds1.addPoint(new DataPoint(ds0.getPointWithCorrections(i,false).getX(),ds0.getPointWithCorrections(i,false).getY(),0));
                 }
             }
             
@@ -143,11 +142,11 @@ public final class PattOps {
         //dividirem la dataserie en troços (npoints) i a cada lloc buscarem el punt amb la I mes petita que estigui per sota del promig
         int npzona = (int)(ds.getNpoints()/npoints);
         log.debug("npuntsZona="+npzona);
-        DataSerie dpPuntsFons = new DataSerie(ds,serieType.bkgEstimP,false);
+        DataSerie dpPuntsFons = new DataSerie(ds,SerieType.bkgEstimP,false);
         int startP = 0;
         while ((startP+npzona)<ds.getNpoints()){
-            double[] meanYzonaYdesv = ds.calcYmeanYDesvYmaxYmin(startP, startP+npzona);
-            DataPoint dp = ds.getMinYDataPoint(startP, startP+npzona);
+            double[] meanYzonaYdesv = ds.calcYmeanYDesvYmaxYmin(startP, startP+npzona,false);
+            Plottable_point dp = ds.getMinYDataPoint(startP, startP+npzona,false);
             if (dp.getY()>(meanYzonaYdesv[0]+2*meanYzonaYdesv[1]))continue; //el saltem
             if (dp!=null){
                 dpPuntsFons.addPoint(dp);
@@ -164,24 +163,24 @@ public final class PattOps {
            double[] y = new double[puntsFons.getNpoints()];
            
            for (int i=0;i<puntsFons.getNpoints();i++){
-               x[i]=puntsFons.getPoint(i).getX();
-               y[i]=puntsFons.getPoint(i).getY();
+               x[i]=puntsFons.getPointWithCorrections(i,false).getX();
+               y[i]=puntsFons.getPointWithCorrections(i,false).getY();
            }
            
            UnivariateInterpolator in = new SplineInterpolator();
            UnivariateFunction f = in.interpolate(x, y);
 
-           DataSerie fons = new DataSerie(ds,serieType.bkg,false);
+           DataSerie fons = new DataSerie(ds,SerieType.bkg,false);
            
 
-           double ini2t = puntsFons.getPoint(0).getX();
-           DataPoint close = ds.getClosestDP(new DataPoint(ini2t,puntsFons.getPoint(0).getY(),0), 0.1, 50);
+           double ini2t = puntsFons.getPointWithCorrections(0,false).getX();
+           Plottable_point close = ds.getClosestDP(new DataPoint(ini2t,puntsFons.getPointWithCorrections(0,false).getY(),0), 0.1, 50,false);
            int index = ds.getIndexOfDP(close);
-           double curr2t = ds.getPoint(index).getX();
-           while (curr2t<puntsFons.getPoint(puntsFons.getNpoints()-1).getX()){
+           double curr2t = ds.getPointWithCorrections(index,false).getX();
+           while (curr2t<puntsFons.getPointWithCorrections(puntsFons.getNpoints()-1,false).getX()){
                fons.addPoint(new DataPoint(curr2t,f.value(curr2t),0));
                index = index +1;
-               curr2t = ds.getPoint(index).getX();
+               curr2t = ds.getPointWithCorrections(index,false).getX();
            }
 
            return fons;
@@ -196,7 +195,7 @@ public final class PattOps {
            final WeightedObservedPoints obs2 = new WeightedObservedPoints();
            
            for (int i=0;i<puntsFons.getNpoints();i++){
-               obs2.add(puntsFons.getPoint(i).getX(),puntsFons.getPoint(i).getY());
+               obs2.add(puntsFons.getPointWithCorrections(i,false).getX(),puntsFons.getPointWithCorrections(i,false).getY());
            }
            final double[] coeff = fitter.fit(obs2.toList());
 
@@ -204,40 +203,42 @@ public final class PattOps {
            
            final PolynomialFunction f = new PolynomialFunction(coeff);
 
-           DataSerie fons = new DataSerie(ds,serieType.bkg,false);
+           DataSerie fons = new DataSerie(ds,SerieType.bkg,false);
            
            //pintem el fons polinomicalculat
-           double ini2t = puntsFons.getPoint(0).getX();
-           DataPoint close = ds.getClosestDP(new DataPoint(ini2t,puntsFons.getPoint(0).getY(),0), 0.1, 50);
+           double ini2t = puntsFons.getPointWithCorrections(0,false).getX();
+           Plottable_point close = ds.getClosestDP(new DataPoint(ini2t,puntsFons.getPointWithCorrections(0,false).getY(),0), 0.1, 50,false);
            int index = ds.getIndexOfDP(close);
-           double curr2t = ds.getPoint(index).getX();
-           while (curr2t<puntsFons.getPoint(puntsFons.getNpoints()-1).getX()){
+           double curr2t = ds.getPointWithCorrections(index,false).getX();
+           while (curr2t<puntsFons.getPointWithCorrections(puntsFons.getNpoints()-1,false).getX()){
                fons.addPoint(new DataPoint(curr2t,f.value(curr2t),0));
                index = index +1;
-               curr2t = ds.getPoint(index).getX();
+               curr2t = ds.getPointWithCorrections(index,false).getX();
            }
            return fons;
        }
+    
+    private static float percent_auto_factor=0.999f;//this will be multiplied to the minimum factor to give some margin //TODO Passar a parametre global?
     
     //it returns the coincident zone only
     // double t2i,t2f for factor calculation in case factor < 1
     public static DataSerie subtractDataSeriesCoincidentPoints(DataSerie ds1, DataSerie ds2, float factor, double fac_t2i, double fac_t2f){
         int tol =30;
-        float percent_auto_factor = 0.95f; //this will be multiplied to the minimum factor to give some margin //TODO Passar a parametre global?
+        
         
         DataSerie result = new DataSerie(ds1,ds1.getTipusSerie(),false);
-        double t2i = FastMath.max(ds1.getPoint(0).getX(), ds2.getPoint(0).getX());
-        double t2f = FastMath.min(ds1.getPoint(ds1.getNpoints()-1).getX(), ds2.getPoint(ds2.getNpoints()-1).getX());    
+        double t2i = FastMath.max(ds1.getPointWithCorrections(0,false).getX(), ds2.getPointWithCorrections(0,false).getX());
+        double t2f = FastMath.min(ds1.getPointWithCorrections(ds1.getNpoints()-1,false).getX(), ds2.getPointWithCorrections(ds2.getNpoints()-1,false).getX());    
         
         
-        DataPoint dp1ini = ds1.getClosestDP_xonly(t2i, tol);
-        DataPoint dp1fin = ds1.getClosestDP_xonly(t2f, tol);
+        Plottable_point dp1ini = ds1.getClosestDP_xonly(t2i, tol);
+        Plottable_point dp1fin = ds1.getClosestDP_xonly(t2f, tol);
         
         int iinidp1 = ds1.getIndexOfDP(dp1ini);
         int ifindp1 = ds1.getIndexOfDP(dp1fin);
         
-        DataPoint dp2ini = ds2.getClosestDP_xonly(t2i, tol);
-        DataPoint dp2fin = ds2.getClosestDP_xonly(t2f, tol);
+        Plottable_point dp2ini = ds2.getClosestDP_xonly(t2i, tol);
+        Plottable_point dp2fin = ds2.getClosestDP_xonly(t2f, tol);
         
         int iinidp2 = ds2.getIndexOfDP(dp2ini);
         int ifindp2 = ds2.getIndexOfDP(dp2fin);
@@ -258,9 +259,9 @@ public final class PattOps {
 
         
         for (int i=0;i<rangedp1;i++){ //TODO HAURIA DE SER <=  (Comprovar-ho)
-            result.addPoint(new DataPoint(ds1.getPoint(iinidp1+i).getX(),ds1.getPoint(iinidp1+i).getY()-factor*ds2.getPoint(iinidp2+i).getY(),ds1.getPoint(iinidp1+i).getSdy()+factor*ds2.getPoint(iinidp2+i).getSdy()));
+            result.addPoint(new DataPoint(ds1.getPointWithCorrections(iinidp1+i,false).getX(),ds1.getPointWithCorrections(iinidp1+i,false).getY()-factor*ds2.getPointWithCorrections(iinidp2+i,false).getY(),ds1.getPointWithCorrections(iinidp1+i,false).getSdy()+factor*ds2.getPointWithCorrections(iinidp2+i,false).getSdy()));
         }
-        
+        result.setScale(factor);
         return result;
     }
     
@@ -268,11 +269,11 @@ public final class PattOps {
     public static float getScaleFactor(DataSerie ds1, DataSerie ds2, int iinidp1, int iinidp2, int rangedp, double fac_t2i, double fac_t2f) {
         float factor = 100;
         for (int i=0;i<rangedp;i++){ //TODO HAURIA DE SER <=  (Comprovar-ho)
-            double x1 = ds1.getPoint(iinidp1+i).getX();
+            double x1 = ds1.getPointWithCorrections(iinidp1+i,false).getX();
             if (x1<fac_t2i)continue;
             if (x1>fac_t2f)break;
-            double y1 = ds1.getPoint(iinidp1+i).getY();
-            double y2 = ds2.getPoint(iinidp2+i).getY();
+            double y1 = ds1.getPointWithCorrections(iinidp1+i,false).getY();
+            double y2 = ds2.getPointWithCorrections(iinidp2+i,false).getY();
             float fac = (float) (y1/y2);
             if (fac<factor)factor = fac;
         }
@@ -290,14 +291,14 @@ public final class PattOps {
       double[] t2is = new double[dss.length];
       double[] t2fs = new double[dss.length];
       for (int i=0; i<dss.length;i++){
-          t2is[i]=dss[i].getPoint(0).getX();
-          t2fs[i]=dss[i].getPoint(dss[i].getNpoints()-1).getX();
+          t2is[i]=dss[i].getPointWithCorrections(0,false).getX();
+          t2fs[i]=dss[i].getPointWithCorrections(dss[i].getNpoints()-1,false).getX();
       }
       double t2i = findMax(t2is);
       double t2f = findMin(t2fs);
       
-      DataPoint[] dpini = new DataPoint[dss.length];
-      DataPoint[] dpfin = new DataPoint[dss.length];
+      Plottable_point[] dpini = new DataPoint[dss.length];
+      Plottable_point[] dpfin = new DataPoint[dss.length];
       int[] iinidp = new int[dss.length];
       int[] ifindp = new int[dss.length];
       int[] rangedp = new int[dss.length];
@@ -326,10 +327,10 @@ public final class PattOps {
           double inten = 0;
           double sdinten = 0;
           for (int j=0; j<dss.length;j++){
-              inten = inten + dss[j].getPoint(iinidp[j]+i).getY();
-              sdinten = sdinten + dss[j].getPoint(iinidp[j]+i).getSdy();
+              inten = inten + dss[j].getPointWithCorrections(iinidp[j]+i,false).getY();
+              sdinten = sdinten + dss[j].getPointWithCorrections(iinidp[j]+i,false).getSdy();
           }
-                    result.addPoint(new DataPoint(dss[0].getPoint(iinidp[0]+i).getX(),inten,sdinten));
+                    result.addPoint(new DataPoint(dss[0].getPointWithCorrections(iinidp[0]+i,false).getX(),inten,sdinten));
       }
       return result;
   }
@@ -340,16 +341,16 @@ public final class PattOps {
         
         DataSerie out = new DataSerie(DSorigin,DSorigin.getTipusSerie(),false); //ja l'afegirem al pattern despres si cal
         
-        DataPoint ini = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(1).getX(), 50.0);
-        DataPoint fin = DSorigin.getClosestDP_xonly(DStoConvert.getPoint(DStoConvert.getNpoints()-2).getX(), 50.0);
+        Plottable_point ini = DSorigin.getClosestDP_xonly(DStoConvert.getPointWithCorrections(1,false).getX(), 50.0);
+        Plottable_point fin = DSorigin.getClosestDP_xonly(DStoConvert.getPointWithCorrections(DStoConvert.getNpoints()-2,false).getX(), 50.0);
         int iini = DSorigin.getIndexOfDP(ini);
         int ifin = DSorigin.getIndexOfDP(fin);
         
         log.writeNameNumPairs("config", true, "iini,ifin", iini,ifin);
         
         for (int i=iini; i<=ifin; i++){
-            DataPoint dp = DSorigin.getPoint(i);
-            DataPoint[] surr = DStoConvert.getSurroundingDPs(dp.getX());
+            Plottable_point dp = DSorigin.getPointWithCorrections(i,false);
+            Plottable_point[] surr = DStoConvert.getSurroundingDPs(dp.getX());
             if (surr==null)continue;
             //interpolem
             double yinter = DStoConvert.interpolateY(dp.getX(), surr[0], surr[1]);
@@ -375,7 +376,7 @@ public final class PattOps {
         double tol = 0.0001;
         int minequals = 100;
         
-        double t2i = FastMath.max(dp1.getPoint(0).getX(), dp2.getPoint(0).getX());
+        double t2i = FastMath.max(dp1.getPointWithCorrections(0,false).getX(), dp2.getPointWithCorrections(0,false).getX());
         double step1 = dp1.calcStep();
         double step2 = dp2.calcStep();
         
@@ -390,8 +391,8 @@ public final class PattOps {
         }
         int ncoincidents = 0;
         for (int i=iniIndex; i<dp1.getNpoints(); i++){
-            DataPoint p1 = dp1.getPoint(i);
-            DataPoint p2 = dp2.getClosestDP_xonly(p1.getX(), tol);
+            Plottable_point p1 = dp1.getPointWithCorrections(i,false);
+            Plottable_point p2 = dp2.getClosestDP_xonly(p1.getX(), tol);
             if (p2!=null){
                 if (FastMath.abs(p1.getX()-p2.getX())<(tol/2)){ //NO SE SI CAL TORNAR A COMPROVAR-HO
                     ncoincidents = ncoincidents +1;
@@ -429,6 +430,7 @@ public final class PattOps {
     public static double getDspFrom2ThetaRad(double wave,double tthRad) {
     	return (wave/(2*FastMath.sin(tthRad/2)));
     }
+    //TODO treure d'aqui i fer que s'utilitzi cell
     public static float getDspacingFromHKL(int h, int k, int l, float a, float b, float c, float alfaDeg, float betaDeg, float gammaDeg){
         
         double cosal = FastMath.cos(FastMath.toRadians(alfaDeg));
@@ -455,51 +457,17 @@ public final class PattOps {
         return (float)dsp;
     }
     
-    public static void getDspacingFromHKL(ArrayList<PDReflection> refs, float a, float b, float c, float alfaDeg, float betaDeg, float gammaDeg){
-        
-        double cosal = FastMath.cos(FastMath.toRadians(alfaDeg));
-        double cosbe = FastMath.cos(FastMath.toRadians(betaDeg));
-        double cosga = FastMath.cos(FastMath.toRadians(gammaDeg));
-        double sinal = FastMath.sin(FastMath.toRadians(alfaDeg));
-        double sinbe = FastMath.sin(FastMath.toRadians(betaDeg));
-        double singa = FastMath.sin(FastMath.toRadians(gammaDeg));
-        
-        double s11 = b*b*c*c*sinal*sinal;
-        double s22 = a*a*c*c*sinbe*sinbe;
-        double s33 = a*a*b*b*sinbe*singa;
-        double s12 = a*b*c*c*(cosal*cosbe-cosga);
-        double s23 = a*a*b*c*(cosbe*cosga-cosal);
-        double s13 = a*b*b*c*(cosga*cosal-cosbe);
-        
-        double insqrt = 1 - cosal*cosal - cosbe*cosbe - cosga*cosga + 2*cosal*cosbe*cosga;
-        double vol = a*b*c*(FastMath.sqrt(insqrt)); //Ang3
-        
-        Iterator<PDReflection> itrr = refs.iterator();
-        while (itrr.hasNext()){
-            PDReflection p = itrr.next();
-            int h = p.getH();
-            int k = p.getL();
-            int l = p.getL();
-            double fact = s11*h*h + s22*k*k + s33*l*l + 2*s12*h*k + 2*s23*k*l + 2*s13*h*l;
-            double invdsp2 = fact*(1/(vol*vol));
-            p.setDsp((float)FastMath.sqrt(1/invdsp2));
-        }
-    }
     
-    public static DataSerie getPDCompoundAsDspDataSerie(PDCompound pdc) {
-		DataSerie ds = new DataSerie(serieType.ref);
-		ds.setxUnits(xunits.dsp);
-		Iterator<PDReflection> itrPD = pdc.getPeaks().iterator();
-		while (itrPD.hasNext()) {
-			PDReflection pdr = itrPD.next();
-			ds.addPoint(new DataPoint(pdr.getDsp(),pdr.getInten(),0));
-		}
-		return ds;
+    public static boolean askForWavelengthAndAddToDS(DataSerie ds) {
+        double wave = FileUtils.DialogAskForPositiveDouble(D1Dplot_global.getD1DmainFrame(),"Wavelength (Ang) =","Wavelength required to perform current operation", ""); 
+        if (wave<=0)return false;
+        ds.setWavelength(wave);
+        return true;
     }
     
     //list of 2-theta values and lists of every parameter for combination, ANGLES IN RADIANS
     //tornara ranked list of 50 best solutions?? o algo així? hauriem de crear classe solucio o fer un array de floats
-    public static ArrayList<IndexSolutionGrid> indexGridSearchBrute(float[] dobs, float factor, float wave, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
+    public static List<IndexSolutionGrid> indexGridSearchBrute(float[] dobs, float factor, float wave, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
     	int[] lengths = new int[] { aL.length, bL.length, cL.length, alL.length, beL.length, gaL.length };
     	
         int totalComb = aL.length*bL.length*cL.length*alL.length*beL.length*gaL.length;
@@ -629,7 +597,7 @@ public final class PattOps {
 //    		log.info(String.format("sol %d: %8.4f %8.4f %8.4f %6.2f %6.2f %6.2f res=%8.4f", i+1, sols[i][0],sols[i][1],sols[i][2],sols[i][3],sols[i][4],sols[i][5],sols[i][6]));
 //    	}
     	
-    	ArrayList<IndexSolutionGrid> sols = iResult.get50bestSolutions();
+    	List<IndexSolutionGrid> sols = iResult.get50bestSolutions();
     	return sols;
     }
     
@@ -651,12 +619,70 @@ public final class PattOps {
         hsqcalc = hsqcalc/v2;
         float dcalc = (float) FastMath.sqrt(1/hsqcalc);
         return dcalc;
-        
-//        float hsqcalc = (1/(sbe*sbe))*((h*h)/a2 + (k*k*sbe*sbe)/b2 + (l*l)/c2 - (2*h*l*cbe)/(a*c));
-//        float dcalc = (float) FastMath.sqrt(1/hsqcalc);
-//        return dcalc;
     }
     
+    public static DataSerie findPeaksGetBkgLlindar(DataSerie data) {
+        return PattOps.bkg_Bruchner(data, 20, 50, true, data.getMinX()-1, false, null);
+    }
+    
+    //RETORNA DATASERIE PEAKS
+    public static DataSerie findPeaksEvenBetter(DataSerie data, DataSerie bkgLlindar, float delsig,double minX, double maxX, boolean takeIntoAccountYBkg){
+        //interpolar mirar quin està mes avall dels dos del costat i interpolar el valor de y elevat a la recta centre-inferior. alsehores buscar el mig de x
+        double desv = 1;
+        
+        if((minX>maxX)||(minX<0&&maxX<0)){
+//            minX=this.getT2i();
+//            maxX=this.getT2f();
+            minX=data.getMinX();
+            maxX=data.getMaxX();
+        }
+         
+        if (bkgLlindar == null)desv = data.calcYmeanYDesvYmaxYmin(takeIntoAccountYBkg)[1];    
+
+        DataSerie peaks = new DataSerie(SerieType.peaks,data.getxUnits(),data.getParent());
+        
+        //limits menys 1
+        for (int i=1;i<data.getNpoints()-1;i++){
+            if (data.getPointWithCorrections(i,false).getX()<minX)continue; //rang on buscar pics
+            if (data.getPointWithCorrections(i,false).getX()>maxX)continue;
+            double ycent = data.getPointWithCorrections(i,false).getY();
+            if (bkgLlindar!=null){
+                if (ycent < bkgLlindar.getPointWithCorrections(i,false).getY()*delsig)continue;
+            }else{
+                if (ycent < desv*delsig)continue;    
+            }
+            
+            double yleft = data.getPointWithCorrections(i-1,false).getY();
+            double yright = data.getPointWithCorrections(i+1,false).getY();
+            double xcent = data.getPointWithCorrections(i,false).getX();
+            double xleft = data.getPointWithCorrections(i-1,false).getX();
+            double xright = data.getPointWithCorrections(i+1,false).getX();
+            if (ycent>yleft && ycent>yright){
+                
+                double xpeak = 0;
+                //ara interpolo
+                if (yleft>yright){
+                    //fem recta centre-right i interpolem el valor de yleft a aquesta
+                    double pen = (yright-ycent)/(xright-xcent);
+                    double ord = pen*(xcent)*-1+ycent;
+                    //interpolem yleft
+                    double xinter = (yleft-ord)/pen;
+                    //ara busquem el centre
+                    xpeak = (xinter+xleft)/2.;
+                }else{
+                    //al reves, recte centre-left i interpolem yright
+                    double pen = (yleft-ycent)/(xleft-xcent);
+                    double ord = pen*(xcent)*-1+ycent;
+                    //interpolem yright
+                    double xinter = (yright-ord)/pen;
+                    xpeak = (xinter+xright)/2.;
+                }
+
+                peaks.addPoint(new DataPoint(xpeak,ycent,data.getPointWithCorrections(i,false).getSdy()));
+            }
+        }
+        return peaks;
+    }
 
     
 }

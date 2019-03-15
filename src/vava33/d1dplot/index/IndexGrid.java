@@ -1,4 +1,4 @@
-package com.vava33.d1dplot.auxi;
+package com.vava33.d1dplot.index;
 
 /*
  * Implementation of a grid search indexing
@@ -10,13 +10,8 @@ package com.vava33.d1dplot.auxi;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
+import java.util.List;
 import java.util.PriorityQueue;
-import java.util.TreeSet;
-
-import org.apache.commons.math3.util.FastMath;
-
-import com.vava33.cellsymm.HKLrefl;
 
 //aqui mandindré XX solucions (e.g. 50), sempre les de menor residuals
 
@@ -45,9 +40,8 @@ public class IndexGrid {
 		}
 	}
 	
-	
-	public ArrayList<IndexSolutionGrid> get50bestSolutions() {
-		ArrayList<IndexSolutionGrid> solutions = new ArrayList<IndexSolutionGrid>(50);
+	public List<IndexSolutionGrid> get50bestSolutions() {
+		List<IndexSolutionGrid> solutions = new ArrayList<IndexSolutionGrid>(50);
 		while (!sols.isEmpty()) {
 			solutions.add(sols.poll());
 		}

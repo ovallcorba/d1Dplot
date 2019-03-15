@@ -1,4 +1,4 @@
-package com.vava33.d1dplot.auxi;
+package com.vava33.d1dplot.index;
 
 /*
  * Implementation of the dichotomy method
@@ -11,6 +11,7 @@ package com.vava33.d1dplot.auxi;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.math3.util.FastMath;
 
@@ -19,6 +20,7 @@ import com.vava33.cellsymm.HKLrefl;
 import com.vava33.cellsymm.CellSymm_global.CrystalFamily;
 import com.vava33.cellsymm.CellSymm_global.CrystalSystem;
 import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -30,10 +32,13 @@ public class IndexDichotomy {
     private static final float DEF_iniIncPar = 0.5f;
     private static final float DEF_iniIncAng = 5.0f;
     private static final int DEF_numIter = 6;
+    private static final int DEF_maxSol = 15;
     
     private double aMin,bMin,cMin,alMin,beMin,gaMin; //in radians
     private double aMax,bMax,cMax,alMax,beMax,gaMax;
-	
+	private double vMin, vMax;
+    
+    
     private boolean cubic,tetra,hexa,orto,mono,tric;
 	private double[] Qobs;
 	private int nPeaksToUse=20; //default 20 maximum
@@ -45,7 +50,7 @@ public class IndexDichotomy {
     
     //constructor mínim
 	public IndexDichotomy(DataSerie ds, int nPeaksToUse, double deltaQerror) {
-		Qobs = ds.getListPeaksQ();
+		Qobs = ds.getListXvaluesAsInvdsp2();
 		Arrays.sort(Qobs);
 		this.nPeaksToUse = FastMath.min(nPeaksToUse, Qobs.length);
 		if (Qobs.length>this.nPeaksToUse) {
@@ -91,6 +96,11 @@ public class IndexDichotomy {
 		}
 	}
 	
+	public void setVMinMax(double volMin, double volMax) {
+	    this.vMin=volMin;
+	    this.vMax=volMax;
+	}
+	
 	public void setSystemsSearch(boolean cubic, boolean tetra, boolean hexa, boolean orto, boolean mono, boolean tric) {
 		this.cubic=cubic;
 		this.tetra=tetra;
@@ -101,7 +111,7 @@ public class IndexDichotomy {
 	}
     
 	
-	public ArrayList<IndexSolutionDichotomy> runIndexing(int numIter, float iniIncPar, float iniIncAng) {
+	public List<IndexSolutionDichotomy> runIndexing(int numIter, float iniIncPar, float iniIncAng) {
 	    
 	    if (iniIncPar<=0)iniIncPar=DEF_iniIncPar;
 	    if (iniIncAng<=0)iniIncAng=DEF_iniIncAng;
@@ -114,16 +124,24 @@ public class IndexDichotomy {
 	    IndexSolutionDichotomy startSol = new IndexSolutionDichotomy(iniCell,iniIncPar,(float) FastMath.toRadians(iniIncAng),Qobs,Qmax,deltaQerr);
 	    log.info("start SOL= "+startSol.toString());
 	    //al ser la primera iteracio hem de generar el conjunt de parametres per min-max parameters
-	    ArrayList<IndexSolutionDichotomy> sols = this.runIteration(startSol,true);
+	    List<IndexSolutionDichotomy> sols = this.runIteration(startSol,true);
 
 	    log.info("iter 1, sols="+sols.size());
 
-	    
+	    boolean error = false;
 	    for (int i=2;i<=numIter;i++) {
+	        
+	        //primer comprovem si el num de solucions no es molt gran
+	        if (sols.size()>DEF_maxSol) {
+	            log.warning("Too many solutions, please reduce cell volume (or parameters) and/or Q error");
+	            error=true;
+	            break;
+	        }
+	        
 	        //ara hem de seguir la iteració per cadascuna de les solucions
 	        
 	        Iterator<IndexSolutionDichotomy> itrS = sols.iterator();
-	        ArrayList<IndexSolutionDichotomy> sols2 = new ArrayList<IndexSolutionDichotomy>();
+	        List<IndexSolutionDichotomy> sols2 = new ArrayList<IndexSolutionDichotomy>();
 	        while (itrS.hasNext()) {
 	            IndexSolutionDichotomy is = itrS.next();
 	            sols2.addAll(this.runIteration(is,false));
@@ -134,6 +152,10 @@ public class IndexDichotomy {
 	        
 	        log.info("iter "+i+", sols="+sols.size());
 	        
+	        
+	    }
+	    
+	    if (error)return null;
 	    
 	    //mostrar solucions DEBUG (abans de afinar solucions i calcular figures mèrit)
 	    Iterator<IndexSolutionDichotomy> itrS = sols.iterator();
@@ -146,9 +168,9 @@ public class IndexDichotomy {
 	    return sols;
 	}
 	
-	private ArrayList<IndexSolutionDichotomy> runIteration(IndexSolutionDichotomy is, boolean firstIter){
+	private List<IndexSolutionDichotomy> runIteration(IndexSolutionDichotomy is, boolean firstIter){
 
-	    ArrayList<IndexSolutionDichotomy> solutions = new ArrayList<IndexSolutionDichotomy>();
+	    List<IndexSolutionDichotomy> solutions = new ArrayList<IndexSolutionDichotomy>();
 	    
 	    //PRIMER GENEREM PARAMETRES
 	    float[] aVals = new float[] {is.getAbase()};
@@ -190,6 +212,8 @@ public class IndexDichotomy {
 	            //ACTUALITZO PARAMETRE
 	            float a= aVals[j]; //TODO: no he implementat limit parametres, cal?
 	            Cell candidateCell = new Cell(a,a,a,is.getAlBaseRad(), is.getBeBaseRad(),is.getGaBaseRad(),false, CrystalFamily.CUBIC);
+	            if (candidateCell.getVol()>this.vMax)continue;
+	            if (candidateCell.getVol()<this.vMin)continue;
 	            IndexSolutionDichotomy candidateSol = new IndexSolutionDichotomy(candidateCell,is.incPar/2.f,0,Qobs,Qmax,deltaQerr); //0 increment a angle (cubic)
 	            
                 //Iteracio HKLs
@@ -218,7 +242,6 @@ public class IndexDichotomy {
 	    
 	    //a=b!=c 90º
 	    if (this.tetra) {
-
 
 	    }
 
