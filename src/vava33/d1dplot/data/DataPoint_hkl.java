@@ -1,4 +1,4 @@
-package com.vava33.d1dplot.auxi;
+package com.vava33.d1dplot.data;
 
 /**
  * D1Dplot
@@ -12,38 +12,39 @@ package com.vava33.d1dplot.auxi;
 
 import com.vava33.cellsymm.HKLrefl;
 
-public class DataPoint_hkl {
+public class DataPoint_hkl extends DataPoint implements Plottable_point{
 
     private HKLrefl hkl;
-    private double tth_deg;
 
-    //calculem el tth i el guardem a aquesta classe datapoint_hkl per evitar posteriors calculs (dummy arg es per evitar duplicar constructor)
-    public DataPoint_hkl(HKLrefl hkl, float wave, boolean dummyarg){
-        this.hkl = hkl;
-        //calculem el tth per la longitud d'ona del pattern
-        this.tth_deg=this.hkl.calct2(wave, true);
+    //uses hkl dsp as xval
+    public DataPoint_hkl(HKLrefl hkl) {
+        super(hkl.getDsp(),hkl.getYcalc(),0);
     }
     
-    public DataPoint_hkl(HKLrefl hkl, double tth_deg){
-        this.hkl = hkl;
-        //calculem el tth per la longitud d'ona del pattern
-        this.tth_deg=tth_deg;
+    public DataPoint_hkl(HKLrefl hkl,double xval) {
+        super(xval,hkl.getYcalc(),0);
     }
     
-    public DataPoint_hkl(int h, int k, int l, double tth_deg, double wave){
-        this.hkl = new HKLrefl(h,k,l,wave,tth_deg);
-        this.tth_deg=tth_deg;
+    public DataPoint_hkl(double px, double py, double pysd, HKLrefl hkl) {
+        super(px,py,pysd);
+        this.hkl=hkl;
     }
     
-    public double get2th() {
-        return tth_deg;
+    @Override
+    public Plottable_point getCorrectedDataPoint(double incX, double incY, double factorY,boolean addYbkg) {
+        if (addYbkg) {
+            return new DataPoint_hkl(this.getX()+incX,(this.getY()+this.getyBkg())*factorY+incY,this.getSdy()*factorY,hkl);
+        }else {
+            return new DataPoint_hkl(this.getX()+incX,this.getY()*factorY+incY,this.getSdy()*factorY,hkl);    
+        }
     }
     
     public String toString(){
         return hkl.toString();
     }
     
-    public DataPoint_hkl returnCopyWithZoff(double zoffset) {
-        return new DataPoint_hkl(this.hkl,this.tth_deg+zoffset);
+    @Override
+    public String getInfo() {
+        return hkl.toString();
     }
 }

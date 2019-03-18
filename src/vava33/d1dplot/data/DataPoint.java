@@ -1,5 +1,4 @@
-package com.vava33.d1dplot.auxi;
-
+package com.vava33.d1dplot.data;
 
 /**
  * D1Dplot
@@ -11,7 +10,7 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
-public class DataPoint implements Comparable<DataPoint>{
+public class DataPoint implements Plottable_point{ //plottable point ja inclou comparable
 
     private double x;
     private double y;
@@ -57,6 +56,16 @@ public class DataPoint implements Comparable<DataPoint>{
         this.yBkg = yBkg;
     }
 
+    //incrementoY i multiplico o al revés??
+    @Override //caldra implementar-la a totes les classes per mantenir el TIPUS
+    public Plottable_point getCorrectedDataPoint(double incX, double incY, double factorY,boolean addYbkg) {
+        if (addYbkg) {
+            return new DataPoint(this.getX()+incX,(this.getY()+this.getyBkg())*factorY+incY,this.getSdy()*factorY,this.getyBkg()*factorY);
+        }else {
+            return new DataPoint(this.getX()+incX,this.getY()*factorY+incY,this.getSdy()*factorY,this.getyBkg()*factorY);    
+        }
+    }
+    
     @Override
     public boolean equals(Object obj) {
         DataPoint dp = (DataPoint)obj;
@@ -68,11 +77,17 @@ public class DataPoint implements Comparable<DataPoint>{
     }
     
 	@Override
-	public int compareTo(DataPoint otherDP) {
-		if (this.x>otherDP.x) {
+	public int compareTo(Plottable_point otherDP) {
+		if (this.x>otherDP.getX()) {
 			return -1; //otherDP va primer
 		}else {
 			return 1;
 		}
 	}
+
+    @Override
+    public String getInfo() {
+        return String.format("(%.4f, %.4f)", x,y);
+    }
+
 }

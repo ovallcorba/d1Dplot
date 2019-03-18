@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Scanner;
 import java.util.zip.ZipFile;
 
@@ -29,8 +30,11 @@ import javax.swing.SwingWorker;
 
 import org.apache.commons.math3.util.FastMath;
 
+import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.d1dplot.D1Dplot_global;
-import com.vava33.d1dplot.auxi.DataSerie.xunits;
+import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.Plottable_point;
+import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -39,10 +43,10 @@ public final class PDDatabase {
 
     //Full DB
     private static int nCompounds = 0;  //number of compounds in the DB
-    private static String localDB = System.getProperty("user.dir") + D1Dplot_global.separator + "default.db";  // local DB default file
+    private static String localDB = System.getProperty("user.dir") + D1Dplot_global.fileSeparator + "default.db";  // local DB default file
     private static String currentDB;
-    private static ArrayList<PDCompound> DBcompList = new ArrayList<PDCompound>();  
-    private static ArrayList<PDSearchResult> DBsearchresults = new ArrayList<PDSearchResult>();
+    private static List<PDCompound> DBcompList = new ArrayList<PDCompound>();  
+    private static List<PDSearchResult> DBsearchresults = new ArrayList<PDSearchResult>();
     private static boolean DBmodified = false;
     
     private static final String className = "PDdatabase";
@@ -66,11 +70,11 @@ public final class PDDatabase {
         PDDatabase.nCompounds = nCompounds;
     }
 
-    public static ArrayList<PDCompound> getDBCompList() {
+    public static List<PDCompound> getDBCompList() {
         return DBcompList;
     }
     
-    public static void setDBCompList(ArrayList<PDCompound> compList) {
+    public static void setDBCompList(List<PDCompound> compList) {
         PDDatabase.DBcompList = compList;
     }
     
@@ -142,7 +146,7 @@ public final class PDDatabase {
         return f.getAbsolutePath();
     }
     
-    public static ArrayList<PDSearchResult> getDBSearchresults() {
+    public static List<PDSearchResult> getDBSearchresults() {
         return DBsearchresults;
     }
     
@@ -237,12 +241,7 @@ public final class PDDatabase {
                             try {
                                 if (line2.startsWith("#CELL_PARAMETERS:")){
                                     String[] cellPars = line2.split("\\s+");
-                                    comp.setA(Float.parseFloat(cellPars[1]));
-                                    comp.setB(Float.parseFloat(cellPars[2]));
-                                    comp.setC(Float.parseFloat(cellPars[3]));
-                                    comp.setAlfa(Float.parseFloat(cellPars[4]));
-                                    comp.setBeta(Float.parseFloat(cellPars[5]));
-                                    comp.setGamma(Float.parseFloat(cellPars[6]));
+                                    comp.getCella().setCellParameters(Double.parseDouble(cellPars[1]),Double.parseDouble(cellPars[2]),Double.parseDouble(cellPars[3]),Double.parseDouble(cellPars[4]),Double.parseDouble(cellPars[5]),Double.parseDouble(cellPars[6]),true);
                                 }
                                 if (line2.startsWith("#NAME")){
                                     if (line2.contains(":")){
@@ -251,7 +250,7 @@ public final class PDDatabase {
                                 }
                                
                                 if (line2.startsWith("#SPACE_GROUP:")){
-                                    comp.setSpaceGroup((line2.split(":"))[1].trim());
+                                    comp.getCella().setSg(CellSymm_global.getSpaceGroupByName((line2.split(":"))[1].trim(),false));
                                 }
                                 
                                 if (line2.startsWith("#FORMULA:")){
@@ -307,16 +306,11 @@ public final class PDDatabase {
                                 
                                 if (line2.startsWith("#UXRD_INFO CELL PARAMETERS:")){
                                     String[] cellPars = line2.split("\\s+");
-                                    comp.setA(Float.parseFloat(cellPars[3]));
-                                    comp.setB(Float.parseFloat(cellPars[4]));
-                                    comp.setC(Float.parseFloat(cellPars[5]));
-                                    comp.setAlfa(Float.parseFloat(cellPars[6]));
-                                    comp.setBeta(Float.parseFloat(cellPars[7]));
-                                    comp.setGamma(Float.parseFloat(cellPars[8]));
+                                    comp.getCella().setCellParameters(Double.parseDouble(cellPars[1]),Double.parseDouble(cellPars[2]),Double.parseDouble(cellPars[3]),Double.parseDouble(cellPars[4]),Double.parseDouble(cellPars[5]),Double.parseDouble(cellPars[6]),true);
                                 }
                                
                                 if (line2.startsWith("#UXRD_INFO SPACE GROUP: ")){
-                                    comp.setSpaceGroup((line2.split(":"))[1].trim());
+                                    comp.getCella().setSg(CellSymm_global.getSpaceGroupByName((line2.split(":"))[1].trim(),false));
                                 }
                                 
                                 if (line2.startsWith("#UXRD_ELEMENTS")){
@@ -443,8 +437,8 @@ public final class PDDatabase {
                     if (!c.getCellParameters().isEmpty()){
                         output.println(String.format("#CELL_PARAMETERS: %s",c.getCellParameters()));
                     }
-                    if (!c.getSpaceGroup().isEmpty()){
-                        output.println(String.format("#SPACE_GROUP: %s",c.getSpaceGroup()));
+                    if (!c.getCella().getSg().getName().isEmpty()){
+                        output.println(String.format("#SPACE_GROUP: %s",c.getCella().getSg().getName()));
                     }
                     if (!c.getReference().isEmpty()){
                         output.println(String.format("#REF: %s",c.getReference()));    
@@ -459,8 +453,8 @@ public final class PDDatabase {
                         int h = c.getPeaks().get(i).getH();
                         int k = c.getPeaks().get(i).getK();
                         int l = c.getPeaks().get(i).getL();
-                        float dsp = c.getPeaks().get(i).getDsp();
-                        float inten = c.getPeaks().get(i).getInten();
+                        double dsp = c.getPeaks().get(i).getDsp();
+                        double inten = c.getPeaks().get(i).getYcalc();
                         output.println(String.format("%3d %3d %3d %9.5f %7.2f",h,k,l,dsp,inten));                    
                     }
                     output.println(); //linia en blanc entre compostos
@@ -500,8 +494,8 @@ public final class PDDatabase {
     
     public static class searchDBWorker extends SwingWorker<Integer,Integer> {
 
-        private ArrayList<Float> dspList;
-        private ArrayList<Float> intList;
+        private List<Float> dspList;
+        private List<Float> intList;
         private boolean stop;
         private float mindsp;
         private DataSerie dataserie;
@@ -525,19 +519,20 @@ public final class PDDatabase {
             //generem les llistes de dspacing i intensitats a partir dels punts seleccionats a un pattern2D i un mindsp
             //(ho hem passat aquí perque es costos, sobretot l'extraccio d'intensitats)
         	
-        	if(dataserie.getNpeaks()<=0) {
+        	if(dataserie.getNpoints()<=0) {
         		log.warning("no peaks selected");
         		return -1;
         	}
         	
             //convert dataserie to dsp:
 //            xunits initialUnits = dataserie.getxUnits(); //save initial to come back afterwards
-            DataSerie dspDS = dataserie.convertToXunits(xunits.dsp);
+            dataserie.convertDStoXunits(Xunits.dsp);
+            DataSerie dspDS = dataserie;
 //            dspDS.copySeriePoints(dataserie);
 //            dspDS.copySeriePeaks(dataserie);
             
-            for (int i=0; i<dspDS.getNpeaks(); i++) {
-            	DataPoint pk = dspDS.getPeak(i);
+            for (int i=0; i<dspDS.getNpoints(); i++) {
+            	Plottable_point pk = dspDS.getPointWithCorrections(i,false);
             	float dsp = (float) pk.getX();
             	float inten = (float) pk.getY();
                 if (dsp > mindsp){
@@ -561,21 +556,21 @@ public final class PDDatabase {
                 int npk = 0;
                 
                 //mirem la intensitat màxima dels n primers pics de COMP per normalitzar!
-                float maxI_factorPerNormalitzar = c.getMaxInten(dspList.size());
+                float maxI_factorPerNormalitzar = (float) c.getMaxInten(dspList.size());
                 if (maxI_factorPerNormalitzar <= 0){maxI_factorPerNormalitzar=1.0f;}
                 
                 while (itrDSP.hasNext()){
                     float dsp = itrDSP.next();  //pic entrat a buscar
                     int index = c.closestPeak(dsp);
-                    float diffpk = FastMath.abs(dsp-c.getPeaks().get(index).getDsp());
+                    float diffpk = (float) FastMath.abs(dsp-c.getPeaks().get(index).getDsp());
 //                    diffPositions = diffPositions + diffpk; //es podria fer més estricte
 //                    diffPositions = diffPositions + (1+diffpk)*(1+diffpk); //una especie de quadrat...
                     diffPositions = diffPositions + (diffpk*2.5f); 
                     float intensity = this.intList.get(npk);
                     //normalitzem la intensitat utilitzant el maxim dels N primers pics.
                     intensity = (intensity/maxIslist) * maxI_factorPerNormalitzar;
-                    if (c.getPeaks().get(index).getInten()>=0){ //no tenim en compte les -1 (NaN)
-                        diffIntensities = diffIntensities + FastMath.abs(intensity-c.getPeaks().get(index).getInten());    
+                    if (c.getPeaks().get(index).getYcalc()>=0){ //no tenim en compte les -1 (NaN)
+                        diffIntensities = (float) (diffIntensities + FastMath.abs(intensity-c.getPeaks().get(index).getYcalc()));    
                     }
                     npk = npk +1;
                 }

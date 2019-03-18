@@ -4,7 +4,7 @@ package com.vava33.d1dplot.auxi;
 /**
  * D1Dplot
  * 
- * Operations with files
+ * Operations with DATA files
  *  
  * @author Oriol Vallcorba
  * Licence: GPLv3
@@ -16,11 +16,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Scanner;
 
 import javax.swing.JOptionPane;
@@ -28,11 +30,19 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 import org.apache.commons.math3.util.FastMath;
 
+import com.vava33.cellsymm.HKLrefl;
 import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.D1Dplot_main;
 import com.vava33.d1dplot.DicvolDialog;
 import com.vava33.d1dplot.PlotPanel;
-import com.vava33.d1dplot.auxi.DataSerie.serieType;
-import com.vava33.d1dplot.auxi.DataSerie.xunits;
+import com.vava33.d1dplot.data.DataPoint;
+import com.vava33.d1dplot.data.DataPoint_hkl;
+import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.Data_Common;
+import com.vava33.d1dplot.data.Plottable;
+import com.vava33.d1dplot.data.Plottable_point;
+import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.VavaLogger;
 import com.vava33.jutils.FileUtils;
 
@@ -40,6 +50,8 @@ public final class DataFileUtils {
 
     private static final String className = "DataFileUtils";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);    
+    
+    private static String[] charsets = {"","UTF-8","ISO8859-1","Windows-1251","Shift JIS","Windows-1252"};
     
     private static class FileFormat{
     	private String[] extensions;
@@ -122,7 +134,7 @@ public final class DataFileUtils {
     public static FileNameExtensionFilter[] getExtensionFilterRead(){
         Iterator<String> itrformats = DataFileUtils.XRDformatInfo.keySet().iterator();
         FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedReadExtensions.values().length+1];
-        ArrayList<String> frmStrings = new ArrayList<String>();
+        List<String> frmStrings = new ArrayList<String>();
         int nfiltre=0;
         while (itrformats.hasNext()){
             FileFormat frm = DataFileUtils.XRDformatInfo.get(itrformats.next());
@@ -165,7 +177,7 @@ public final class DataFileUtils {
     public static FileNameExtensionFilter[] getExtensionFilterRefRead(){
         Iterator<String> itrformats = DataFileUtils.REFformatInfo.keySet().iterator();
         FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedReadRefExtensions.values().length+1];
-        ArrayList<String> frmStrings = new ArrayList<String>();
+        List<String> frmStrings = new ArrayList<String>();
         int nfiltre=0;
         while (itrformats.hasNext()){
             FileFormat frm = DataFileUtils.REFformatInfo.get(itrformats.next());
@@ -205,8 +217,8 @@ public final class DataFileUtils {
         return filter;
     }
     
-    // OBERTURA DELS DIFERENTS FORMATS DE DADES2D
-    public static boolean readPatternFile(File d1file, Pattern1D patt1D) {
+    //TEST
+    public static Plottable readPatternFile(File d1file) {
         // comprovem extensio
         log.debug(d1file.toString());
         String ext = FileUtils.getExtension(d1file).trim();
@@ -220,75 +232,75 @@ public final class DataFileUtils {
             SupportedReadExtensions[] possibilities = SupportedReadExtensions.values();
             SupportedReadExtensions s = (SupportedReadExtensions) JOptionPane.showInputDialog(null, "Input format:", "Read File",
                             JOptionPane.PLAIN_MESSAGE, null, possibilities,possibilities[0]);
-            if (s == null) {return false;}
+            if (s == null) {return null;}
             format = s;
         }
-        
-        boolean ok = false;
+        Plottable p;
         switch (format) {
             case DAT:
-                ok = readDAT(d1file,patt1D);
+                p = readDAT(d1file);
                 break;
             case XYE:
-                ok = readXYE(d1file,patt1D);
+                p = readXYE(d1file);
                 break;
             case XY:
-                ok = readXYE(d1file,patt1D);
+                p = readXYE(d1file);
                 break;
             case ASC:
-                ok = readASC(d1file,patt1D);
+                p = readASC(d1file);
                 break;
             case GSA:
-                ok = readGSA(d1file,patt1D);
+                p = readGSA(d1file);
                 break;
             case XRDML:
-                ok = readXRDML(d1file,patt1D);
+                p = readXRDML(d1file);
                 break;
             case FF:
-                ok = readFF(d1file,patt1D);
+                p = readFF(d1file);
                 break;
             case PRF:
-                ok = readPRF(d1file,patt1D);
+                p = readPRF(d1file);
                 break;
             case GR:
-                ok = readGR(d1file,patt1D);
+                p = readGR(d1file);
                 break;
             default:
-                ok = readUNK(d1file,patt1D); //TXT
+                p = readUNK(d1file); //TXT
                 break;
 
         }
-        if (!ok){
-        	//ho tornem a intentar...
-        	ok = readUNK(d1file,patt1D);
-        	if (!ok) {
+        if (p==null){
+            //ho tornem a intentar...
+            p = readUNK(d1file);
+            if (p==null) {
                 log.debug("Error reading pattern "+d1file.getAbsolutePath());
-                return false;        		
-        	}
+                return null;               
+            }
         }
-        if (patt1D.getFile() == null) {
-            patt1D.setFile(d1file);
+        if (p.getFile() == null) {
+            p.setFile(d1file);
         }
         
         //SERIE CHECKS
-        for (int i=0; i<patt1D.getNseries(); i++){
-            DataSerie ds = patt1D.getSerie(i);
-            if (ds.getTipusSerie()==DataSerie.serieType.dat){
-                if (ds.getT2i()<-99)ds.setT2i(ds.getPoint(0).getX());
-                if (ds.getT2f()<-99)ds.setT2f(ds.getPoint(ds.getNpoints()-1).getX());
-                if (ds.getStep()<-99)ds.calcStep();
-            }
-        }
-        return true;
+//        for (int i=0; i<patt1D.getNseries(); i++){
+//            DataSerie ds = patt1D.getSerie(i);
+//            if (ds.getTipusSerie()==DataSerie.SerieType.dat){
+//                if (ds.getT2i()<-99)ds.setT2i(ds.getPoint(0).getX());
+//                if (ds.getT2f()<-99)ds.setT2f(ds.getPoint(ds.getNpoints()-1).getX());
+//                if (ds.getStep()<-99)ds.calcStep();
+//            }
+//        }
+        return p;
     }
     
-    public static File writePatternFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite) {
+    //TODO considerar el PRF
+    public static File writePatternFile(File d1File, DataSerie serie, boolean overwrite, boolean addYbkg) {
         // comprovem extensio
         log.debug(d1File.toString());
         String ext = FileUtils.getExtension(d1File).trim();
 
         //DETECCIO SERIE BKG
-        if(patt1D.getSerie(serie).getTipusSerie()==serieType.bkg){
+        if(serie.getTipusSerie()==SerieType.bkg){
             boolean saveEspecial = FileUtils.YesNoDialog(null, "You are saving a Background serie\n"
                     + "Do you want so save it as a point list?\n"
                     + "(Answer NO to save it as a normal data file)");
@@ -313,7 +325,7 @@ public final class DataFileUtils {
                 }
                 boolean written = false;
                 File fout = null;
-                written = writeBKG(patt1D,serie,npoints,d1File,overwrite);
+                written = writeBKG(serie,npoints,d1File,overwrite);
                 if (written) fout = d1File;
                 return fout;
             }
@@ -344,22 +356,22 @@ public final class DataFileUtils {
 
         switch (format) {
             case DAT:
-                written = writeDAT_ALBA(patt1D,serie,d1File,overwrite);
+                written = writeDAT_ALBA(serie,d1File,overwrite,addYbkg);
                 break;
             case ASC:
-                written = writeASC(patt1D,serie,d1File,overwrite);
+                written = writeASC(serie,d1File,overwrite,addYbkg);
                 break;
             case GSA:
-                written = writeGSA(patt1D,serie,d1File,overwrite);
+                written = writeGSA(serie,d1File,overwrite,addYbkg);
                 break;
             case XRDML:
-                written = writeXRDML(patt1D,serie,d1File,true,overwrite);
+                written = writeXRDML(serie,d1File,true,overwrite,addYbkg);
                 break;
             case FF:
-                written = writeDAT_FreeFormat(patt1D,serie,d1File,overwrite);
+                written = writeDAT_FreeFormat(serie,d1File,overwrite,addYbkg);
                 break;
             case GR:
-                written = writeGR(patt1D,serie,d1File,overwrite);
+                written = writeGR(serie,d1File,overwrite,addYbkg);
                 break;
             default:
                 log.warning("Unknown format to write");
@@ -369,7 +381,7 @@ public final class DataFileUtils {
         return fout;
     }
     
-    public static File writePeaksFile(File d1File, Pattern1D patt1D, int serie, boolean overwrite) {
+    public static File writePeaksFile(File d1File, DataSerie pksDS, boolean overwrite) {
         SupportedWritePeaksFormats[] possibilities = SupportedWritePeaksFormats
                 .values();
         SupportedWritePeaksFormats s = (SupportedWritePeaksFormats) JOptionPane
@@ -384,46 +396,51 @@ public final class DataFileUtils {
         switch (s) {
             case DIC:
                 d1File = FileUtils.canviExtensio(d1File, "dic");
-                written = writePeaksDIC(patt1D,serie,d1File,overwrite);
+                written = writePeaksDIC(pksDS,d1File,overwrite);
                 break;
             case TXT:
-                written = writePeaksTXT(patt1D,serie,d1File,overwrite);
+                written = writePeaksTXT(pksDS,d1File,overwrite);
                 break;
         }
         if (written) fout = d1File;
         return fout;
     }
     
-    private static boolean readXYE(File f, Pattern1D patt1D){
-        return readDAT(f,patt1D);
+    private static Data_Common readXYE(File f){
+        return readDAT(f);
     }
     
-    private static boolean readASC(File f, Pattern1D patt1D){
-        return readDAT(f,patt1D);
+    private static Data_Common readASC(File f){
+        return readDAT(f);
 
     }
     
     //only 1 serie
-    private static boolean readUNK(File datFile, Pattern1D patt1D) {
+    private static Data_Common readUNK(File datFile ) {
     	//primer mirem si es free format
     	if (detectFreeFormat(datFile)) {
-    		readFF(datFile,patt1D);
-    		return true;
+    		return readFF(datFile);
     	}
     	//TODO: es poden afegir altres comprovacions...
     	
     	//Sino mirem de detectar linies on hi hagi dos valors t2, intensitat separats per espai, coma, etc...
         boolean readed = true;
-        DataSerie ds = new DataSerie();
+        //creem un DataSerie_Pattern
+        Data_Common dsP = new Data_Common();
+        DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
+
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(datFile);
+        Scanner sf = null;
         try {
-            Scanner sf = new Scanner(datFile);
+            sf = new Scanner(datFile,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (isComment(line)){
-                    patt1D.getCommentLines().add(line);
+                    dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
                     if (wl>0){
-                        patt1D.setOriginal_wavelength(wl);
+                        dsP.setOriginalWavelength(wl);
                         ds.setWavelength(wl);
                     }
                     continue;
@@ -454,41 +471,79 @@ public final class DataFileUtils {
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
 
-                if (!sf.hasNextLine()){
-                    ds.setT2f(t2);
-                }
+//                if (!sf.hasNextLine()){
+//                    ds.setT2f(t2);
+//                }
             }
-            ds.setSerieName(datFile.getName());
-            patt1D.addDataSerie(ds);
-            sf.close();
+            ds.serieName=datFile.getName();
+            dsP.addDataSerie(ds);
 
         }catch(Exception e){
             if (D1Dplot_global.isDebug())e.printStackTrace();
             readed = false;
+        }finally {
+            if(sf!=null)sf.close();
         }
         if (readed){
-            return true;
+            return dsP;
         }else{
-            return false;
+            return null;
         }
+    }
+    
+//    private static Reference readUNKref(File datFile) {
+////    	log.info("unknown ref file");
+//    	return null;
+//    }
+
+    
+    private static String getEncodingToUse(File f) {
+      //FIRST CHECK ENCODING
+        Scanner sf=null;
+        charsets[0] = Charset.defaultCharset().name();
+        int charsetToUse = 0;
+        for (int i=0;i<charsets.length;i++) {
+            try {
+                sf = new Scanner(f,charsets[i]);
+                if (sf.hasNextLine()) {
+                    charsetToUse=i;
+                    break;
+                }
+                
+            } catch (Exception e1) {
+                e1.printStackTrace();
+            }finally {
+                sf.close();
+            }
+        }
+        return charsets[charsetToUse];
     }
     
     
     //only 1 serie
-    private static boolean readDAT(File datFile, Pattern1D patt1D) {
+    private static Data_Common readDAT(File datFile) {  //TODO: no se si es millor fer que el metode ho retorni...
         boolean firstLine = true;
         boolean readed = true;
-        DataSerie ds = new DataSerie();
-
+        
+        //creem un DataSerie_Pattern
+        Data_Common dsP = new Data_Common();
+        DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
+        
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(datFile);
+        
+        Scanner sf = null;
         try {
-            Scanner sf = new Scanner(datFile);
+            sf = new Scanner(datFile,enc);
+            //        try {
+//            sf = new Scanner(datFile,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (isComment(line)){
-                    patt1D.getCommentLines().add(line);
+                    dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
                     if (wl>0){
-                        patt1D.setOriginal_wavelength(wl);
+                        dsP.setOriginalWavelength(wl);
                         ds.setWavelength(wl);
                     }
                     continue;
@@ -519,38 +574,50 @@ public final class DataFileUtils {
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
                 if (firstLine){
-                    ds.setT2i(t2);
+//                    ds.setT2i(t2);
                     firstLine = false;
                 }
 
                 if (!sf.hasNextLine()){
-                    ds.setT2f(t2);
+//                    ds.setT2f(t2);
                 }
             }
-            sf.close();
-            if (ds.getNpoints()<=0)return false; //TODO: mirar si poso un limit
-            ds.setSerieName(datFile.getName());
-            patt1D.addDataSerie(ds);
+            if (ds.getNpoints()<=0)return null; //TODO: mirar si poso un limit
+            ds.serieName=datFile.getName();
+            dsP.addDataSerie(ds);
 
         }catch(Exception e){
             if (D1Dplot_global.isDebug())e.printStackTrace();
             readed = false;
+        }finally {
+            if(sf!=null)sf.close();
         }
+//        finally {
+//            sf.close();
+//        }
         if (readed){
-            return true;
+            return dsP;
         }else{
-            return false;
+            return null;
         }
     }
     
     
-    private static boolean readGR(File datFile, Pattern1D patt1D) {
+    private static Data_Common readGR(File datFile) {
         boolean firstLine = true;
         boolean readed = true;
-        DataSerie ds = new DataSerie();
+//        double rstep=-1;
+        //creem un DataSerie_Gr
+        Data_Common dsGr = new Data_Common();
+        DataSerie ds = new DataSerie(SerieType.gr,Xunits.G,dsGr);
+        
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(datFile);
+        
         boolean startData = false;
+        Scanner sf = null;
         try {
-            Scanner sf = new Scanner(datFile);
+            sf = new Scanner(datFile,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
 
@@ -560,29 +627,29 @@ public final class DataFileUtils {
                 }
                 
                 if (!startData){
-                    patt1D.getCommentLines().add(line);
+                    dsGr.addCommentLine(line);
                     if (line.contains("wave")){
                         String values[] = line.trim().split("\\s+");
                         try{
-                            patt1D.setOriginal_wavelength(Double.parseDouble(values[2]));
+                            dsGr.setOriginalWavelength(Double.parseDouble(values[2]));
                             ds.setWavelength(Double.parseDouble(values[2]));
                         }catch(Exception e){
                             log.debug("error parsing wave");
                         }
                     }
-                    if (line.contains("rstep")){
-                        String values[] = line.trim().split("\\s+");
-                        try{
-                            ds.setStep(Double.parseDouble(values[2]));
-                        }catch(Exception e){
-                            log.debug("error parsing rstep");
-                        }
-                    }
+//                    if (line.contains("rstep")){
+//                        String values[] = line.trim().split("\\s+");
+//                        try{
+//                            rstep=Double.parseDouble(values[2]);
+//                        }catch(Exception e){
+//                            log.debug("error parsing rstep");
+//                        }
+//                    }
                     continue;
                 }
                 
                 if ((line.trim().startsWith("#S"))||(line.trim().startsWith("#L"))){
-                    patt1D.getCommentLines().add(line);
+                    dsGr.addCommentLine(line);
                     continue;
                 }
                 
@@ -594,41 +661,56 @@ public final class DataFileUtils {
                 double y = Double.parseDouble(values[1]);
                 ds.addPoint(new DataPoint(x,y,0.0));
                 if (firstLine){
-                    ds.setT2i(x);
+//                    ds.setT2i(x);
                     firstLine = false;
                 }
 
                 if (!sf.hasNextLine()){
-                    ds.setT2f(x);
+//                    ds.setT2f(x);
                 }
             }
-            ds.setTipusSerie(serieType.gr);
-            ds.setxUnits(xunits.G);
-            ds.setSerieName(datFile.getName());
-            patt1D.addDataSerie(ds);
+//            ds.setTipusSerie(SerieType.gr);
+            ds.serieName=datFile.getName();
+            dsGr.addDataSerie(ds);
             sf.close();
 
         }catch(Exception e){
             if (D1Dplot_global.isDebug())e.printStackTrace();
             readed = false;
+        }finally {
+            if(sf!=null)sf.close();
         }
         if (readed){
-            return true;
+            return dsGr;
         }else{
-            return false;
+            return null;
         }
     }
     
     //TODO: es podria optimitzar omplint un datapoint i afegint-lo a la serie a cada cicle
-    private static boolean readXRDML(File f, Pattern1D patt1D){
+    //TODO: afegir lectura wavelength
+    private static Data_Common readXRDML(File f){
         boolean pos = false;
         boolean startend = false; //if we have start/end or ListPositions
-        DataSerie ds = new DataSerie();
-        ArrayList<Double> intensities = new ArrayList<Double>();
-        ArrayList<Double> t2ang = new ArrayList<Double>();;
+        boolean readed = true;
+
+        //creem un DataSerie_Pattern
+        Data_Common dsP = new Data_Common();
+        DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
         
-        try{
-            Scanner sf = new Scanner(f);
+        List<Double> intensities = new ArrayList<Double>();
+        List<Double> t2ang = new ArrayList<Double>();;
+        
+        double t2i=0;
+        double t2f=0;
+        double step=0;
+        
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(f);
+        
+        Scanner sf = null;
+        try {
+            sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (line.contains("<positions")){
@@ -639,13 +721,15 @@ public final class DataFileUtils {
                     if (line.contains("startPosition")){
                         String temp = line.split(">")[1];
                         temp = temp.split("<")[0];
-                        ds.setT2i(Float.parseFloat(temp));
+//                        ds.setT2i(Float.parseFloat(temp));
+                        t2i=Double.parseDouble(temp);
                         
                         //now end position
                         line = sf.nextLine();
                         temp = line.split(">")[1];
                         temp = temp.split("<")[0];
-                        ds.setT2f(Float.parseFloat(temp));
+//                        ds.setT2f(Float.parseFloat(temp));
+                        t2f=Double.parseDouble(temp);
                         
                         startend = true;
                     }
@@ -669,16 +753,14 @@ public final class DataFileUtils {
                     }
                 }
             }
-            sf.close();
-
+            
             //check if we have to generate 2thetas
             if(startend){
                 int nrint = intensities.size();
                 log.debug("nrint="+nrint);
-                double step = (ds.getT2f()-ds.getT2i())/nrint;
-                ds.setStep(step);
-                double t2c = ds.getT2i();
-                while(t2c<=ds.getT2f()){
+                step = (t2f-t2i)/nrint;
+                double t2c = t2i;
+                while(t2c<=t2f){
                     t2ang.add(t2c);
                     t2c = t2c+step;
                 }
@@ -687,35 +769,53 @@ public final class DataFileUtils {
             
             //here we should have t2ang and intensities full and same size, populate dps
             int size = FastMath.min(t2ang.size(), intensities.size());
-            if (size == 0)return false;
+            if (size == 0)throw new Exception("no points");
             for (int i=0; i<size;i++){
                 ds.addPoint(new DataPoint(t2ang.get(i),intensities.get(i),0.0f));
             }
-            ds.setSerieName(f.getName());
-            patt1D.addDataSerie(ds);
+            ds.serieName=f.getName();
+            dsP.addDataSerie(ds);
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
-            return false;
+            readed = false;
+        }finally {
+            if(sf!=null)sf.close();
         }
-        return true;
+        if (readed){
+            return dsP;
+        }else{
+            return null;
+        }
     }
     
-    private static boolean readFF(File f, Pattern1D patt1D){
+    private static Data_Common readFF(File f){
         boolean firstLine = true;
-        DataSerie ds = new DataSerie();
-        ArrayList<Double> intensities = new ArrayList<Double>();
-        ArrayList<Double> t2ang = new ArrayList<Double>();
+        boolean readed = true;
         
-        try{
-            Scanner sf = new Scanner(f);
+        //creem un DataSerie_Pattern
+        Data_Common dsP = new Data_Common();
+        DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
+        
+        List<Double> intensities = new ArrayList<Double>();
+        List<Double> t2ang = new ArrayList<Double>();
+        double t2i=0;
+        double t2f=0;
+        double step=0;
+        
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(f);
+        
+        Scanner sf = null;
+        try {
+            sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (isComment(line)){
-                    patt1D.getCommentLines().add(line);
+                    dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
                     if (wl>0){
-                        patt1D.setOriginal_wavelength(wl);
+                        dsP.setOriginalWavelength(wl);
                         ds.setWavelength(wl);
                     }
                     continue;
@@ -728,14 +828,14 @@ public final class DataFileUtils {
                 
                 if (firstLine){
                     try {
-                        ds.setT2i(Double.parseDouble(values[0]));
-                        ds.setStep(Double.parseDouble(values[1]));
-                        ds.setT2f(Double.parseDouble(values[2]));
+                        t2i=Double.parseDouble(values[0]);
+                        step=Double.parseDouble(values[1]);
+                        t2f=Double.parseDouble(values[2]);
                     }catch(Exception readex){
                         if (D1Dplot_global.isDebug())readex.printStackTrace();
                         log.warning("Error reading 1st line of Free Format file (t2i step t2f)");
-                        sf.close();
-                        return false;
+                        readed=false;
+                        break;
                     }
                     firstLine=false;
                     continue;
@@ -745,32 +845,37 @@ public final class DataFileUtils {
                     intensities.add(Double.parseDouble(values[i]));
                 }
             }
-            sf.close();
             
             //now the 2thetas
             int nrint = intensities.size();
             log.debug("nrint="+nrint);
-            double t2c = ds.getT2i();
-            while(t2c<=ds.getT2f()){
+            double t2c = t2i;
+            while(t2c<=t2f){
                 t2ang.add(t2c);
-                t2c = t2c+ds.getStep();
+                t2c = t2c+step;
             }
             log.debug("nrt2ang="+t2ang.size());
             
             //here we should have t2ang and intensities full and same size, populate dps
             int size = FastMath.min(t2ang.size(), intensities.size());
-            if (size == 0)return false;
+            if (size == 0)throw new Exception("no points");
             for (int i=0; i<size;i++){
                 ds.addPoint(new DataPoint(t2ang.get(i),intensities.get(i),0.0f));
             }
-            ds.setSerieName(f.getName());
-            patt1D.addDataSerie(ds);
+            ds.serieName=f.getName();
+            dsP.addDataSerie(ds);
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
-            return false;
+            readed=false;
+        }finally {
+            if(sf!=null)sf.close();
         }
-        return true;
+        if (readed){
+            return dsP;
+        }else{
+            return null;
+        }
     }
     
 
@@ -780,8 +885,9 @@ public final class DataFileUtils {
         double t2 = 0.00f;
         double inten = 0.00f;
         double sdev = -100.00f;
-        try{
-            Scanner sf = new Scanner(f);
+        Scanner sf = null;
+        try {
+            sf = new Scanner(f);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (isComment(line)){
@@ -803,7 +909,6 @@ public final class DataFileUtils {
                 }
                 break;
             }
-            sf.close();
             
             //al free format la primera linia es 2ti step 2tf, i l'step ha de ser petit pero no zero (important per els diagrames resta)
             if (inten<0)return false;
@@ -822,32 +927,45 @@ public final class DataFileUtils {
 
         }catch(Exception e){
             e.printStackTrace();
+        }finally {
+            if(sf!=null)sf.close();
         }
 
         return false;
     }
     
-    private static boolean readGSA(File f, Pattern1D patt1D){
+    private static Data_Common readGSA(File f){
         boolean startData = false;
         boolean esdev = false;
         double t2p = 0;
-        DataSerie ds = new DataSerie();
+        double step = 0;
+        double t2i = 0;
         
-        try{
-            Scanner sf = new Scanner(f);
+        boolean readed = true;
+        
+        //creem un DataSerie_Pattern
+        Data_Common dsP = new Data_Common();
+        DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
+        
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(f);
+        
+        Scanner sf = null;
+        try {
+            sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (isComment(line)){
-                    patt1D.getCommentLines().add(line);
+                    dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
                     if (wl>0){
-                        patt1D.setOriginal_wavelength(wl);
+                        dsP.setOriginalWavelength(wl);
                         ds.setWavelength(wl);
                     }
                     continue;
                 }
                 if (line.trim().startsWith("Instrument")){
-                    patt1D.getCommentLines().add(line);
+                    dsP.addCommentLine(line);
                     continue;
                 }
                 
@@ -855,9 +973,9 @@ public final class DataFileUtils {
 //                    Instrument parameter      bl04.prm                                              
 //                    BANK 1   20951    4191 CONST    60.000     0.600  0.0 0.0 ESD   
                     String values[] = line.trim().split("\\s+");
-                    ds.setT2i(Double.parseDouble(values[5])/100.0);
-                    ds.setStep(Double.parseDouble(values[6])/100.0);
-                    t2p = ds.getT2i();
+                    t2i=Double.parseDouble(values[5])/100.0;
+                    step=Double.parseDouble(values[6])/100.0;
+                    t2p = t2i;
                     if(line.contains("ESD"))esdev=true;
                     startData = true;
                     continue;
@@ -872,54 +990,64 @@ public final class DataFileUtils {
                             double sd = 0;
                             if (esdev) sd = Double.parseDouble(values[i+1]);
                             ds.addPoint(new DataPoint(t2p, inten, sd));
-                            t2p = t2p + ds.getStep();
+                            t2p = t2p + step;
                         }
                     }catch(Exception readex){
                         if (D1Dplot_global.isDebug())readex.printStackTrace();
                         log.debug("Error reading GSA file");
-                        sf.close();
-                        return false;
+                        readed=false;
+                        break;
                     }
                     continue;
                 }
             }
-            sf.close();
             
-            ds.setT2f(ds.getPoint(ds.getNpoints()-1).getX());
-            ds.setSerieName(f.getName());
-            patt1D.addDataSerie(ds);
+//            ds.setT2f(ds.getPoint(ds.getNpoints()-1).getX());
+            ds.serieName=f.getName();
+            dsP.addDataSerie(ds);
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
-            return false;
+            readed=false;;
+        }finally {
+            if(sf!=null)sf.close();
         }
-        return true;
+        if (readed){
+            return dsP;
+        }else{
+            return null;
+        }
     }
 
         
     //TODO: cal revisar la lectura, posar mes excepcions, etc...
-    private static boolean readPRF(File f, Pattern1D patt1D){
+    private static Data_Common readPRF(File f){
+        boolean readed = true;
         boolean startData = false;
         boolean starthkl = false;
         double previous2t = -100.0;
         int linecount = 0;
-        DataSerie dsObs = new DataSerie();
-        DataSerie dsCal = new DataSerie();
-        DataSerie dsDif = new DataSerie();
-        DataSerie dsHKL = new DataSerie();
         
-        try{
-            Scanner sf = new Scanner(f);
+        //creem un DataSerie_PRF
+        Data_Common dsPRF = new Data_Common();
+        DataSerie dsObs = new DataSerie(SerieType.obs,Xunits.tth,dsPRF);
+        DataSerie dsCal = new DataSerie(SerieType.cal,Xunits.tth,dsPRF);
+        DataSerie dsDif = new DataSerie(SerieType.diff,Xunits.tth,dsPRF);
+        DataSerie dsHKL = new DataSerie(SerieType.hkl,Xunits.tth,dsPRF);
+        
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(f);
+        
+        Scanner sf = null;
+        try {
+            sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 linecount = linecount +1;
                 
                 if (linecount == 2){
                     String values[] = line.trim().split("\\s+");
-                    dsObs.setWavelength(Double.parseDouble(values[2]));
-                    dsCal.setWavelength(Double.parseDouble(values[2]));
-                    dsDif.setWavelength(Double.parseDouble(values[2]));
-                    dsHKL.setWavelength(Double.parseDouble(values[2]));
+                    dsPRF.setOriginalWavelength(Double.parseDouble(values[2]));
                 }
                 
                 if (line.trim().startsWith("2Theta")){
@@ -942,45 +1070,55 @@ public final class DataFileUtils {
                     int h = Integer.parseInt(shkl[0]);
                     int k = Integer.parseInt(shkl[1]);
                     int l = Integer.parseInt(shkl[2]);
-                    dsHKL.addHKLPoint(new DataPoint_hkl(h,k,l,t2i,dsObs.getWavelength()));
+                    HKLrefl hkl = new HKLrefl(h,k,l,dsObs.getWavelength(),t2i);
+                    dsHKL.addPoint(new DataPoint_hkl(hkl,t2i));
                 }else{
-                    double Iobs = Double.parseDouble(values[1]);
-                    double Ical = Double.parseDouble(values[2]);
-                    double Ibkg = Double.parseDouble(values[4]);
-                    dsObs.addPoint(new DataPoint(t2i,Iobs,0,Ibkg));
-                    dsCal.addPoint(new DataPoint(t2i,Ical,0,Ibkg));
-                    dsDif.addPoint(new DataPoint(t2i,Iobs-Ical,0));
+                    try {
+                        double Iobs = Double.parseDouble(values[1]);
+                        double Ical = Double.parseDouble(values[2]);
+                        double Ibkg = Double.parseDouble(values[4]);
+                        dsObs.addPoint(new DataPoint(t2i,Iobs,0,Ibkg));
+                        dsCal.addPoint(new DataPoint(t2i,Ical,0,Ibkg));
+                        dsDif.addPoint(new DataPoint(t2i,Iobs-Ical,0));
+                    }catch(Exception ex) {
+                        //vol dir que hem llegit alguna cosa rara
+                        log.warning("error reading prf intensity");
+                        dsObs.addPoint(new DataPoint(t2i,0,0,0));
+                        dsCal.addPoint(new DataPoint(t2i,0,0,0));
+                        dsDif.addPoint(new DataPoint(t2i,0,0,0));                        
+                    }
                     previous2t = t2i;
                 }
-                
-                patt1D.setPrf(true);
             }
-            sf.close();
                         
             double[] maxminXY = dsDif.getPuntsMaxXMinXMaxYMinY();
             double maxdif = FastMath.max(FastMath.abs(maxminXY[2]), FastMath.abs(maxminXY[3]));
             dsDif.setYOff(-1*((int)maxdif+100));
             maxminXY = dsObs.getPuntsMaxXMinXMaxYMinY();
             
-            dsObs.setTipusSerie(DataSerie.serieType.obs);
-            dsCal.setTipusSerie(DataSerie.serieType.cal);
-            dsDif.setTipusSerie(DataSerie.serieType.diff);
-            dsHKL.setTipusSerie(DataSerie.serieType.hkl);
-            dsObs.setSerieName(f.getName()+" ("+dsObs.getTipusSerie().toString()+")");
-            dsCal.setSerieName(f.getName()+" ("+dsCal.getTipusSerie().toString()+")");
-            dsDif.setSerieName(f.getName()+" ("+dsDif.getTipusSerie().toString()+")");
-            dsHKL.setSerieName(f.getName()+" ("+dsHKL.getTipusSerie().toString()+")");
-            dsHKL.setYOff(maxminXY[3]);
-            patt1D.addDataSerie(dsObs);
-            patt1D.addDataSerie(dsCal);
-            patt1D.addDataSerie(dsDif);
-            patt1D.addDataSerie(dsHKL);
+            dsObs.serieName=f.getName()+" ("+dsObs.getTipusSerie().toString()+")";
+            dsCal.serieName=f.getName()+" ("+dsCal.getTipusSerie().toString()+")";
+            dsDif.serieName=f.getName()+" ("+dsDif.getTipusSerie().toString()+")";
+            dsHKL.serieName=f.getName()+" ("+dsHKL.getTipusSerie().toString()+")";
+            dsHKL.setYOff(maxminXY[3]+DataSerie.def_hklYOff);
+            dsPRF.addDataSerie(dsObs);
+            dsPRF.addDataSerie(dsCal);
+            dsPRF.addDataSerie(dsDif);
+            dsPRF.addDataSerie(dsHKL);
+            dsPRF.setWavelengthToAllSeries(dsPRF.getOriginalWavelength());
+            
             
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
-            return false;
+            readed=false;
+        }finally {
+            if(sf!=null)sf.close();
         }
-        return true;
+        if (readed){
+            return dsPRF;
+        }else{
+            return null;
+        }
         
         
         
@@ -992,249 +1130,177 @@ public final class DataFileUtils {
     public static boolean writeProject(File stateFile, PlotPanel p) {
     	
         boolean written = true;
-    	
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(stateFile,false)));
+            out = new PrintWriter(new BufferedWriter(new FileWriter(stateFile,true)));//        	//guardar axis info, zoom, bounds, etc...
             
-        	//guardar axis info, zoom, bounds, etc...
-        	String theme = Boolean.toString(PlotPanel.isLightTheme());
-        	String bkg = Boolean.toString(p.isShowBackground());
-        	String hkl = Boolean.toString(p.isHkllabels());
-        	String gridX = Boolean.toString(p.isShowGridX());
-        	String gridY = Boolean.toString(p.isShowGridY());
-        	String legend = Boolean.toString(p.isShowLegend());
-        	String autoLeg = Boolean.toString(p.isAutoPosLegend());
-        	String legX = Integer.toString(p.getLegendX());
-        	String legY = Integer.toString(p.getLegendY());
-        	String yVert = Boolean.toString(PlotPanel.isVerticalYAxe());
-        	String yVertLabel = Boolean.toString(PlotPanel.isVerticalYlabel());
-        	String yVertNeg = Boolean.toString(p.isNegativeYAxisLabels());
-        	
-        	String incXprim = Double.toString(p.getDiv_incXPrim());
-        	String incXsec = Double.toString(p.getDiv_incXSec());
-        	String incYprim = Double.toString(p.getDiv_incYPrim());
-        	String incYsec = Double.toString(p.getDiv_incYSec());
-        	String startValX = Double.toString(p.getDiv_startValX());
-        	String startValY = Double.toString(p.getDiv_startValY());
-        	String incX = Double.toString(p.getIncX());
-        	String incY = Double.toString(p.getIncY());
-        	String scaleX = Double.toString(p.getScalefitX());
-        	String scaleY = Double.toString(p.getScalefitY());
-        	String xMax = Double.toString(p.getxMax());
-        	String xMin = Double.toString(p.getxMin());
-        	String xRangeMax = Double.toString(p.getXrangeMax());
-        	String xRangeMin = Double.toString(p.getXrangeMin());
-        	String yMax = Double.toString(p.getyMax());
-        	String yMin = Double.toString(p.getyMin());
-        	
-        	String xLabel = p.getXlabel();
-        	String yLabel = p.getYlabel();
-        	
-            out.println(String.format("%s %s %s %s %s %s %s %s %s %s %s %s", theme,bkg,hkl,gridX,gridY,legend,autoLeg,legX,legY,yVert,yVertLabel,yVertNeg));
-            out.println(String.format("%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s",incXprim,incXsec,incYprim,incYsec,startValX,startValY,incX,incY,scaleX,scaleY,xMax,xMin,xRangeMax,xRangeMin,yMax,yMin));
-            out.println(xLabel);
-            out.println(yLabel);
+            out.println(p.getVisualParametersToSave());
             out.println("-----------");
             
         	//guardar patterns/series amb tots els seus paràmetres de visualització
-        	
-        	Iterator <Pattern1D> itrP = p.getPatterns().iterator();
-        	int np = 0;
-        	while (itrP.hasNext()) {
-        		Pattern1D pat = itrP.next();
-        		String filePath = pat.getFile().getAbsolutePath();
-        		out.println(String.format("%d %s", np, filePath));
-        		Iterator<DataSerie> itrD = pat.getSeriesIterator();
-        		int nd = 0;
-        		while (itrD.hasNext()) {
-        			DataSerie d = itrD.next();
-        			
-        			String nam = d.getSerieName();
-        			String col = Integer.toString(d.getColor().getRGB());
-        			String sca = Double.toString(d.getScale());
-        			String zof = Double.toString(d.getZerrOff());
-        			String wav = Double.toString(d.getWavelength());
-        			String xun = d.getxUnits().getName();
-        			String yof = Double.toString(d.getYOff());
-        			String mar = Double.toString(d.getMarkerSize());
-        			String lin = Double.toString(d.getLineWidth());
-        			String err = Boolean.toString(d.isShowErrBars());
-        			String plo = Boolean.toString(d.isPlotThis());
-        			
-        			if (d.getTipusSerie()==serieType.bkg) {
-        				//TODO: cal guardarla tota
-        			}
-        			if (d.getTipusSerie()==serieType.ref) {
-        				//TODO: cal guardarla tota
-        				
-        			}
-        			
-        			out.println(String.format("%d %s", nd, nam)); //el nom podria tenir espais!! per aixo el deixo com a ultim
-        			out.println(String.format("%s %s %s %s %s %s %s %s %s %s", col,sca,zof,wav,xun,yof,mar,lin,err,plo));
-        			
-        			nd=nd+1;
-        		}
-        		np=np+1;
-        		out.println("-----------");
+            int np = 0;
+//        	for (Plottable plt:p.getDataToPlot()) {
+            for (int i=0;i<p.getNplottables();i++) {
+                Plottable plt = p.getPlottable(i);
+                String filePath = plt.getFile().getAbsolutePath();
+                out.println(String.format("%d %s", np, filePath));
+                int nd = 0;
+        	    for(DataSerie d:plt.getDataSeries()) { //TODO cal refer. posar el tipus. etc.. o llegir de nou al carregar
+                    String nam = d.serieName;
+                    String typ = d.getTipusSerie().toString();
+                    String col = Integer.toString(d.color.getRGB());
+                    String sca = FileUtils.dfX_4.format(d.getScale());
+                    String zof = FileUtils.dfX_5.format(d.getZerrOff());
+                    String wav = FileUtils.dfX_5.format(d.getWavelength());
+                    String xun = d.getxUnits().getName();
+                    String yof = FileUtils.dfX_3.format(d.getYOff());
+                    String mar = FileUtils.dfX_2.format(d.markerSize);
+                    String lin = FileUtils.dfX_2.format(d.lineWidth);
+                    String err = Boolean.toString(d.showErrBars);
+                    String plo = Boolean.toString(d.plotThis);
+                    
+                    if (d.getTipusSerie()==SerieType.bkg) {
+                        //TODO: cal guardarla tota
+                    }
+                    if (d.getTipusSerie()==SerieType.ref) {
+                        //TODO: cal guardarla tota
+                        
+                    }
+                    
+                    out.println(String.format("%d %s %s", nd, typ, nam)); //el nom podria tenir espais!! per aixo el deixo com a ultim
+                    out.println(String.format("%s %s %s %s %s %s %s %s %s %s", col,sca,zof,wav,xun,yof,mar,lin,err,plo));
+                    
+        	        nd++;
+        	    }
+        	    np++;
+                out.println("-----------");
         	}
-        	
-        	out.close();
+                        
         }catch(Exception ex) {
         	if (D1Dplot_global.isDebug())ex.printStackTrace();
         	written = false;
+        }finally {
+            if(out!=null)out.close();
         }
     	return written;
     }
-    
-    public static boolean readProject(File stateFile, PlotPanel p) {
-    	boolean readed = true;
-    
+
+    public static boolean readProject(File stateFile, PlotPanel p, D1Dplot_main m) {
+        boolean readed = true;
+        Scanner sf = null;
         try {
-            Scanner sf = new Scanner(stateFile);
-            
+            sf = new Scanner(stateFile);
+
             //4 primere linies fixes
             String line = sf.nextLine();
             String[] vals1 = line.trim().split("\\s+");
-            
+
             line = sf.nextLine();
             String[] vals2 = line.trim().split("\\s+");
-            
-        	String xlabel = sf.nextLine();
-        	String ylabel = sf.nextLine();
 
-        	
-//            line = sf.nextLine(); //----
-            
+            String xlabel = sf.nextLine();
+            String ylabel = sf.nextLine();
+
+//            p.setVisualParametersFromSaved(vals1, vals2, xlabel, ylabel);
+
+            //            line = sf.nextLine(); //----
             //ara els patterns series
+            Plottable currentPlottable=null;
             while (sf.hasNextLine()){
                 line = sf.nextLine();
                 log.debug(line);
-                
                 if (line.startsWith("---")) {
-                	//new pattern if nextline
-                	if (sf.hasNextLine()) {
-                		line = sf.nextLine();	
-                		log.debug(line);
-                		if (line.trim().isEmpty())break;
-//                		vals = line.trim().split("\\s+");
-//                		int npat = Integer.parseInt(vals[0]);
-                		String fname = line.substring(line.indexOf(" "));
-                		log.debug(fname);
-                		Pattern1D pat = new Pattern1D();
-                		DataFileUtils.readPatternFile(new File(fname.trim()), pat);
-                		p.getPatterns().add(pat);
-                		continue; //seguim llegint les dataseries
-                	}else {
-                		break;
-                	}
+                    //new pattern if nextline
+                    if (sf.hasNextLine()) {
+                        line = sf.nextLine();	
+                        log.debug(line);
+                        if (line.trim().isEmpty())break;
+                        //                		vals = line.trim().split("\\s+");
+                        //                		int npat = Integer.parseInt(vals[0]);
+                        String fname = line.substring(line.indexOf(" "));
+                        log.debug(fname);
+                        currentPlottable=DataFileUtils.readPatternFile(new File(fname.trim()));
+                        p.addPlottable(currentPlottable);
+//                        Pattern1D pat = new Pattern1D();
+//                        DataFileUtils.readPatternFile(new File(fname.trim()), pat);
+//                        p.getPatterns().add(pat);
+                        continue; //seguim llegint les dataseries
+                    }else {
+                        break;
+                    }
                 }
                 if (line.trim().isEmpty())continue;
-                
-                //aqui estem dins un pattern
-                
-                String[] vals = line.trim().split("\\s+");
-                int nds = Integer.parseInt(vals[0]);
-                String dsname = line.substring(line.indexOf(" "));
-                
-                Pattern1D currentPatt = p.getPatterns().get(p.getPatterns().size()-1);
-                DataSerie ds = currentPatt.getSerie(nds);
-                ds.setSerieName(dsname.trim());
-                
-                //seguent linia
-                line = sf.nextLine();
-                log.debug(line);
-                vals = line.trim().split("\\s+");
-                
-                
-                ds.setColor(FileUtils.getColor(Integer.parseInt(vals[0])));
-                ds.setScale(Float.parseFloat(vals[1]));
-                ds.setZerrOff(Double.parseDouble(vals[2]));
-                ds.setWavelength(Double.parseDouble(vals[3]));
-//                ds.setxUnits(vals[4]));
-                ds.setYOff(Double.parseDouble(vals[5]));
-                ds.setMarkerSize(Float.parseFloat(vals[6]));
-                ds.setLineWidth(Float.parseFloat(vals[7]));
-                ds.setShowErrBars(Boolean.parseBoolean(vals[8]));
-                ds.setPlotThis(Boolean.parseBoolean(vals[9]));
-            }
-            sf.close();
-            
-            
-    	    p.getMainframe().updateData(true);
-    	    p.getMainframe().showTableTab();
-            
-            
-            //apliquem (aqui sota perque primer hem d'inicialitzar??)
-            try {
-            	PlotPanel.setLightTheme(Boolean.parseBoolean(vals1[0]));
-            	p.setShowBackground(Boolean.parseBoolean(vals1[1]));
-            	p.setHkllabels(Boolean.parseBoolean(vals1[2]));
-            	p.setShowGridX(Boolean.parseBoolean(vals1[3]));
-            	p.setShowGridY(Boolean.parseBoolean(vals1[4]));
-            	p.setShowLegend(Boolean.parseBoolean(vals1[5]));
-            	p.setAutoPosLegend(Boolean.parseBoolean(vals1[6]));
-            	p.setLegendX(Integer.parseInt(vals1[7]));
-            	p.setLegendY(Integer.parseInt(vals1[8]));
-            	PlotPanel.setVerticalYAxe(Boolean.parseBoolean(vals1[9]));
-            	PlotPanel.setVerticalYlabel(Boolean.parseBoolean(vals1[10]));
-            	p.setNegativeYAxisLabels(Boolean.parseBoolean(vals1[11]));
-            }catch(Exception e) {
-            	e.printStackTrace();
-            }
-            
-            try {
-            	p.setDiv_incXPrim(Double.parseDouble(vals2[0]));
-            	p.setDiv_incXSec(Double.parseDouble(vals2[1]));
-            	p.setDiv_incYPrim(Double.parseDouble(vals2[2]));
-            	p.setDiv_incYSec(Double.parseDouble(vals2[3]));
-            	p.setDiv_startValX(Double.parseDouble(vals2[4]));
-            	p.setDiv_startValY(Double.parseDouble(vals2[5]));
-            	p.setIncX(Double.parseDouble(vals2[6]));
-            	p.setIncY(Double.parseDouble(vals2[7]));
-            	p.setScalefitX(Double.parseDouble(vals2[8]));
-            	p.setScalefitY(Double.parseDouble(vals2[9]));
-            	p.setxMax(Double.parseDouble(vals2[10]));
-            	p.setxMin(Double.parseDouble(vals2[11]));
-            	p.setXrangeMax(Double.parseDouble(vals2[12]));
-            	p.setXrangeMin(Double.parseDouble(vals2[13]));
-            	p.setyMax(Double.parseDouble(vals2[14]));
-            	p.setyMin(Double.parseDouble(vals2[15]));
 
-            	p.setXlabel(xlabel);
-            	p.setYlabel(ylabel);
-            	
-            	
-            }catch(Exception e) {
-            	e.printStackTrace();
+                //aqui estem dins un pattern
+                if (currentPlottable!=null) {
+                    String[] vals = line.trim().split("\\s+");
+//                    int nds = Integer.parseInt(vals[0]);
+                    SerieType styp = SerieType.getEnum(vals[1]);
+                    if (styp==null)styp=SerieType.dat;
+                    String dsname = String.join(" ", Arrays.asList(vals).subList(2, vals.length));
+
+                    //get the serie type of the currentPlottable
+                    for (DataSerie ds:currentPlottable.getDataSeries()) {
+                        if (ds.getTipusSerie()==styp) {
+                            //es aquesta
+                            ds.serieName=dsname.trim();
+                            //seguent linia
+                            line = sf.nextLine();
+                            log.debug(line);
+                            vals = line.trim().split("\\s+");
+                            
+                            ds.color=FileUtils.getColor(Integer.parseInt(vals[0]));
+                            ds.setScale(Float.parseFloat(vals[1]));
+                            ds.setZerrOff(Double.parseDouble(vals[2]));
+                            ds.setWavelength(Double.parseDouble(vals[3]));
+                            //                ds.setxUnits(vals[4]));
+                            ds.setYOff(Double.parseDouble(vals[5]));
+                            ds.markerSize=Float.parseFloat(vals[6]);
+                            ds.lineWidth=Float.parseFloat(vals[7]);
+                            ds.showErrBars=Boolean.parseBoolean(vals[8]);
+                            ds.plotThis=Boolean.parseBoolean(vals[9]);
+                            
+                        }
+                    }
+                }
             }
+
             
-            
-            }catch(Exception ex) {
-            	if (D1Dplot_global.isDebug())ex.printStackTrace();
-            	readed = false;
-            }
+            m.updateData(true,true);
+            m.showTableTab();
+
+            p.setVisualParametersFromSaved(vals1, vals2, xlabel, ylabel);
+
+
+
+        }catch(Exception ex) {
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
+            readed = false;
+        }finally {
+            if(sf!=null)sf.close();
+        }
         
         return readed;
     }
     
-    private static boolean writeBKG(Pattern1D patt1D, int serie, int npoints, File outf, boolean overwrite){
+    private static boolean writeBKG(DataSerie ds, int npoints, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         
         boolean written = true;
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
+//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            //primer escribim els comentaris
-            Iterator<String> itrComm = patt1D.getCommentLines().iterator();
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));            //primer escribim els comentaris
+            Iterator<String> itrComm = ds.getCommentLines().iterator();
             while (itrComm.hasNext()){
                 String cline = itrComm.next();
                 out.println(cline);
             }
             //ara posem una linia comentari amb les wavelengths
-            if (FastMath.abs(ds.getWavelength()-patt1D.getOriginal_wavelength())>0.01){
-                out.println("# wavelength="+FileUtils.dfX_4.format(ds.getWavelength())+" (originalWL="+FileUtils.dfX_4.format(patt1D.getOriginal_wavelength())+")");                
+            if (FastMath.abs(ds.getWavelength()-ds.getOriginalWavelength())>0.01){
+                out.println("# wavelength="+FileUtils.dfX_4.format(ds.getWavelength())+" (originalWL="+FileUtils.dfX_4.format(ds.getOriginalWavelength())+")");                
             }
 
             if (FastMath.abs(ds.getZerrOff())>0.01f){
@@ -1249,14 +1315,14 @@ public final class DataFileUtils {
             }
             out.println(String.format("# %d BACKGROUND POINTS:", npoints));
             
-            double minX = ds.getPoint(0).getX();
-            double maxX = ds.getPoint(ds.getNpoints()-1).getX();
+            double minX = ds.getMinX();
+            double maxX = ds.getMaxX();
             double stepX = (maxX-minX)/npoints;
             
             double currX = minX;
             int nwritten = 0;
             while(currX<=maxX){
-                DataPoint[] dps = ds.getSurroundingDPs(currX);
+                Plottable_point[] dps = ds.getSurroundingDPs(currX);
                 if (dps!=null){
                     if (dps.length==2){
                         if ((dps[0]!=null)&&(dps[1]!=null)){
@@ -1273,34 +1339,33 @@ public final class DataFileUtils {
             if (nwritten!=npoints){
                 log.info(String.format("# %d BACKGROUND POINTS WRITTEN (expected %d)", nwritten,npoints));                
             }
-
-
-            out.close();
         } catch (Exception ex) {
             ex.printStackTrace();
             written = false;
+        }finally {
+            if(out!=null)out.close();
         }
         return written;
     }
     
-    private static boolean writeDAT_ALBA(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeDAT_ALBA(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         
         boolean written = true;
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
+//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            //primer escribim els comentaris
-            Iterator<String> itrComm = patt1D.getCommentLines().iterator();
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));            //primer escribim els comentaris
+            Iterator<String> itrComm = ds.getCommentLines().iterator();
             while (itrComm.hasNext()){
                 String cline = itrComm.next();
                 out.println(cline);
             }
             //ara posem una linia comentari amb les wavelengths
-            if (FastMath.abs(ds.getWavelength()-patt1D.getOriginal_wavelength())>0.01){
-                out.println("# wavelength="+FileUtils.dfX_4.format(ds.getWavelength())+" (originalWL="+FileUtils.dfX_4.format(patt1D.getOriginal_wavelength())+")");                
+            if (FastMath.abs(ds.getWavelength()-ds.getOriginalWavelength())>0.01){
+                out.println("# wavelength="+FileUtils.dfX_4.format(ds.getWavelength())+" (originalWL="+FileUtils.dfX_4.format(ds.getOriginalWavelength())+")");                
             }
 
             if (FastMath.abs(ds.getZerrOff())>0.01f){
@@ -1311,30 +1376,32 @@ public final class DataFileUtils {
             }
             
             for (int i=0; i<ds.getNpoints();i++){
-                String towrite = String.format(" %10.7e  %10.7e  %10.7e",ds.getPoint(i).getX(),ds.getPoint(i).getY(),ds.getPoint(i).getSdy());
+                Plottable_point pp = ds.getPointWithCorrections(i,addYbkg);
+                String towrite = String.format(" %10.7e  %10.7e  %10.7e",pp.getX(),pp.getY(),pp.getSdy());
                 towrite = towrite.replace(",", ".");
                 out.println(towrite);
             }
             
-            out.close();
         } catch (Exception ex) {
             ex.printStackTrace();
             written = false;
+        }finally {
+            if(out!=null)out.close();
         }
         return written;
     }
     
-    private static boolean writeGR(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeGR(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
         
         boolean written = true;
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
+//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            //primer escribim els comentaris
-            Iterator<String> itrComm = patt1D.getCommentLines().iterator();
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));            //primer escribim els comentaris
+            Iterator<String> itrComm = ds.getCommentLines().iterator();
             String com_serie = "#S 1";
             String com_label = "#L r($\\AA$)  G($\\AA^{-2}$)";
             while (itrComm.hasNext()){
@@ -1355,35 +1422,37 @@ public final class DataFileUtils {
             out.println(com_label);
             
             for (int i=0; i<ds.getNpoints();i++){
-                String towrite = String.format("%.3f %.7f",ds.getPoint(i).getX(),ds.getPoint(i).getY());
+                Plottable_point pp = ds.getPointWithCorrections(i,addYbkg);
+                String towrite = String.format("%.3f %.7f",pp.getX(),pp.getY());
                 towrite = towrite.replace(",", ".");
                 out.println(towrite);
             }
             
-            out.close();
         } catch (Exception ex) {
             ex.printStackTrace();
             written = false;
+        }finally {
+            if(out!=null)out.close();
         }
         return written;
     }
     
-    private static boolean writeDAT_FreeFormat(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeDAT_FreeFormat(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
+//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            //TODO AFFEGIR MES COMENTARIS?
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));            //TODO AFFEGIR MES COMENTARIS?
             StringBuilder comments = new StringBuilder();
             comments.append("#");
-            if (patt1D.getCommentLines().size()>0){
-                comments.append(patt1D.getCommentLines().get(0));    
+            if (ds.getCommentLines().size()>0){
+                comments.append(ds.getCommentLines().get(0));    
             }
             
-            if (FastMath.abs(ds.getWavelength()-patt1D.getOriginal_wavelength())>0.01){
-                comments.append(String.format(" wavelength=%8.4f (originalWL=%8.4f",ds.getWavelength(),patt1D.getOriginal_wavelength()));
+            if (FastMath.abs(ds.getWavelength()-ds.getOriginalWavelength())>0.01){
+                comments.append(String.format(" wavelength=%8.4f (originalWL=%8.4f",ds.getWavelength(),ds.getOriginalWavelength()));
             }
 
             if (FastMath.abs(ds.getZerrOff())>0.01f){
@@ -1393,9 +1462,8 @@ public final class DataFileUtils {
             if (ds.getScale()>1.05 || ds.getScale()<0.95){
                 comments.append("scaleFactorApplied="+FileUtils.dfX_2.format(ds.getScale()));
             }
-            if (ds.getStep()<0)ds.setStep(ds.calcStep());
             
-            String towrite = String.format(" %10.7e %10.7e %10.7e %s", FileUtils.round(ds.getT2i(),5),FileUtils.round(ds.getStep(),5),FileUtils.round(ds.getT2f(),5),comments.toString());
+            String towrite = String.format(" %10.7e %10.7e %10.7e %s", FileUtils.round(ds.getMinX(),5),FileUtils.round(ds.calcStep(),5),FileUtils.round(ds.getMaxX(),5),comments.toString());
             towrite = towrite.replace(",", ".");
             out.println(towrite);
             
@@ -1404,7 +1472,7 @@ public final class DataFileUtils {
             double[] intensities = new double[10];
             int ii = 0;
             for (int i=0;i<ds.getNpoints();i++){
-                intensities[ii] = ds.getPoint(i).getY();
+                intensities[ii] = ds.getPointWithCorrections(i,addYbkg).getY();
                 ii++;
                 if (ii==10 || i==ds.getNpoints()-1){
                     //escribim linia
@@ -1420,22 +1488,23 @@ public final class DataFileUtils {
 
             }
             
-            out.close();
         } catch (Exception ex) {
             ex.printStackTrace();
             written = false;
+        }finally {
+            if(out!=null)out.close();
         }
         return written;
     }
     
-    private static boolean writeGSA(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeGSA(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
+//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
             double maxY = ds.getPuntsMaxXMinXMaxYMinY()[2];
             double top = 1.;
             String warn_msg = "";
@@ -1445,15 +1514,15 @@ public final class DataFileUtils {
                 warn_msg = warn_msg + " -- !!!  WARNING : Counts devided by 10 to avoid overflow ";
                 top = 10.*top;
             }
-            out.println("# "+ds.getSerieName()+" "+patt1D.getCommentLines().get(0)+" "+warn_msg);
+            out.println("# "+ds.serieName+" "+ds.getCommentLines().get(0)+" "+warn_msg);
             out.println("Instrument parameter      bl04.prm ");
 
             int npts = ds.getNpoints();
             int nrec = (int)((npts - (npts%5))/5.);
             if (npts%5!=0)nrec = nrec +1;
 //            BANK 1   20951    4191 CONST    60.000     0.600  0.0 0.0 ESD                   
-            if (ds.getStep()<0)ds.setStep(ds.calcStep());
-            String linegsa=String.format("BANK 1 %7d %7d CONST %9.3f %9.3f  0.0 0.0 ESD ",npts,nrec,ds.getPoint(0).getX()*100.0,ds.getStep()*100.0);
+//            if (ds.getStep()<0)ds.setStep(ds.calcStep());
+            String linegsa=String.format("BANK 1 %7d %7d CONST %9.3f %9.3f  0.0 0.0 ESD ",npts,nrec,ds.getPointWithCorrections(0,addYbkg).getX()*100.0,ds.calcStep()*100.0);
             out.println(linegsa);
             
             int startIndex = 0;
@@ -1461,11 +1530,11 @@ public final class DataFileUtils {
             
             while (startIndex <= endIndex-4){
                 try{
-                    String towrite = String.format("%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f",ds.getPoint(startIndex).getY()/top, ds.getPoint(startIndex).getSdy()/top,
-                            ds.getPoint(startIndex+1).getY()/top, ds.getPoint(startIndex+1).getSdy()/top,
-                            ds.getPoint(startIndex+2).getY()/top, ds.getPoint(startIndex+2).getSdy()/top,
-                            ds.getPoint(startIndex+3).getY()/top, ds.getPoint(startIndex+3).getSdy()/top,
-                            ds.getPoint(startIndex+4).getY()/top, ds.getPoint(startIndex+4).getSdy()/top);
+                    String towrite = String.format("%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f",ds.getPointWithCorrections(startIndex,addYbkg).getY()/top, ds.getPointWithCorrections(startIndex,addYbkg).getSdy()/top,
+                            ds.getPointWithCorrections(startIndex+1,addYbkg).getY()/top, ds.getPointWithCorrections(startIndex+1,addYbkg).getSdy()/top,
+                            ds.getPointWithCorrections(startIndex+2,addYbkg).getY()/top, ds.getPointWithCorrections(startIndex+2,addYbkg).getSdy()/top,
+                            ds.getPointWithCorrections(startIndex+3,addYbkg).getY()/top, ds.getPointWithCorrections(startIndex+3,addYbkg).getSdy()/top,
+                            ds.getPointWithCorrections(startIndex+4,addYbkg).getY()/top, ds.getPointWithCorrections(startIndex+4,addYbkg).getSdy()/top);
                     out.println(towrite);
                     startIndex+=5;
                 }catch(Exception ex){
@@ -1475,45 +1544,49 @@ public final class DataFileUtils {
                     break;
                 }
             }
-            out.close();
+//            out.close();
         } catch (Exception ex) {
             ex.printStackTrace();
             written = false;
+        }finally {
+            if(out!=null)out.close();
         }
         return written;
     }
     
-    private static boolean writeASC(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writeASC(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
+//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
             for (int i=0; i<ds.getNpoints(); i++){
-                String s = String.format("%.6f  %.2f", ds.getPoint(i).getX(),ds.getPoint(i).getY());
+                Plottable_point pp = ds.getPointWithCorrections(i,addYbkg);
+                String s = String.format("%.6f  %.2f", pp.getX(),pp.getY());
                 s = s.replace(",", ".");
                 out.println(s);                  
             }
                         
-            out.close();
         } catch (Exception ex) {
             ex.printStackTrace();
             written = false;
+        }finally {
+            if(out!=null)out.close();
         }
         return written;
     }
     
     //option list2t is to put the positionList and avoid error in 2theta when only ini and fin are given
-    private static boolean writeXRDML(Pattern1D patt1D, int serie, File outf,boolean list2T,boolean overwrite){
+    private static boolean writeXRDML(DataSerie ds, File outf,boolean list2T,boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
+//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
+        PrintWriter out = null;
         try {
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-            
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
             out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
             out.println("<xrdMeasurements xmlns=\"http://www.xrdml.com/XRDMeasurement/1.3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.xrdml.com/XRDMeasurement/1.3 http://www.xrdml.com/XRDMeasurement/1.3/XRDMeasurement.xsd\" status=\"Completed\">");
             out.println("    <xrdMeasurement measurementType=\"Scan\" status=\"Completed\">");
@@ -1546,22 +1619,22 @@ public final class DataFileUtils {
             if(list2T){//list positions
                 StringBuilder sb2T = new StringBuilder();
                 for (int i=0; i<ds.getNpoints(); i++){
-                    double t2 = ds.getPoint(i).getX();
+                    double t2 = ds.getPointWithCorrections(i,addYbkg).getX();
                     String towrite = String.format("%10.7e ", t2);  
                     towrite = towrite.replace(",", ".");
                     sb2T.append(towrite);
                 }
                 out.println("                <listPositions>"+sb2T.toString().trim()+"</listPositions>");                
             }else{
-                out.println("                <startPosition>"+ds.getT2i()+"</startPosition>");
-                out.println("                <endPosition>"+ds.getT2f()+"</endPosition>");                
+                out.println("                <startPosition>"+ds.getMinX()+"</startPosition>");
+                out.println("                <endPosition>"+ds.getMaxX()+"</endPosition>");                
             }
             out.println("                </positions>");
             out.println("                <commonCountingTime unit=\"seconds\">100.0</commonCountingTime>");
             StringBuilder sbInt = new StringBuilder();
             
             for (int i=0; i<ds.getNpoints(); i++){
-                double inten = ds.getPoint(i).getY();
+                double inten = ds.getPointWithCorrections(i,addYbkg).getY();
                 int iint = (int) Math.round(inten);
                 sbInt.append(Integer.toString(iint)+" ");
             }
@@ -1571,23 +1644,24 @@ public final class DataFileUtils {
             out.println("    </xrdMeasurement>");
             out.println("</xrdMeasurements>");
             
-            out.close();
         } catch (Exception ex) {
             ex.printStackTrace();
             written = false;
+        }finally {
+            if(out!=null)out.close();
         }
         return written;
     }
     
-    private static boolean writePeaksTXT(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+    private static boolean writePeaksTXT(DataSerie ds, File outf, boolean overwrite){
 	    if (outf.exists()&&!overwrite)return false;
 	    if (outf.exists()&&overwrite)outf.delete();
-	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
+//	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
 	    boolean written = true;
+	    PrintWriter out = null;
 	    try {
-	        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
-	        
-	        Iterator<String> itrComm = patt1D.getCommentLines().iterator();
+	        out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
+	        Iterator<String> itrComm = ds.getCommentLines().iterator();
 	        while (itrComm.hasNext()){
 	            String cline = itrComm.next();
 	            if (!cline.startsWith("#"))cline = "# "+cline;
@@ -1595,27 +1669,29 @@ public final class DataFileUtils {
 	        }
 	        out.println("# file generated with d1Dplot");
 	        //ARA ELS PICS
-	        for(int i=0;i<ds.getNpeaks();i++){
-	            String s = String.format(" %12.5f %15.3f %15.3f",ds.getPeak(i).getX(),ds.getPeak(i).getY(),ds.getPeak(i).getSdy());
+	        for(int i=0;i<ds.getNpoints();i++){
+	            Plottable_point pp = ds.getPointWithCorrections(i,false); //no bkg in this case
+	            String s = String.format(" %12.5f %15.3f %15.3f",pp.getX(),pp.getY(),pp.getSdy());
 	            s = s.replace(",", ".");
 	            out.println(s);
 	        }
 	        
-	        out.close();
 	    } catch (Exception ex) {
 	        if (D1Dplot_global.isDebug())ex.printStackTrace();
 	        written = false;
-	    }
+	    }finally {
+            if(out!=null)out.close();
+        }
 	    return written;
 	    
 	}
 
 
 	private static DicvolDialog dvdiag; //el faig estatic perque es guardi els anteriors parametres
-	private static boolean writePeaksDIC(Pattern1D patt1D, int serie, File outf, boolean overwrite){
+	private static boolean writePeaksDIC(DataSerie ds, File outf, boolean overwrite){
 	    if (outf.exists()&&!overwrite)return false;
 	    if (outf.exists()&&overwrite)outf.delete();
-	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
+//	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
 	    
 	    //preguntem els parametres
 	    if (dvdiag==null){
@@ -1637,7 +1713,7 @@ public final class DataFileUtils {
 	    try {
 	        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
 	        
-	        Iterator<String> itrComm = patt1D.getCommentLines().iterator();
+	        Iterator<String> itrComm = ds.getCommentLines().iterator();
 	        int ncom = 0;
 	        while (itrComm.hasNext()){
 	            String cline = itrComm.next();
@@ -1662,7 +1738,7 @@ public final class DataFileUtils {
 	                xun = 3;
 	                break;
 	            case dspInv:
-	                log.warning("1/dsp not supported by dicvol, please change xunits");
+	                log.warning("1/dsp² not supported by dicvol, please change xunits");
 	                break;
 	            default:
 	                xun = 2;
@@ -1687,7 +1763,8 @@ public final class DataFileUtils {
 	        
 	        //ARA ELS PICS
 	        for(int i=0;i<dvdiag.getNpeaks();i++){
-	            s = String.format(" %12.5f %15.2f %15.2f",ds.getPeak(i).getX(), ds.getPeak(i).getY(), ds.getPeak(i).getSdy());
+                Plottable_point pp = ds.getPointWithCorrections(i,false); //no bkg in this case
+	            s = String.format(" %12.5f %15.2f %15.2f",pp.getX(), pp.getY(), pp.getSdy());
 	            s = s.replace(",", ".");
 	            out.println(s);
 	        }
