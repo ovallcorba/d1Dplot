@@ -1,6 +1,7 @@
 package com.vava33.d1dplot.auxi;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.AbstractListModel;
 import javax.swing.ListModel;
@@ -17,7 +18,7 @@ public class FilteredListModel extends AbstractListModel<Object> {
 
     private final ListModel<?> _source;
     private Filter _filter;
-    private final ArrayList<Integer> _indices = new ArrayList<Integer>();
+    private final List<Integer> _indices = new ArrayList<Integer>();
 
     public FilteredListModel(ListModel<?> source) {
         if (source == null)

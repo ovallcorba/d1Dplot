@@ -18,31 +18,35 @@ import javax.swing.JDialog;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
-import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.d1dplot.auxi.PattOps;
-import com.vava33.d1dplot.auxi.Pattern1D;
+import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
+import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.Data_Common;
+import com.vava33.d1dplot.data.Plottable;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
-import javax.swing.JComboBox;
-
 import java.awt.Font;
 
 import javax.swing.border.TitledBorder;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.border.LineBorder;
 
 import java.awt.Color;
 
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.ItemEvent;
 import javax.swing.JCheckBox;
+import javax.swing.JTable;
+import javax.swing.JScrollPane;
 
 public class SubtractDialog {
 
@@ -53,23 +57,22 @@ public class SubtractDialog {
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     private JPanel contentPanel;
-    private D1Dplot_main main;
+//    private D1Dplot_main main;
     private JTextField txtFactor;
-    private JComboBox<Integer> combo_patt1;
-    private JComboBox<Integer> combo_serie1;
-    private JComboBox<Integer> combo_patt2;
-    private JComboBox<Integer> combo_serie2;
     private JCheckBox chckbxAutoScale;
     private JTextField txtTini;
     private JTextField txtTfin;
+    private JTable tableDS1;
+    private JTable tableDS2;
     
     /**
      * Create the dialog.
      */
-    public SubtractDialog(D1Dplot_main m) {
-        this.subtractDialog = new JDialog(m.getMainFrame(),"Subtract Patterns",false);
-        this.main = m;
-        this.plotpanel = m.getPanel_plot();
+    public SubtractDialog(PlotPanel p) {
+        this.subtractDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Subtract Patterns",false);
+//        this.main = m;
+//        this.plotpanel = m.getPanel_plot();
+        this.plotpanel = p;
         this.contentPanel = new JPanel();
         subtractDialog.setIconImage(D1Dplot_global.getIcon());
         subtractDialog.setBounds(100, 100, 814, 240);
@@ -81,27 +84,24 @@ public class SubtractDialog {
             JPanel panel = new JPanel();
             panel.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
             contentPanel.add(panel, "cell 0 0,grow");
-            panel.setLayout(new MigLayout("", "[grow][grow]", "[][]"));
+            panel.setLayout(new MigLayout("", "[grow]", "[][grow]"));
             {
-                JLabel lblPattern = new JLabel("Pattern");
-                panel.add(lblPattern, "cell 0 0");
+                JLabel lblSelectBasePattern = new JLabel("Select Base Pattern");
+                panel.add(lblSelectBasePattern, "cell 0 0");
             }
             {
-                combo_patt1 = new JComboBox<Integer>();
-                combo_patt1.addItemListener(new ItemListener() {
-                    public void itemStateChanged(ItemEvent arg0) {
-                        do_combo_patt1_itemStateChanged(arg0);
-                    }
-                });
-                panel.add(combo_patt1, "cell 1 0,growx");
-            }
-            {
-                JLabel lblSerie = new JLabel("Serie");
-                panel.add(lblSerie, "cell 0 1");
-            }
-            {
-                combo_serie1 = new JComboBox<Integer>();
-                panel.add(combo_serie1, "cell 1 1,growx");
+                {
+                    JScrollPane scrollPane = new JScrollPane();
+                    panel.add(scrollPane, "cell 0 1,grow");
+                    tableDS1 = new JTable();
+                    scrollPane.setViewportView(tableDS1);
+                    tableDS1.setDefaultRenderer(String.class, new PatternsTableCellRenderer());
+                    tableDS1.setDefaultRenderer(Integer.class, new PatternsTableCellRenderer());
+                    tableDS1.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+                    tableDS1.setColumnSelectionAllowed(false);
+                    tableDS1.setCellSelectionEnabled(false);
+
+                }
             }
         }
         {
@@ -113,38 +113,41 @@ public class SubtractDialog {
             JPanel panel = new JPanel();
             panel.setBorder(new TitledBorder(null, "", TitledBorder.LEADING, TitledBorder.TOP, null, null));
             contentPanel.add(panel, "cell 2 0,grow");
-            panel.setLayout(new MigLayout("", "[][][][grow]", "[][]"));
+            panel.setLayout(new MigLayout("", "[][][grow]", "[][grow]"));
             {
-                JLabel lblPattern_1 = new JLabel("Pattern");
-                panel.add(lblPattern_1, "cell 2 0,alignx trailing");
-            }
-            {
-                combo_patt2 = new JComboBox<Integer>();
-                combo_patt2.addItemListener(new ItemListener() {
-                    public void itemStateChanged(ItemEvent e) {
-                        do_combo_patt2_itemStateChanged(e);
-                    }
-                });
-                panel.add(combo_patt2, "cell 3 0,growx");
+                JLabel lblSelectPatternTo = new JLabel("Select Pattern to subtract");
+                panel.add(lblSelectPatternTo, "cell 0 0 3 1");
             }
             {
                 txtFactor = new JTextField();
-                panel.add(txtFactor, "cell 0 0 1 2");
+                panel.add(txtFactor, "cell 0 1");
                 txtFactor.setText("1.0");
                 txtFactor.setColumns(10);
             }
             {
                 JLabel lblX = new JLabel("x");
-                panel.add(lblX, "cell 1 0 1 2");
+                panel.add(lblX, "cell 1 1");
                 lblX.setFont(new Font("Dialog", Font.BOLD, 20));
             }
             {
-                JLabel lblSerie_1 = new JLabel("Serie");
-                panel.add(lblSerie_1, "cell 2 1,alignx trailing");
-            }
-            {
-                combo_serie2 = new JComboBox<Integer>();
-                panel.add(combo_serie2, "cell 3 1,growx");
+                {
+                    JScrollPane scrollPane = new JScrollPane();
+                    panel.add(scrollPane, "cell 2 1,grow");
+                    tableDS2 = new JTable();
+                    scrollPane.setViewportView(tableDS2);
+                    tableDS2.setDefaultRenderer(String.class, new PatternsTableCellRenderer());
+                    tableDS2.setDefaultRenderer(Integer.class, new PatternsTableCellRenderer());
+                    tableDS2.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+                    tableDS2.setColumnSelectionAllowed(false);
+                    tableDS2.setCellSelectionEnabled(false);
+//                    tableDS2.setModel(new DefaultTableModel(
+//                            new Object[][] {
+//                            },
+//                            new String[] {
+//                                    "nP", "nS", "Name"
+//                            }
+//                            ));
+                }
             }
         }
         {
@@ -209,59 +212,74 @@ public class SubtractDialog {
     }
 
     private void inicia(){
-        combo_patt1.removeAllItems();
-        for (int i=0; i<plotpanel.getPatterns().size(); i++){
-            combo_patt1.addItem(i);    
-        }
-        combo_patt2.removeAllItems();
-        for (int i=0; i<plotpanel.getPatterns().size(); i++){
-            combo_patt2.addItem(i);    
-        }
         
-        updateComboSerie1();
-        updateComboSerie2();
+        updateTables();
         
     }
     
-    private void updateComboSerie1(){
-        int p1 = (Integer) combo_patt1.getSelectedItem();
-        combo_serie1.removeAllItems();
-        for (int i=0; i<plotpanel.getPatterns().get(p1).getNseries();i++){
-            combo_serie1.addItem(i);
+    private void updateTables() {
+        DefaultTableModel mod = new DefaultTableModel(
+                new Object[][] {
+                },
+                new String[] {
+                        "nP", "nS", "Name"
+                }
+                ){
+                    private static final long serialVersionUID = 1L;
+                    Class<?>[] columnTypes = new Class[] {
+                            Integer.class, Integer.class, String.class
+                    };
+                    public Class<?> getColumnClass(int columnIndex) {
+                        return columnTypes[columnIndex];
+                    }
+                };
+//        DefaultTableModel model = (DefaultTableModel)tableDS1.getModel();
+//        DefaultTableModel model2 = (DefaultTableModel)tableDS2.getModel();
+//        model.setRowCount(0);
+//        model2.setRowCount(0);
+        mod.setRowCount(0);
+//      int np=0;
+        for (int i=0;i<plotpanel.getNplottables();i++) {
+            Plottable p = plotpanel.getPlottable(i);
+            int np=plotpanel.indexOfPlottableData(p);
+            for (DataSerie d: p.getDataSeries()) {
+                if(d.isEmpty())continue;
+                int nd = p.indexOfDS(d);
+                Object[] row = {np,nd,d.serieName};
+                mod.addRow(row);
+//                model.addRow(row);
+//                model2.addRow(row);
+            }
         }
+        tableDS1.setModel(mod);
+        tableDS2.setModel(mod);
     }
-    private void updateComboSerie2(){
-        int p2 = (Integer) combo_patt2.getSelectedItem();
-        combo_serie2.removeAllItems();
-        for (int i=0; i<plotpanel.getPatterns().get(p2).getNseries();i++){
-            combo_serie2.addItem(i);
-        }
-    }
+
 
     private void do_okButton_actionPerformed(ActionEvent e) {
     	subtractDialog.dispose();
     }
-    private void do_combo_patt1_itemStateChanged(ItemEvent arg0) {
-        updateComboSerie1();
-    }
-    private void do_combo_patt2_itemStateChanged(ItemEvent e) {
-        updateComboSerie2();
-    }
+
     
     
     private void do_btnSubtract_actionPerformed(ActionEvent e) {
-        int np1 = (Integer) combo_patt1.getSelectedItem();
-        int ns1 = (Integer) combo_serie1.getSelectedItem();
-        int np2 = (Integer) combo_patt2.getSelectedItem();
-        int ns2 = (Integer) combo_serie2.getSelectedItem();
-        
-        DataSerie ds1 = plotpanel.getPatterns().get(np1).getSerie(ns1);
-        DataSerie ds2 = plotpanel.getPatterns().get(np2).getSerie(ns2);
+        int r1 = tableDS1.getSelectedRow();
+        int r2 = tableDS2.getSelectedRow();
+        if ((r1<0)||(r2<0)) {
+            log.info("Please select patterns for the subtract operation");
+            return;
+        }
+        int np1 = (Integer) tableDS1.getValueAt(r1, 0);
+        int np2 = (Integer) tableDS2.getValueAt(r2, 0);
+        int nds1 = (Integer) tableDS1.getValueAt(r1, 1);
+        int nds2 = (Integer) tableDS2.getValueAt(r2, 1);
+        DataSerie ds1 = plotpanel.getPlottable(np1).getDataSerie(nds2);
+        DataSerie ds2 = plotpanel.getPlottable(np2).getDataSerie(nds2);
         
         if (ds1.getNpoints()!=ds2.getNpoints()){
             log.debug("Different number of points between series");
         }
-        if (ds1.getPoint(0).getX()!=ds2.getPoint(0).getX()){
+        if (ds1.getPointWithCorrections(0,plotpanel.isPlotwithbkg()).getX()!=ds2.getPointWithCorrections(0,plotpanel.isPlotwithbkg()).getX()){
             log.debug("Different first point on both series");
         }
 
@@ -296,11 +314,11 @@ public class SubtractDialog {
             boolean cont = FileUtils.YesNoDialog(subtractDialog, "No coincident points, rebinning required. Continue?");
             if (!cont)return;
             DataSerie ds2reb = PattOps.rebinDS(ds1, ds2);
-            log.info("Rebinning performed on serie "+ds2.getSerieName());
+            log.info("Rebinning performed on serie "+ds2.serieName);
             //debug
-            ds2reb.setPatt1D(ds2.getPatt1D());
-            main.updateData(false);
-            ds2reb.setSerieName("rebinned serie");
+//            ds2reb.setParent(ds2.getParent()); //el parent ja es copia al crear la serie amb una inicial original
+//            D1Dplot_global.getD1Dmain().updateData(false); //TODO no veig perque cal fer un update aqui (ho desactivo)
+            ds2reb.serieName="rebinned serie";
             result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2reb, factor,fac_t2i,fac_t2f);
         }else{
             result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2, factor,fac_t2i,fac_t2f);
@@ -310,24 +328,44 @@ public class SubtractDialog {
             return;
         }
 
-        result.setSerieName(String.format("#Sub of: P%dS%d - %.2f*P%dS%d", np1,ns1,factor,np2,ns2));
-        Pattern1D patt = new Pattern1D();
-        patt.getCommentLines().addAll(ds1.getPatt1D().getCommentLines());
-        String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.getSerieName(),factor,ds2.getSerieName());
-        patt.getCommentLines().add(s);
-        patt.setOriginal_wavelength(ds1.getPatt1D().getOriginal_wavelength());
-        patt.addDataSerie(result);
-        plotpanel.getPatterns().add(patt);
-        main.updateData(false);
+        //he posat a l'scale el factor utilitzat
+        float usedFactor = result.getScale();
+        txtFactor.setText(FileUtils.dfX_2.format(usedFactor));
+        result.setScale(1);
+        
+        result.serieName=String.format("#Sub of: P%dS%d - %.2f*P%dS%d", np1,nds1,factor,np2,nds2);
+        Data_Common dc = new Data_Common(ds1.getWavelength()); //agafem la wavelength del dataserie per si s'ha actualitzat
+        
+        dc.addDataSerie(result);
+        dc.addCommentLines(ds1.getCommentLines());
+        String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.serieName,factor,ds2.serieName);
+        dc.addCommentLine(s);
+        dc.setOriginalWavelength(ds1.getOriginalWavelength());
+        dc.setWavelengthToAllSeries(ds1.getWavelength());
+        plotpanel.addPlottable(dc);
+        D1Dplot_global.getD1Dmain().updateData(false,false);
+        
+//        Pattern1D patt = new Pattern1D();
+//        patt.getCommentLines().addAll(ds1.getPatt1D().getCommentLines());
+//        String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.getSerieName(),factor,ds2.getSerieName());
+//        patt.getCommentLines().add(s);
+//        patt.setOriginal_wavelength(ds1.getPatt1D().getOriginal_wavelength());
+//        patt.addDataSerie(result);
+//        plotpanel.getPatterns().add(patt);
+//        main.updateData(false);
     }
     
     private void do_chckbxAutoScale_itemStateChanged(ItemEvent arg0) {
         if (chckbxAutoScale.isSelected()) {
-            int np1 = (Integer) combo_patt1.getSelectedItem();
-            int ns1 = (Integer) combo_serie1.getSelectedItem();
+            int r1 = tableDS1.getSelectedRow();
+            if ((r1<0)) {
+                log.info("Please select patterns for the subtract operation");
+                return;
+            }
+            DataSerie ds1 = plotpanel.getPlottable((Integer) tableDS1.getValueAt(r1, 0)).getDataSerie((Integer) tableDS1.getValueAt(r1, 1));
             txtFactor.setEnabled(false);
-            txtTini.setText(Double.toString(plotpanel.getPatterns().get(np1).getSerie(ns1).getT2i()));
-            txtTfin.setText(Double.toString(plotpanel.getPatterns().get(np1).getSerie(ns1).getT2f()));
+            txtTini.setText(Double.toString(ds1.getMinX()));
+            txtTfin.setText(Double.toString(ds1.getMaxX()));
         }else {
             txtFactor.setEnabled(true);
         }

@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Scanner;
 
 import javax.swing.DefaultListModel;
@@ -48,16 +49,16 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.CellSymm_global;
+import com.vava33.cellsymm.HKLrefl;
 import com.vava33.cellsymm.SpaceGroup;
-import com.vava33.d1dplot.auxi.DataSerie;
 import com.vava33.d1dplot.auxi.FilteredListModel;
 import com.vava33.d1dplot.auxi.PDCompound;
 import com.vava33.d1dplot.auxi.PDDatabase;
-import com.vava33.d1dplot.auxi.PDReflection;
 import com.vava33.d1dplot.auxi.PDSearchResult;
-import com.vava33.d1dplot.auxi.PattOps;
-import com.vava33.d1dplot.auxi.Pattern1D;
-import com.vava33.d1dplot.auxi.DataSerie.xunits;
+import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.Data_Common;
+import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.Cif_file;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
@@ -143,7 +144,7 @@ public class Database  {
      * Create the dialog.
      */
     public Database(PlotPanel plotp) {
-    	DBdialog = new JDialog(plotp.getMainframe().getMainFrame(),"Compound DB",false);
+    	DBdialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Compound DB",false);
     	this.contentPanel=new JPanel();
     	DBdialog.addWindowListener(new WindowAdapter() {
             @Override
@@ -597,7 +598,7 @@ public class Database  {
 
     protected void do_chckbxCalibrate_itemStateChanged(ItemEvent arg0) {
         this.showPDDataPeaks = chckbxPDdata.isSelected();
-        this.getPlotpanel().setShowDBCompound(this.isShowDataPeaks(), this.getCurrentCompound());
+        this.getPlotpanel().setShowDBCompound(this.isShowDataPeaks());
     }
 
     protected void do_lbllist_mouseEntered(MouseEvent e) {
@@ -702,12 +703,38 @@ public class Database  {
         }
         
         PDCompound comp = this.getCurrentCompound();
-        this.getPlotpanel().setShowDBCompound(this.isShowDataPeaks(), comp);
         if (comp!=null) {
-//            tAOut.ln(comp.printInfo2Line());
-            //fill the fields of DB
-            this.updateInfo(comp);
+//          tAOut.ln(comp.printInfo2Line());
+          //fill the fields of DB
+          this.updateInfo(comp);
         }
+        //now to plot
+        DataSerie ds = comp.getPDCompoundAsREFDataSerie();
+        
+        //ara mirem si podem convertir a les unitats de la primera dataserie //TODO passar a Database, igual que he fet amb indexSolution, que aquí només hi hagi la DataSerie
+        DataSerie first = this.getPlotpanel().getFirstPlottedSerie();           
+        if (first!=null) {
+            if (first.getxUnits()==Xunits.tth) {
+                //necessitem la wavelength
+                double wave = first.getWavelength();
+                if (wave<=0) {
+//                  wave = FileUtils.DialogAskForPositiveDouble(getMainframe().getMainFrame(),"Wavelength (Ang) =","Wavelength required to add reference in 2Theta units", "");
+                    wave = FileUtils.DialogAskForPositiveDouble(null,"Wavelength (Ang) =","Wavelength required to add reference in 2Theta units", "");
+                }
+                if (wave<=0) {
+                    log.warning("Wavelength required to convert to 2-theta");
+                    return;
+                }
+                ds.setWavelength(wave);
+            }
+//          ds = ds.convertSeriePointsXunits(first.getxUnits());
+            ds.convertDStoXunits(first.getxUnits());
+        }
+        
+        this.getPlotpanel().dbCompound=ds;
+        
+        
+        
         this.getPlotpanel().actualitzaPlot();
     }
     
@@ -716,7 +743,7 @@ public class Database  {
         txtNamealt.setText(c.getAltNames());
         txtFormula.setText(c.getFormula());
         txtCellParameters.setText(c.getCellParameters());
-        txtSpaceGroup.setText(c.getSpaceGroup());
+        txtSpaceGroup.setText(c.getCella().getSg().getName());
         txtReference.setText(c.getReference());
         txtComment.setText(c.getAllComments());
         textAreaDsp.setText(c.getHKLlines());
@@ -741,7 +768,7 @@ public class Database  {
         //aqui en principi tindrem una llista de resultats a PDDatabase i s'haurà de mostrar
         lm.clear();
         
-        ArrayList<PDSearchResult> res = PDDatabase.getDBSearchresults();
+        List<PDSearchResult> res = PDDatabase.getDBSearchresults();
         
         //mirem si hi ha criteris complementaris pel residual
 //        if (chckbxIntensityInfo.isSelected() || chckbxNpksInfo.isSelected()){
@@ -821,10 +848,12 @@ public class Database  {
     //la faig nova passant PuntsCercles al swingworker
     protected void do_btnSearchByPeaks_actionPerformed(ActionEvent e) {
     	if (!this.getPlotpanel().isOneSerieSelected())return; //ja envia missatge
-        if (this.getPlotpanel().getSelectedSeries().get(0).getNpeaks()==0){
-        	log.info("Please perform a peaksearch first");
-            return;
-        }
+    	DataSerie pks = this.getPlotpanel().getFirstSelectedPlottable().getFirstDataSerieByType(SerieType.peaks);
+    	if (pks.isEmpty()) {
+            log.info("Please select the desired data and perform a peaksearch first");
+            return;    	    
+    	}
+    	
         this.searchPeaks();
     }
     
@@ -851,7 +880,7 @@ public class Database  {
                     compinfo.append(comp.getFormula()).append(" ");
                     compinfo.append(comp.getAltNames()).append(" ");
                     compinfo.append(comp.getCellParameters()).append(" ");
-                    compinfo.append(comp.getSpaceGroup()).append(" ");
+                    compinfo.append(comp.getCella().getSg().getName()).append(" ");
                     compinfo.append(comp.getAllComments()).append(" ");
                     
                     String s = compinfo.toString().trim();
@@ -971,7 +1000,7 @@ public class Database  {
     protected void do_btnAddCompound_actionPerformed(ActionEvent arg0) {
         //ADD COMPOUND:
         PDCompound co = new PDCompound("NEW COMPOUND");
-        co.setDefParams();
+//        co.setDefParams();//TODO comprovar que no cal
         PDDatabase.addCompoundDB(co);
         //select the compound
         this.updateListAllCompounds();
@@ -1013,7 +1042,7 @@ public class Database  {
         
         String[] hkl_lines = textAreaDsp.getText().trim().split("\\n");
         log.debug(Arrays.toString(hkl_lines));
-        ArrayList<PDReflection> pdref = new ArrayList<PDReflection>();
+        List<HKLrefl> pdref = new ArrayList<HKLrefl>();
         //CHECK CONSISTENCY HKL
         for (int i=0;i<hkl_lines.length;i++){
             String[] line = hkl_lines[i].trim().split("\\s+");
@@ -1033,7 +1062,7 @@ public class Database  {
                     }catch(Exception e2) {
                         log.debug("no intensity for reflection");
                     }
-                    PDReflection refl = new PDReflection(h,k,l,dsp,inten);
+                    HKLrefl refl = new HKLrefl(h,k,l,dsp,inten,0);
                     pdref.add(refl);
                 }catch(Exception e){
                     JOptionPane.showMessageDialog(DBdialog, "Error in parsing hkl lines, e.g: 1 0 0 12.5 100.0");
@@ -1047,13 +1076,8 @@ public class Database  {
         comp.addCompoundName(txtName.getText().trim());
         comp.addCompoundName(txtNamealt.getText().trim());
         comp.setFormula(txtFormula.getText().trim());
-        comp.setA(a);
-        comp.setB(b);
-        comp.setC(c);
-        comp.setAlfa(alfa);
-        comp.setBeta(beta);
-        comp.setGamma(gamma);
-        comp.setSpaceGroup(txtSpaceGroup.getText().trim());
+        comp.getCella().setCellParameters(a, b, c, alfa, beta, gamma, true);
+        comp.getCella().setSg(CellSymm_global.getSpaceGroupByName(txtSpaceGroup.getText().trim(), true));
         comp.setReference(txtReference.getText().trim());
         comp.getComment().clear();
         comp.addComent(txtComment.getText().trim());
@@ -1078,14 +1102,14 @@ public class Database  {
         
         String cell = txtCellParameters.getText().trim();
         String[] cellp = cell.split("\\s+");
-        float a,b,c,alfa,beta,gamma;
+        double a,b,c,alfa,beta,gamma;
         try{
-            a = Float.parseFloat(cellp[0]);
-            b = Float.parseFloat(cellp[1]);
-            c = Float.parseFloat(cellp[2]);
-            alfa = Float.parseFloat(cellp[3]);
-            beta = Float.parseFloat(cellp[4]);
-            gamma = Float.parseFloat(cellp[5]);
+            a = Double.parseDouble(cellp[0]);
+            b = Double.parseDouble(cellp[1]);
+            c = Double.parseDouble(cellp[2]);
+            alfa = Double.parseDouble(cellp[3]);
+            beta = Double.parseDouble(cellp[4]);
+            gamma = Double.parseDouble(cellp[5]);
         }catch(Exception ex){
             if (D1Dplot_global.isDebug())ex.printStackTrace();
             JOptionPane.showMessageDialog(DBdialog, "Cell parameters needed (a b c alpha beta gamma) to parse hkl file");
@@ -1093,7 +1117,8 @@ public class Database  {
         }
         
         Scanner shkl;
-        ArrayList<PDReflection> refs = new ArrayList<PDReflection>();
+        List<HKLrefl> refs = new ArrayList<HKLrefl>();
+        Cell cel = new Cell(a,b,c,alfa,beta,gamma,true);
         try {
             shkl = new Scanner(hklfile);
             while (shkl.hasNextLine()){
@@ -1104,13 +1129,12 @@ public class Database  {
                     int k = Integer.parseInt(values[1]);
                     int l = Integer.parseInt(values[2]);
                     float inten = Integer.parseInt(values[3]);
-                    refs.add(new PDReflection(h,k,l,-1,inten));
+                    refs.add(new HKLrefl(h,k,l,cel.calcDspHKL(h, k, l),inten,0));
                 }catch(Exception ex2){
                     if (D1Dplot_global.isDebug())ex2.printStackTrace();
                     log.warning("Error parsing h,k,l,intensity values");
                 }
             }
-            PattOps.getDspacingFromHKL(refs, a, b, c, alfa, beta, gamma);
             shkl.close();
         } catch (Exception ex) {
             if (D1Dplot_global.isDebug())ex.printStackTrace();
@@ -1123,23 +1147,23 @@ public class Database  {
         }
         
         //calculem el factor de normalitzacio de les intensitats a 100
-        Iterator<PDReflection> itrr = refs.iterator();
-        float maxInten = -1;
+        Iterator<HKLrefl> itrr = refs.iterator();
+        double maxInten = -1;
         while (itrr.hasNext()){
-            PDReflection p = itrr.next();
-            Float pinten = p.getInten();
+            HKLrefl p = itrr.next();
+            double pinten = p.getYcalc();
             if(pinten>maxInten){
                 maxInten = pinten;
             }
         }
-        float factor = 100/maxInten;
+        double factor = 100/maxInten;
         
         //Ara ja escribim al textarea
         textAreaDsp.setText("");
         itrr = refs.iterator();
         while (itrr.hasNext()){
-            PDReflection p = itrr.next();
-            textAreaDsp.append(String.format("%4d %4d %4d %8.4f %8.2f\n", p.getH(),p.getK(),p.getL(),p.getDsp(),p.getInten()*factor));
+            HKLrefl p = itrr.next();
+            textAreaDsp.append(String.format("%4d %4d %4d %8.4f %8.2f\n", p.getH(),p.getK(),p.getL(),p.getDsp(),p.getYcalc()*factor));
         }
     }
     
@@ -1168,7 +1192,7 @@ public class Database  {
         if (cf.getSgNum()==0) return;
         //else calculem reflexions, utilitzem directament cf que ha estat corregit si era necessari
         Cell cel = new Cell(cf);
-        cel.generateHKLsAsymetricUnitCrystalFamily(1/(minDspacingLatGen*minDspacingLatGen), true, true, true, true);
+        cel.generateHKLsAsymetricUnitCrystalFamily(1/(minDspacingLatGen*minDspacingLatGen), true, true, true, true, true);
         cel.calcInten(true);
         cel.normIntensities(100);
         this.textAreaDsp.setText("");
@@ -1194,7 +1218,7 @@ public class Database  {
             return;
         }
         Cell cel = new Cell(a,b,c,alfa,beta,gamma,true,sg);
-        cel.generateHKLsAsymetricUnitCrystalFamily(1, true, true, true, true);
+        cel.generateHKLsAsymetricUnitCrystalFamily(1, true, true, true, true, true);
         
         this.textAreaDsp.setText("");
         this.textAreaDsp.setText(cel.getListAsString_HKLMerged_dsp_Fc2());
@@ -1229,42 +1253,30 @@ public class Database  {
         DBdialog.dispose();
     }
     
-
-    
 	private void do_btnAddAsSerie_actionPerformed(ActionEvent e) {
 		//TODO (una mica esta fet a la classe HKLreferenceDialog
-		
-		if (this.getCurrentCompound()!=null) {
-			Pattern1D patt = new Pattern1D();
-			PDCompound pdc = this.getCurrentCompound();
-			DataSerie ds = PattOps.getPDCompoundAsDspDataSerie(pdc);
-			
-			//ara mirem si podem convertir a les unitats de la primera dataserie
-			DataSerie first = this.getPlotpanel().getFirstPlottedSerie();			
-			if (first!=null) {
-				if (first.getxUnits()==xunits.tth) {
-					//necessitem la wavelength
-					double wave = first.getWavelength();
-					if (wave<=0) {
-						wave = FileUtils.DialogAskForPositiveDouble(this.DBdialog,"Wavelength (Ang) =","Wavelength required to add reference in 2Theta units", "");	
-					}
-					if (wave<=0) {
-						log.warning("Wavelength required to convert to 2-theta");
-						return;
-					}
-					ds.setWavelength(wave);
-				}
-				ds.convertToXunits(first.getxUnits());
-			}
-			patt.addDataSerie(ds);
-			ds.setSerieName(pdc.getCompName().get(0));
-			this.getPlotpanel().getPatterns().add(patt);
-			this.getPlotpanel().getMainframe().updateData(false);
+	    PDCompound pdc = this.getCurrentCompound();
+		if (pdc!=null) {
+		    DataSerie ref = pdc.getPDCompoundAsREFDataSerie();
+	        //ara mirem si podem convertir a les unitats de la primera dataserie plotejada
+            DataSerie first = this.getPlotpanel().getFirstPlottedSerie();       
+            ref.setWavelength(first.getWavelength());
+            if (first!=null) {
+                boolean ok = ref.convertDStoXunits(first.getxUnits()); //ja pregunta per la wavelength si es necessari
+                if(!ok) {
+                    log.warning("Error adding compound as dataserie");
+                    return;                    
+                }
+                
+                Data_Common dc = new Data_Common(ref.getWavelength());
+                dc.addDataSerie(ref);
+                plotpanel.addPlottable(dc);
+            }
+			D1Dplot_global.getD1Dmain().updateData(false,false); //TODO no m'agrada massa això...
 		}
 	}
 	
 	private void do_chckbxIntensity_itemStateChanged(ItemEvent e) {
-		this.plotpanel.setShowDBCompoundIntensity(chckbxIntensity.isSelected());
-		this.plotpanel.actualitzaPlot();
+		this.plotpanel.setShowDBCompoundIntensity(chckbxIntensity.isSelected()); //ja fa actualitzaplot dins
 	}
 }

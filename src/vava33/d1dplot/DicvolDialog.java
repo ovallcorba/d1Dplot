@@ -18,7 +18,7 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
-import com.vava33.d1dplot.auxi.DataSerie;
+import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -365,7 +365,7 @@ public class DicvolDialog {
     }
 
     private void inicia(){
-        if (this.getNpeaks()>ds.getNpeaks())this.setNpeaks(ds.getNpeaks());
+        if (this.getNpeaks()>ds.getNpoints())this.setNpeaks(ds.getNpoints());
         txtNpeaks.setText(String.valueOf(this.getNpeaks()));
         txtAmax.setText(FileUtils.dfX_2.format(this.getAmax()));
         txtBmax.setText(FileUtils.dfX_2.format(this.getBmax()));
@@ -498,8 +498,8 @@ public class DicvolDialog {
         
         try{
             this.setNpeaks(Integer.parseInt(txtNpeaks.getText()));
-            if (this.getNpeaks()>this.ds.getNpeaks()){
-                this.setNpeaks(this.ds.getNpeaks());
+            if (this.getNpeaks()>this.ds.getNpoints()){
+                this.setNpeaks(this.ds.getNpoints());
             }
         }catch(Exception ex){
             log.warning("Error reading Npeaks");

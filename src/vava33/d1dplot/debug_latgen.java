@@ -1,5 +1,6 @@
 package com.vava33.d1dplot;
 
+
 /**    
  * test class to debug lattice calculations
  *   
@@ -8,15 +9,12 @@ package com.vava33.d1dplot;
  *   
  */
 
-import java.awt.BorderLayout;
-
 import javax.swing.JDialog;
 import javax.swing.JPanel;
 
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 import net.miginfocom.swing.MigLayout;
-import javax.swing.JSlider;
 import javax.swing.JTextField;
 import javax.swing.JLabel;
 import javax.swing.JButton;
@@ -29,16 +27,17 @@ import com.vava33.cellsymm.HKLrefl;
 import com.vava33.cellsymm.SpaceGroup;
 import com.vava33.cellsymm.CellSymm_global.CrystalCentering;
 import com.vava33.cellsymm.CellSymm_global.CrystalFamily;
-import com.vava33.d1dplot.auxi.DataPoint_hkl;
-import com.vava33.d1dplot.auxi.DataSerie;
-import com.vava33.d1dplot.auxi.DataSerie.serieType;
+import com.vava33.d1dplot.auxi.DoubleJSlider;
+import com.vava33.d1dplot.data.DataPoint_hkl;
+import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.SerieType;
 
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.awt.event.ItemListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ActionListener;
@@ -277,8 +276,8 @@ public class debug_latgen {
         txtGa.setText(FileUtils.dfX_3.format(sliderGa.getScaledValue()));
         
         //creem una dataserie per mostrar les reflexions
-        dsLatGen = new DataSerie(plotpanel.getSelectedSeries().get(0), serieType.hkl,true);
-        dsLatGen.setSerieName("LATGen hkl");
+        dsLatGen = new DataSerie(plotpanel.getSelectedSeries().get(0), SerieType.hkl,true);
+        dsLatGen.serieName="LATGen hkl";
         applyCrystalFamilyRestrictions();
         
         updateDS();
@@ -392,21 +391,21 @@ public class debug_latgen {
         }
         applyCrystalFamilyRestrictions(); //ho he posat aqui al desactivar els listeners als combo
         
-        ArrayList<HKLrefl> refs = cel.generateHKLsAsymetricUnitCrystalFamily(qmax,chckbxCalcExt.isSelected(),chckbxCalcExt.isSelected(),false,false,true);
+        List<HKLrefl> refs = cel.generateHKLsAsymetricUnitCrystalFamily(qmax,chckbxCalcExt.isSelected(),chckbxCalcExt.isSelected(),false,false,true);
         
-        dsLatGen.clearDataPoints();
+        dsLatGen.clearPoints();
         
         log.debug("tipus serie latgen="+dsLatGen.getTipusSerie()+" wave="+dsLatGen.getWavelength());
         
         Iterator<HKLrefl> itrh = refs.iterator();
         while (itrh.hasNext()) {
             HKLrefl hkl = itrh.next();
-            dsLatGen.addHKLPoint(new DataPoint_hkl(hkl,(float) dsLatGen.getWavelength(),false));
+            dsLatGen.addPoint(new DataPoint_hkl(hkl,(float) hkl.calct2((float) dsLatGen.getWavelength(),true)));
 //            log.config(hkl.toString_HKL_tth_mult_Fc2((float) dsLatGen.getWavelength()));
 
         }
         
-        this.main.updateData(false);
+        this.main.updateData(false,true); //TODO:revisar el TRUE
     }
 
     protected void do_sliderA_stateChanged(ChangeEvent e) {
@@ -500,25 +499,4 @@ public class debug_latgen {
     }
 
 
-}
-
-
-class DoubleJSlider extends JSlider {
-
-    private static final long serialVersionUID = 1L;
-    final int scale; //multiple de 10 segons decimals que volguem
-
-    public DoubleJSlider(double min, double max, double value, int scale) {
-        super((int)(min*scale), (int)(max*scale), (int)(value*scale));
-        this.scale = scale;
-    }
-
-    public void setScaledValue(double val) {
-        super.setValue((int)(val*scale));
-        System.out.println(this.getValue());
-    }
-    
-    public double getScaledValue() {
-        return ((double)super.getValue()) / this.scale;
-    }
 }

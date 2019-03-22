@@ -21,14 +21,14 @@ import java.awt.font.FontRenderContext;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
 import com.vava33.d1dplot.auxi.DataFileUtils;
-import com.vava33.d1dplot.auxi.DataSerie;
+import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -76,7 +76,7 @@ public class Plot2DPanel {
     private BufferedImage image;
     private BufferedImage subimage;
     private BufferedImage llegenda;
-    private ArrayList<DataSerie> toPaint;
+    private List<DataSerie> toPaint;
     
     // DEFINICIO BUTONS DEL MOUSE
     private static int MOURE = MouseEvent.BUTTON2;
@@ -366,7 +366,7 @@ public class Plot2DPanel {
     }
 
     //S'HA D'ADAPTAR
-	public void setImagePatts(ArrayList<DataSerie> dss) {
+	public void setImagePatts(List<DataSerie> dss) {
 	    if(dss == null)return;
 	    if(dss.size()==0)return;
 	
@@ -378,7 +378,7 @@ public class Plot2DPanel {
 	    
 	    //calculem la min2t, max2t
 	    for (int i=0;i<dss.size();i++){
-	        double[] vals = dss.get(i).calcYmeanYDesvYmaxYmin();
+	        double[] vals = dss.get(i).calcYmeanYDesvYmaxYmin(false);
 	        if (vals[2]>maxY)maxY=vals[2];
 	        if (vals[3]<minY)minY=vals[3];
 	        meanY = meanY + vals[0];
@@ -387,8 +387,8 @@ public class Plot2DPanel {
 	    nXPoints = dss.get(0).getNpoints();
 	    
 	    //les x tots els patterns haurien de coincidir
-	    maxT2 = dss.get(0).getPoint(dss.get(0).getNpoints()-1).getX();
-	    minT2 = dss.get(0).getPoint(0).getX();
+	    maxT2 = dss.get(0).getPointWithCorrections(dss.get(0).getNpoints()-1,false).getX();
+	    minT2 = dss.get(0).getPointWithCorrections(0,false).getX();
 	    
 	    int quarter = panelImatge.getWidth()/4;
 	    nameXPos = panelImatge.getWidth()-quarter;
@@ -502,10 +502,10 @@ public class Plot2DPanel {
         Color col;
         if (this.isColor()) {
             // pintem en color
-            col = intensityColor(toPaint.get(ix).getPoint(jy).getY(), maxY,minY, minValSlider,valSlider);
+            col = intensityColor(toPaint.get(ix).getPointWithCorrections(jy,false).getY(), maxY,minY, minValSlider,valSlider);
         } else {
             // pintem en BW
-            col = intensityBW(toPaint.get(ix).getPoint(jy).getY(), maxY,minY,minValSlider,valSlider);
+            col = intensityBW(toPaint.get(ix).getPointWithCorrections(jy,false).getY(), maxY,minY,minValSlider,valSlider);
         }
         return col;
     }
@@ -664,6 +664,7 @@ public class Plot2DPanel {
                 pfin = this.getPixel(new Point2D.Float(vertexFin.x,vertexIni.y));//x final y primer
             }else{
                 //hem pintat cap avall (CAS NORMAL!!)
+//                if(isDebug())log.writeNameNumPairs("config", true, "scalefitX,scalefitY,originX,originY", scalefitX,scalefitY,originX,originY);
                 pini = this.getPixel(vertexIni);
                 pfin = this.getPixel(vertexFin);
             }
@@ -889,10 +890,10 @@ public class Plot2DPanel {
 	    int serie = (int)pix.y;
 	    int punt = (int)pix.x;
 	    
-	    double t2 = toPaint.get(serie).getPoint(punt).getX();
-	    double inten = toPaint.get(serie).getPoint(punt).getY();
+	    double t2 = toPaint.get(serie).getPointWithCorrections(punt,false).getX();
+	    double inten = toPaint.get(serie).getPointWithCorrections(punt,false).getY();
 	    
-	    lblPunt.setText(String.format("Pattern: %s   2"+D1Dplot_global.theta+"= %.4f   Intensity=%.2f" ,toPaint.get(serie).getSerieName(),t2,inten));
+	    lblPunt.setText(String.format("Pattern: %s   2"+D1Dplot_global.theta+"= %.4f   Intensity=%.2f" ,toPaint.get(serie).serieName,t2,inten));
 	    
 	}
 
@@ -1068,11 +1069,11 @@ public class Plot2DPanel {
 	    this.panelImatge = panelImatge;
 	}
 
-	public ArrayList<DataSerie> getToPaint() {
+	public List<DataSerie> getToPaint() {
 	    return toPaint;
 	}
 
-	public void setToPaint(ArrayList<DataSerie> toPaint) {
+	public void setToPaint(List<DataSerie> toPaint) {
 	    this.toPaint = toPaint;
 	}
 
@@ -1211,7 +1212,7 @@ public class Plot2DPanel {
 	                }
 	                //si no era el primer pattern dibuixem el nom
 	                int llocY = pixInicialPatt+(nPixPerPat/2);
-	                String s =  toPaint.get(currentPatt).getSerieName();
+	                String s =  toPaint.get(currentPatt).serieName;
 	                
 	                double[] swh = getWidthHeighString(g1,s);
 	                while (swh[0]>nameMaxWidth){
@@ -1233,7 +1234,7 @@ public class Plot2DPanel {
 	        }
 	        //caldra escriure l'ultim pattern
 	        int llocY = pixInicialPatt+(nPixPerPat/2); 
-	        String s =  toPaint.get(currentPatt).getSerieName();
+	        String s =  toPaint.get(currentPatt).serieName;
 	        
 	        double[] swh = getWidthHeighString(g1,s);
 	        while (swh[0]>nameMaxWidth){
