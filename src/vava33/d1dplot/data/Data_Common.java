@@ -155,6 +155,11 @@ public class Data_Common implements Plottable{ //TODO no fa falta implementar el
         }
     }
     
+    public void setZeroToAllSeries(double zero) {
+        for (DataSerie ds:this.getDataSeries()) {
+            ds.setZerrOff(zero);
+        }
+    }
 
     @Override
     public DataSerie getMainSerie() {

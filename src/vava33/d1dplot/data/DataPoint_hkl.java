@@ -18,11 +18,11 @@ public class DataPoint_hkl extends DataPoint implements Plottable_point{
 
     //uses hkl dsp as xval
     public DataPoint_hkl(HKLrefl hkl) {
-        super(hkl.getDsp(),hkl.getYcalc(),0);
+        this(hkl.getDsp(),hkl.getYcalc(),0,hkl);
     }
     
     public DataPoint_hkl(HKLrefl hkl,double xval) {
-        super(xval,hkl.getYcalc(),0);
+        this(xval,hkl.getYcalc(),0,hkl);
     }
     
     public DataPoint_hkl(double px, double py, double pysd, HKLrefl hkl) {
@@ -33,7 +33,7 @@ public class DataPoint_hkl extends DataPoint implements Plottable_point{
     @Override
     public Plottable_point getCorrectedDataPoint(double incX, double incY, double factorY,boolean addYbkg) {
         if (addYbkg) {
-            return new DataPoint_hkl(this.getX()+incX,(this.getY()+this.getyBkg())*factorY+incY,this.getSdy()*factorY,hkl);
+            return new DataPoint_hkl(this.getX()+incX,(this.getY()+this.getYbkg())*factorY+incY,this.getSdy()*factorY,hkl);
         }else {
             return new DataPoint_hkl(this.getX()+incX,this.getY()*factorY+incY,this.getSdy()*factorY,hkl);    
         }

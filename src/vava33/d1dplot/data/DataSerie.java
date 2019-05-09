@@ -314,20 +314,20 @@ public class DataSerie {
             return g;
         case Q:
             q=dp.getX();
-            tth=FastMath.toDegrees(2*FastMath.asin((this.getWavelength()*q)/(4*FastMath.PI)));
+            tth=2*FastMath.toDegrees(FastMath.asin((this.getWavelength()*q)/(4*FastMath.PI)));
             dsp=(2*FastMath.PI)/q;
             invdsp2=1/(dsp*dsp);
             break;
         case dsp:
             dsp=dp.getX();
-            tth=2*FastMath.asin(this.getWavelength()/(2*dsp));
+            tth=2*FastMath.toDegrees(FastMath.asin(this.getWavelength()/(2*dsp)));
             invdsp2=1/(dsp*dsp);
             q=(1/dsp) * FastMath.PI*2;
             break;
         case dspInv:
             invdsp2=dp.getX();
             dsp=FastMath.sqrt(1/dp.getX());
-            tth=2*FastMath.asin(this.getWavelength()/(2*dsp));
+            tth=2*FastMath.toDegrees(FastMath.asin(this.getWavelength()/(2*dsp)));
             q=(1/dsp) * FastMath.PI*2;
             break;
         case tth:
@@ -355,7 +355,7 @@ public class DataSerie {
             return dp.getX();
         }
     }
-
+    
     protected void convertSeriePointsXunits(Xunits destXunits){
 //        List<Plottable_point> newSeriePoints = new ArrayList<Plottable_point>();
         
@@ -369,13 +369,13 @@ public class DataSerie {
 //            double dsp = this.getDataPointX_as_dsp(dp);
 //            double q = this.getDataPointX_as_Q(dp);
             
-            double t2 = this.getDataPointX_as(Xunits.tth,dp);
+            double t2 = this.getDataPointX_as(Xunits.tth,dp); //directly in degrees
             double dsp = this.getDataPointX_as(Xunits.dsp,dp);
             double q = this.getDataPointX_as(Xunits.Q,dp);
             
             switch (destXunits) {
             case tth:
-                dp.setX(FastMath.toDegrees(t2));
+                dp.setX(t2);
                 break;
             case dsp:
                 dp.setX(dsp);
@@ -422,11 +422,11 @@ public class DataSerie {
     public static boolean containNansOrInf(List<Plottable_point> data) {
         for (Plottable_point p:data) {
             //if (!Double.isFinite(p.getX()))return true; //isFinite not found in java6
-            if (Double.isInfinite(p.getX()))return false;
-            if (Double.isNaN(p.getX()))return false;
+            if (Double.isInfinite(p.getX()))return true;
+            if (Double.isNaN(p.getX()))return true;
         }
         //return false;
-        return true;
+        return false;
     }
     
     public void convertDStoWavelength(double newWL) {
@@ -624,8 +624,9 @@ public class DataSerie {
         this.color=SerieType.getDefColor(tipusSerie);
         this.markerSize=SerieType.getDefMarkerSize(tipusSerie);
         this.lineWidth=SerieType.getDefLineWidth(tipusSerie);
+        if (tipusSerie==SerieType.hkl)this.setScale(DataSerie.def_hklticksize);
     }
-
+    
     public float getScale() {
         return scale;
     }

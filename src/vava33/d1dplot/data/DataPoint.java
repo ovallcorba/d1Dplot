@@ -49,7 +49,7 @@ public class DataPoint implements Plottable_point{ //plottable point ja inclou c
     public void setSdy(double sdy) {
         this.sdy = sdy;
     }
-    public double getyBkg() {
+    public double getYbkg() {
         return yBkg;
     }
     public void setyBkg(double yBkg) {
@@ -60,9 +60,9 @@ public class DataPoint implements Plottable_point{ //plottable point ja inclou c
     @Override //caldra implementar-la a totes les classes per mantenir el TIPUS
     public Plottable_point getCorrectedDataPoint(double incX, double incY, double factorY,boolean addYbkg) {
         if (addYbkg) {
-            return new DataPoint(this.getX()+incX,(this.getY()+this.getyBkg())*factorY+incY,this.getSdy()*factorY,this.getyBkg()*factorY);
+            return new DataPoint(this.getX()+incX,(this.getY()+this.getYbkg())*factorY+incY,this.getSdy()*factorY,this.getYbkg()*factorY);
         }else {
-            return new DataPoint(this.getX()+incX,this.getY()*factorY+incY,this.getSdy()*factorY,this.getyBkg()*factorY);    
+            return new DataPoint(this.getX()+incX,this.getY()*factorY+incY,this.getSdy()*factorY,this.getYbkg()*factorY);    
         }
     }
     
