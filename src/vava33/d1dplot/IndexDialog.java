@@ -11,18 +11,17 @@ package com.vava33.d1dplot;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -51,6 +50,7 @@ import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.Data_Common;
 import com.vava33.d1dplot.data.SerieType;
 import com.vava33.d1dplot.index.IndexDichotomy;
+import com.vava33.d1dplot.index.IndexGrid;
 import com.vava33.d1dplot.index.IndexSolution;
 import com.vava33.d1dplot.index.IndexSolutionDichotomy;
 import com.vava33.d1dplot.index.IndexSolutionGrid;
@@ -70,6 +70,7 @@ import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import java.awt.Font;
 import javax.swing.JSplitPane;
+import javax.swing.JProgressBar;
 
 public class IndexDialog {
 
@@ -125,7 +126,7 @@ public class IndexDialog {
 //    private float density = 0.0f;
 //    private float densityerr = 0.0f;
     
-    private float eps = 0.002f;
+    private float eps = 0.01f;
     private float minfom = 10.0f;
     private int spurious = 0;
     
@@ -144,9 +145,10 @@ public class IndexDialog {
     ProgressMonitor pm;
     IndexGridSearchBruteWorker gridSwk;
     DichothomyWorker dicW;
-    List<IndexSolution> sols;
-    List<IndexSolution> original_sols;
+    Set<IndexSolution> sols;
+    Set<IndexSolution> original_sols;
     IndexGuessSpaceGroupDialog sgGuessDialog;
+    debug_latgen manualIndexDialog;
 //    private boolean everythingOK = true;
     private JLabel lblMin;
     private JLabel lblMin_1;
@@ -418,17 +420,17 @@ public class IndexDialog {
                 txtNpeaks.setColumns(6);
             }
             {
-                JLabel lblEps = new JLabel("Qerr=");
+                JLabel lblEps = new JLabel("T2err=");
                 panel.add(lblEps, "cell 0 1,alignx trailing");
             }
             {
                 txtEps = new JTextField();
-                txtEps.setText("0.02");
+                txtEps.setText("0.01");
                 panel.add(txtEps, "cell 1 1,growx");
                 txtEps.setColumns(6);
             }
             {
-                JLabel lblMinFom = new JLabel("Min FOM=");
+                JLabel lblMinFom = new JLabel("Min M20=");
                 panel.add(lblMinFom, "cell 0 2,alignx trailing");
             }
             {
@@ -452,7 +454,7 @@ public class IndexDialog {
             panel_1 = new JPanel();
             panel_1.setBorder(new TitledBorder(null, "Method", TitledBorder.LEADING, TitledBorder.TOP, null, null));
             contentPanel.add(panel_1, "cell 1 0,grow");
-            panel_1.setLayout(new MigLayout("", "[][]", "[]"));
+            panel_1.setLayout(new MigLayout("", "[][]", "[][]"));
             {
                 rdbtnGridSearch = new JRadioButton("Grid Search");
                 rdbtnGridSearch.addItemListener(new ItemListener() {
@@ -474,16 +476,43 @@ public class IndexDialog {
                 buttonGroupMethod.add(rdbtnDicothomy);
                 panel_1.add(rdbtnDicothomy, "cell 1 0");
             }
-        }
-        JButton okButton = new JButton("RUN");
-        contentPanel.add(okButton, "cell 0 2 2 1,alignx center");
-        okButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_okButton_actionPerformed(e);
+            {
+                btnManual = new JButton("Manual");
+                btnManual.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        do_btnManual_actionPerformed(e);
+                    }
+                });
+                panel_1.add(btnManual, "cell 0 1 2 1,growx");
             }
-        });
-        okButton.setActionCommand("OK");
-        this.indexDialog.getRootPane().setDefaultButton(okButton);
+        }
+        {
+            panelRun = new JPanel();
+            contentPanel.add(panelRun, "flowx,cell 0 2 2 1,growx");
+            panelRun.setLayout(new MigLayout("", "[][grow][]", "[]"));
+            JButton okButton = new JButton("RUN");
+            panelRun.add(okButton, "cell 0 0");
+            okButton.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    do_okButton_actionPerformed(e);
+                }
+            });
+            okButton.setActionCommand("OK");
+            this.indexDialog.getRootPane().setDefaultButton(okButton);
+            {
+                pBarIndex = new JProgressBar();
+                panelRun.add(pBarIndex, "cell 1 0,grow");
+            }
+            {
+                btnStop = new JButton("Stop");
+                panelRun.add(btnStop, "cell 2 0");
+                btnStop.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        do_btnStop_actionPerformed(e);
+                    }
+                });
+            }
+        }
         {
             panel_2 = new JPanel();
             panel_2.setBorder(new TitledBorder(null, "Results", TitledBorder.LEADING, TitledBorder.TOP, null, null));
@@ -633,23 +662,12 @@ public class IndexDialog {
         chckbxMonoclinic.setSelected(this.mono);
         chckbxTriclinic.setSelected(this.tric);
         
-        sols = new ArrayList<IndexSolution>(); //to avoid null pointers
-        original_sols = new ArrayList<IndexSolution>(); //to avoid null pointers
-        
-        //TAULA
-//        tableSols.setModel(new IndexSolutionTableModel());
-//        tableSols.setAutoCreateRowSorter(true);
-//        tableSols.getRowSorter().toggleSortOrder(9);
-        
+        sols = new HashSet<IndexSolution>(); //to avoid null pointers
+        original_sols = new HashSet<IndexSolution>(); //to avoid null pointers
         
         txtrRefs.setText("");
-//        everythingOK = true;
     }
 
-//    private void updateDS(DataSerie newds){
-//        this.ds=newds;
-//        inicia();
-//    }
     
     private IndexSolution getSelectedIS() {
         int selRow = tableSols.getSelectedRow();
@@ -663,13 +681,17 @@ public class IndexDialog {
     private JPanel panel_3;
     private JButton btnRemoveSgGuess;
     private JButton btnRemoveAll;
+    private JButton btnManual;
+    private JButton btnStop;
+    private JPanel panelRun;
+    private JProgressBar pBarIndex;
     
     private void aplicarselecciotaula(ListSelectionEvent arg0) {
         //ha de mostrar info solucio al textbox de la dreta + mostrar solucio a plotpanel (hkl serie)
         IndexSolution is = getSelectedIS();
         if (is==null)return;
         txtrRefs.setText(is.getInfoAsStringToSaveResults());
-        plotpanel.indexSolution=this.getSelectedAsHKLDataSerieWithUnitsFirstPlotted();
+        plotpanel.setIndexSolution(this.getSelectedAsHKLDataSerieWithUnitsFirstPlotted());
         if (firstTime) {
             plotpanel.fitGraph(); //per mostrar que surt la serie HKL sino no es veu
             firstTime=false;
@@ -692,7 +714,12 @@ public class IndexDialog {
     }
     
     private void tanca() {
-        plotpanel.setShowIndexSolution(false);
+        //comprovem que sigui l'últim supervivent de indexing:
+        boolean showsolution=false;
+        if (manualIndexDialog!=null) {
+            if (manualIndexDialog.isVisible())showsolution=true;
+        }
+        plotpanel.setShowIndexSolution(showsolution);
     	this.indexDialog.dispose();
     }
     
@@ -702,6 +729,15 @@ public class IndexDialog {
         if (is==null)return;
         if (sgGuessDialog==null) sgGuessDialog = new IndexGuessSpaceGroupDialog(this,is);
         sgGuessDialog.visible(true);
+    }
+    
+    private void do_btnManual_actionPerformed(ActionEvent e) {
+        if (manualIndexDialog==null) manualIndexDialog = new debug_latgen(this);
+        manualIndexDialog.visible(true);
+    }
+    
+    public PlotPanel getPlotPanel() {
+        return this.plotpanel;
     }
     
     private void do_cancelButton_actionPerformed(ActionEvent e) {
@@ -830,6 +866,7 @@ public class IndexDialog {
             log.warning("Error reading vmax");
             everythingOK=false;
         }
+
         try{
             this.eps=Float.parseFloat(txtEps.getText());
         }catch(Exception ex){
@@ -856,8 +893,6 @@ public class IndexDialog {
             everythingOK=false;
         }
         
-        //TODO:comprovacio de wavelengh dins de DS
-        
         //checkboxes
         this.cubic=chckbxCubic.isSelected();
         this.tetra=chckbxTetragonal.isSelected();
@@ -874,206 +909,81 @@ public class IndexDialog {
         	return;
         }
         
+        //TODO:comprovacio de wavelengh dins de DS
+        DataSerie ds = getPeaksSerieToUse();
+        if (ds==null)everythingOK=false;
+        if (ds.getWavelength()<=0) {
+            PattOps.askForWavelengthAndAddToDS(ds);
+        }
+        if (ds.getWavelength()<=0) everythingOK=false;
+
+        if (!everythingOK) {
+            //TODO: complain message
+            log.info("error with dataserie");
+            return;
+        }
+        
+        //convert eps 2theta to Q
+        float dsp=(float) (ds.getWavelength()/(2*FastMath.sin(FastMath.toRadians(this.eps/2.))));
+        float invdsp2=1/(dsp*dsp);
+        log.infof("eps 2t=%.4f q=%.10f",this.eps,invdsp2);
+        this.eps=invdsp2;
+
         //METHOD SELECTION AND START INDEXING
         if (rdbtnGridSearch.isSelected()) {
-        	this.executeGridSearch();
+            IndexGrid ig = new IndexGrid(ds,this.npeaks,this.eps,this.minfom,this.spurious); //TODO treure EPS?
+            ig.setMaxPars(this.amax, this.bmax, this.cmax, this.alfamax, this.betamax, this.gammamax, true);
+            ig.setMinPars(this.amin, this.bmin, this.cmin, this.alfamin, this.betamin, this.gammamin, true);
+            ig.setSteps(this.astep, this.bstep, this.cstep, this.alstep, this.bestep, this.gastep, true);
+            ig.setVMinMax(this.vmin, this.vmax);
+            ig.setSystemsSearch(this.cubic, this.tetra, this.hexa, this.orto, this.mono, this.tric);
+        	this.executeGridSearch(ig);
         }
         
         if (rdbtnDicothomy.isSelected()) {
-            DataSerie ds = getPeaksSerieToUse();
-            if (ds==null)return;
-        	IndexDichotomy id = new IndexDichotomy(ds,this.npeaks,this.eps);
+        	IndexDichotomy id = new IndexDichotomy(ds,this.npeaks,this.eps,this.minfom,this.spurious);
         	id.setMaxPars(this.amax, this.bmax, this.cmax, this.alfamax, this.betamax, this.gammamax, true);
         	id.setMinPars(this.amin, this.bmin, this.cmin, this.alfamin, this.betamin, this.gammamin, true);
         	id.setVMinMax(this.vmin, this.vmax);
         	id.setSystemsSearch(this.cubic, this.tetra, this.hexa, this.orto, this.mono, this.tric);
         	this.executeDicothomy(id);
         }
-        
-
-       
-        
     }
   
     //TODO afegir STOP button
-    private void executeGridSearch() {
-
-        DataSerie ds = getPeaksSerieToUse();
-        if (ds==null)return;
+    private void executeGridSearch(IndexGrid ig) {
         
-    	float[] avals = FileUtils.arange(this.amin, this.amax, this.astep);
-        float[] bvals = FileUtils.arange(this.bmin, this.bmax, this.bstep);
-        float[] cvals = FileUtils.arange(this.cmin, this.cmax, this.cstep);
-        float[] alvals = FileUtils.arange((float) FastMath.toRadians(this.alfamin), (float) FastMath.toRadians(this.alfamax), (float) FastMath.toRadians(this.alstep));
-        if (alvals.length==0) {
-        	alvals = new float[] {(float) FastMath.toRadians(this.alfamin)};
-        }
-        float[] bevals = FileUtils.arange((float) FastMath.toRadians(this.betamin), (float) FastMath.toRadians(this.betamax), (float) FastMath.toRadians(this.bestep));
-        if (bevals.length==0) {
-        	bevals = new float[] {(float) FastMath.toRadians(this.betamin)};
-        }
-        float[] gavals = FileUtils.arange((float) FastMath.toRadians(this.gammamin), (float) FastMath.toRadians(this.gammamax), (float) FastMath.toRadians(this.gastep));
-        if (gavals.length==0) {
-        	gavals = new float[] {(float) FastMath.toRadians(this.gammamin)};
-        }
-        
-        int totalComb = avals.length*bvals.length*cvals.length*alvals.length*bevals.length*gavals.length;
-        float hpercent = (float)totalComb/200.f;
-        log.info(String.format("%d combinations of parameters will be evaluated! (%d*%d*%d*%d*%d*%d)", totalComb,avals.length,bvals.length,cvals.length,alvals.length,bevals.length,gavals.length));
-        
-        //ara llista dobs dels pics seleccionats
-        float[] dobs = ds.getListXvaluesAsDsp(); //TODO IMPLEMENTAR LIMIT DE PICS
-        float hsqmin = 1/ds.getMinXvalueAsDsp();
-        float factor = (float) (2*FastMath.sqrt(hsqmin));
-        
-        //TODO aqui hauriem de partir problema per fer multithreading cridant la funcio index per cada thread
-        
-        
-//        this.executeGridSearch(dobs, factor, this.getWavel(), avals, bvals, cvals, alvals, bevals, gavals, 1);
-        
-//        PattOps.index(dobs, factor, avals, bvals, cvals, alvals, bevals, gavals, 1);
-        
-        //DEBUG (aixo ho farem a pattops
-//      int[] lengths = new int[] { avals.length, bvals.length, cvals.length, alvals.length, bevals.length, gavals.length };
-//        int count = 0;
-//        for (int[] indices : new CartesianProduct(lengths)) {
-//        	System.out.println(count + " " + Arrays.toString(indices) //
-//        			+ " " + avals[indices[0]] //
-//        					+ ", " + bvals[indices[1]] //
-//        							+ ", " + cvals[indices[2]]
-//        									+ ", " + alvals[indices[3]]
-//        											+ ", " + bevals[indices[4]]
-//        													+ ", " + gavals[indices[5]]);
-//        	count++;
-//        }
-//        System.out.println("total "+count+" combinations (should be "+totalComb+")");
-    	
-        pm = new ProgressMonitor(this.indexDialog,
-                "Indexing...",
-                "", 0, 100);
-        pm.setProgress(0);
-        gridSwk = new IndexGridSearchBruteWorker(dobs, factor, (float) ds.getWavelength(), avals, bvals, cvals, alvals, bevals, gavals, 1);
-        gridSwk.addPropertyChangeListener(new PropertyChangeListener() {
-    
-            @Override
-            public void propertyChange(PropertyChangeEvent evt) {
-                log.debug(evt.getPropertyName());
-                if ("progress" == evt.getPropertyName() ) {
-                    int progress = (Integer) evt.getNewValue();
-                    pm.setProgress(progress);
-                    pm.setNote(String.format("%d%%\n", progress));
-                    if (pm.isCanceled() || gridSwk.isDone()) {
-                        Toolkit.getDefaultToolkit().beep();
-                        if (pm.isCanceled()) {
-                            gridSwk.cancel(true);
-                            log.info("Sum canceled");
-                        } else {
-                            log.info("Sum finished!!");
-                        }
-                        pm.close();
-                    }
-                }
-                if (gridSwk.isDone()){
-                	log.debug("finished indexing worker");
-//                	fillSolucions(gridSwk.getSolucions());
-                	//TODO afegir llista solucions per plotejar les posicions de les reflexions i executar d'ajust per fer fit!! PATTERN MATCHING 
-                	
-//                    Pattern2D suma = sumwk.getpattSum();
-//                    if (suma==null){
-//                        log.warning("Error summing files");
-//                        return;
-//                    }else{
-//                        suma.recalcMaxMinI();
-//                        suma.calcMeanI();
-//                        suma.recalcExcludedPixels();
-//                        updatePatt2D(suma,true,true);    
-//                    }
-                }
-            }
-        });
+        gridSwk = new IndexGridSearchBruteWorker(ig);
         gridSwk.execute();
     }
 
     private void executeDicothomy(IndexDichotomy id) {
-//    	float incPar = 0.5f;
-//    	float incAng = 1.0f;
-//        float[] Qobs = ds.getListPeaksQ(); //TODO IMPLEMENTAR LIMIT DE PICS
-//        int numIter = 6;
-//
-//        //to improve factor
-////        float[] dobs = ds.getListPeaksDsp(); //TODO IMPLEMENTAR LIMIT DE PICS
-//        float hsqmin = 1/ds.getMinPeakDsp();
-//        float factor = (float) (2*FastMath.sqrt(hsqmin));
-//        
-//        IndexCell ic = new IndexCell(this.amin,this.bmin,this.cmin,this.alfamin,this.betamin,this.gammamin,false);
-//        ic.setMaxCell(this.amax,this.bmax,this.cmax,this.alfamax,this.betamax,this.gammamax,false);
-//        
-//        float[] avals = ic.getAVals(incPar);
-//        float[] bvals = ic.getBVals(incPar);
-//        float[] cvals = ic.getCVals(incPar);
-//        float[] alvals = ic.getAlVals(incAng);
-//        float[] bevals = ic.getBeVals(incAng);
-//        float[] gavals = ic.getGaVals(incAng);
-//        
-        pm = new ProgressMonitor(this.indexDialog,"Indexing...","", 0, 100);
-        pm.setProgress(0);
         dicW = new DichothomyWorker(id);
-        dicW.addPropertyChangeListener(new PropertyChangeListener() {
-    
-            @Override
-            public void propertyChange(PropertyChangeEvent evt) {
-                log.debug(evt.getPropertyName());
-                if ("progress" == evt.getPropertyName() ) {
-                    int progress = (Integer) evt.getNewValue();
-                    pm.setProgress(progress);
-                    pm.setNote(String.format("%d%%\n", progress));
-                    if (pm.isCanceled() || dicW.isDone()) {
-                        Toolkit.getDefaultToolkit().beep();
-                        if (pm.isCanceled()) {
-                        	dicW.cancel(true);
-                            log.info("Indexing canceled");
-                        } else {
-                            log.info("Indexing finished!!");
-                        }
-                        pm.close();
-                    }
-                }
-                if (dicW.isDone()){
-                	log.debug("finished indexing worker");
-                	sols = dicW.getSolutions();
-                	original_sols = dicW.getSolutions(); //TODO comprovar que es fa un duplicat
-                	fillSolucions();
-                	//TODO afegir llista solucions per plotejar les posicions de les reflexions i executar d'ajust per fer fit!! PATTERN MATCHING 
-                	
-//                    Pattern2D suma = sumwk.getpattSum();
-//                    if (suma==null){
-//                        log.warning("Error summing files");
-//                        return;
-//                    }else{
-//                        suma.recalcMaxMinI();
-//                        suma.calcMeanI();
-//                        suma.recalcExcludedPixels();
-//                        updatePatt2D(suma,true,true);    
-//                    }
-                }
-            }
-        });
         dicW.execute();
     }
 
     
-    //TODO: CLARAMENT HO HE DE PENSAR MILLOR, podria retornar objecte Indexing (interface que hagin de implementar tots els metodes, amb Qobs,... altres condicions i apart les solucions (que també han de ser un interface??).. un pel confus
     private void fillSolucions() {
+                        
+        //borrem duplicats --- JA HO FA AUTOMATICAMENT EL SET
+//        Set<IndexSolution> nodupl = new HashSet<IndexSolution>();
+//        
+//        for (IndexSolution s:sols) {
+//            boolean repe = false;
+//            for (IndexSolution s2:nodupl) {
+//                if (s2.equals(s))repe=true;
+//            }
+//            if (!repe)nodupl.add(s);
+//        }
+//        log.info("size original="+sols.size());
+//        log.info("size corrected="+nodupl.size());
         
-//        ArrayList<Cell> refinedCells = new ArrayList<Cell>();
-        
-        //TODO:POSAR TAULA AMB SOLUCIONS i al SELECCIONAR MOSTRAR SERIE
+//        sols.clear();
+//        sols=nodupl;
         
         for (IndexSolution s:sols) {
             Cell c = s.getRefinedCell();
             log.info("ref cell= "+c.toStringCellParamOnly());
-            double m20 = s.getM20();
-            double i20 = s.getI20();
         }
         
         this.fillTable(this.sols);
@@ -1081,9 +991,8 @@ public class IndexDialog {
     }
     
     
-    protected void fillTable(List<IndexSolution> listSolutions) {
+    protected void fillTable(Set<IndexSolution> listSolutions) {
         Iterator<IndexSolution> itrSol = listSolutions.iterator();
-//        IndexSolutionTableModel m = (IndexSolutionTableModel) tableSols.getModel();
         tableSols.setAutoCreateRowSorter(true);
         tableSols.setModel(new IndexSolutionTableModel());
         tableSols.getRowSorter().toggleSortOrder(9);
@@ -1092,20 +1001,14 @@ public class IndexDialog {
         while (itrSol.hasNext()) {
             m.addSolution(itrSol.next());
         }
-//        for (IndexSolution s: sols) {
-//            IndexSolutionTableModel m = (IndexSolutionTableModel) tableSols.getModel();
-//            m.addSolution(s);
-//        }
     }
     
     private void do_btnRemoveSgGuess_actionPerformed(ActionEvent e) {
-//        this.sols=this.original_sols; //si això no va així aleshores li poso un argument a fillTable(List<Sols>)
         this.fillTable(this.original_sols);
     }
     
     private void do_btnRemoveAll_actionPerformed(ActionEvent e) {
         this.sols.clear();
-//        this.original_sols.clear();
         this.fillSolucions();
     }
     
@@ -1113,7 +1016,6 @@ public class IndexDialog {
         File f = FileUtils.fchooserSaveAsk(D1Dplot_global.getD1DmainFrame(), D1Dplot_global.getWorkdirFile(), null, null, "Save Indexing Results");
         if (f==null)return;
         
-//        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(f,true)))){
         PrintWriter out = null;
         try {
             out = new PrintWriter(new BufferedWriter(new FileWriter(f,true)));
@@ -1163,60 +1065,120 @@ public class IndexDialog {
         D1Dplot_global.getD1Dmain().updateData(false,false); //TODO no m'agrada massa això...
     }
     
-    public static class IndexGridSearchBruteWorker extends SwingWorker<Integer,Integer> {
-
-		@Override
-		protected Integer doInBackground() throws Exception {
-			sols = PattOps.indexGridSearchBrute(dobs, factor, wave, aL, bL, cL, alL, beL, gaL, threadN);
-			return 0;
-		}
-		List<IndexSolutionGrid> sols;
-		float[] dobs,aL,bL,cL,alL,beL,gaL;
-		float factor,wave;
-		int threadN;
-		
-		public IndexGridSearchBruteWorker(float[] dobs, float factor, float wavel, float[] aL,float[] bL, float[] cL, float[] alL, float[] beL, float[] gaL, int threadN) {
-			this.dobs=dobs;
-			this.factor=factor;
-			this.wave=wavel;
-			this.aL=aL;
-			this.bL=bL;
-			this.cL=cL;
-			this.alL=alL;
-			this.beL=beL;
-			this.gaL=gaL;
-			this.threadN=threadN;
-		}
-		
-		public List<IndexSolutionGrid> getSolucions() {
-			return sols;
-		}
+    private void do_btnStop_actionPerformed(ActionEvent e) {
+        this.stopIndexing();
     }
     
-    public static class DichothomyWorker extends SwingWorker<Integer,Integer> {
+    private void stopIndexing() {
+        if (this.gridSwk != null) {
+            this.gridSwk.cancel(true);
+            log.info("Grid indexing stopped");
+        }
+        if (this.dicW != null) {
+            this.dicW.cancel(true);
+            log.info("Dichotomy indexing stopped");
+        }
+    }
+    
+    //TODO PASSAR ELS WORKERS A CADA CLASSE CORRESPONENT (indexGrid, indexDicho)
+    public class IndexGridSearchBruteWorker extends SwingWorker<List<IndexSolutionGrid>,List<IndexSolutionGrid>> {
+
+        @Override
+        protected List<IndexSolutionGrid> doInBackground() throws Exception {
+            return ig.runIndexing(pBarIndex,this); //podria enviar una progress bar?
+        }
+        
+        @Override
+        protected void done() {
+            log.debug("finished indexing grid worker");
+            try {
+                List<IndexSolutionGrid> swsol = this.get();
+                if (swsol.isEmpty()) {
+                  log.warning("** NO SOLUTIONS **");
+                  return;                    
+                }
+                //borrem solucions antigues
+                sols.clear();
+                int i=0;
+                for (IndexSolutionGrid sol:swsol) {
+                    log.info(String.format("sol=%2d res=%.2f M20=%.2f %s", i,sol.res,sol.getM20(),sol.getRefinedCell().toStringCellParamOnly()));
+                    sols.add(sol.getIS());
+//                    log.info(""+sols.size());
+                    i++;
+                }
+                fillSolucions();
+            } catch (Exception ignore) {
+                ignore.printStackTrace();
+            }
+            if (this.isCancelled()) {
+                try {
+                    Thread.sleep(1000); //wait to finish... potser no es suficient?
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                log.warning("** INDEXING CANCELLED **");
+                pBarIndex.setString("indexing cancelled");
+                pBarIndex.setValue(0);
+            }
+        }
+        
+        IndexGrid ig;
+        
+        public IndexGridSearchBruteWorker(IndexGrid ig) {
+            this.ig=ig;
+        }
+        
+    }
+    
+    public class DichothomyWorker extends SwingWorker<List<IndexSolutionDichotomy>,List<IndexSolutionDichotomy>> {
 
 		@Override
-		protected Integer doInBackground() throws Exception {
-			
-			sols = id.runIndexing(-1, -1, -1); 
-			return 0;
+		protected List<IndexSolutionDichotomy> doInBackground() throws Exception {
+		    return id.runIndexing(-1, -1, -1, pBarIndex, this);
 		}
-		
+
+        @Override
+        protected void done() {
+            log.debug("finished indexing grid worker");
+            try {
+                List<IndexSolutionDichotomy> swsol = this.get();
+                if (swsol.isEmpty()) {
+                  log.warning("** NO SOLUTIONS **");
+                  return;                    
+                }
+                //borrem solucions antigues
+                sols.clear();
+                int i=0;
+                for (IndexSolutionDichotomy sol:swsol) {
+                    log.info(String.format("sol=%2d M20=%.2f %s", i,sol.getM20(),sol.getRefinedCell().toStringCellParamOnly()));
+                    sols.add(sol.getIS());
+//                    log.info(""+sols.size());
+                    i++;
+                }
+                fillSolucions();
+            } catch (Exception ignore) {
+                ignore.printStackTrace();
+            }
+            if (this.isCancelled()) {
+                try {
+                    Thread.sleep(1000); //wait to finish... potser no es suficient?
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                log.warning("** INDEXING CANCELLED **");
+                pBarIndex.setString("indexing cancelled");
+                pBarIndex.setIndeterminate(false);
+                pBarIndex.setValue(pBarIndex.getMaximum());
+            }
+        }
+        
 		IndexDichotomy id;
-		List<IndexSolutionDichotomy> sols;
 		
 		public DichothomyWorker(IndexDichotomy id) {
 			this.id=id;
 		}
-		
-		public List<IndexSolution> getSolutions(){
-		    List<IndexSolution> iss = new ArrayList<IndexSolution>();
-		    for (IndexSolutionDichotomy sol:this.sols) {
-		        iss.add(sol.getIS());
-		    }
-		    return iss;
-		}
-		
     }
 
     protected void do_rdbtnDicothomy_itemStateChanged(ItemEvent e) {
@@ -1235,7 +1197,7 @@ public class IndexDialog {
             txtAlstep.setEnabled(false);
             txtBestep.setEnabled(false);
             txtGastep.setEnabled(false);
-            txtEps.setEnabled(true);
+//            txtEps.setEnabled(true);
         }
         if (rdbtnGridSearch.isSelected()) {
             txtAstep.setEnabled(true);
@@ -1244,7 +1206,7 @@ public class IndexDialog {
             txtAlstep.setEnabled(true);
             txtBestep.setEnabled(true);
             txtGastep.setEnabled(true);
-            txtEps.setEnabled(false);
+//            txtEps.setEnabled(false);
         }
     }
     
@@ -1312,16 +1274,6 @@ public class IndexDialog {
             }
         }
          
-//        @Override
-//        public boolean isCellEditable(int row, int column)
-//        {
-//            switch (column)
-//            {
-//                case 2: return true; // only the birth date is editable
-//                default: return false;
-//            }
-//        }
-         
         @Override
         public Object getValueAt(int row, int column)
         {
@@ -1348,35 +1300,6 @@ public class IndexDialog {
             }
         }
          
-//        @Override
-//        public void setValueAt(Object value, int row, int column)
-//        {
-//            IndexSolution is = sols.get(row);
-//         
-//            switch (column)
-//            {
-//            case 0: return is
-//            case 1: return par[1];
-//            case 2: return par[2];
-//            case 3: return par[3];
-//            case 4: return par[4];
-//            case 5: return par[5];
-//            case 6: return is.getRefinedCell().getCrystalFamily();
-//            case 7: return is.getRefinedCell().getCrystalCentering();
-//            case 8: return is.getRefinedCell().getSg();
-//            case 9: return is.getM20();
-//            case 10: return is.getI20();
-//            case 11: return is.getN20();
-//            case 12: return is.getQ20();
-//            
-//                case 0: person.setFirstName((String)value); break;
-//                case 1: person.setLastName((String)value); break;
-//                case 2: person.setBirthDate((Date)value); break;
-//            }
-//         
-//            fireTableCellUpdated(row, column);
-//        }
-         
         public IndexSolution getSolution(int row)
         {
             return solsT.get(row);
@@ -1395,6 +1318,11 @@ public class IndexDialog {
 
      
     }
+
+    public boolean isVisible() {
+        return this.indexDialog.isVisible();
+    }
+
 
 }
 

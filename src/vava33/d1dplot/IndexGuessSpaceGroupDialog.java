@@ -11,8 +11,6 @@ package com.vava33.d1dplot;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
 
-import com.vava33.cellsymm.Cell;
-import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.cellsymm.CellSymm_global.CrystalCentering;
 import com.vava33.cellsymm.CellSymm_global.CrystalFamily;
 import com.vava33.cellsymm.SpaceGroup;
@@ -40,7 +38,6 @@ public class IndexGuessSpaceGroupDialog {
     private JCheckBox chckbxCubic;
     private JCheckBox chckbxTetra;
     private JCheckBox chckbxHexa;
-    private JCheckBox chckbxTrigo;
     private JCheckBox chckbxOrto;
     private JCheckBox chckbxMono;
     private JCheckBox chckbxTric;
@@ -51,6 +48,7 @@ public class IndexGuessSpaceGroupDialog {
     private JCheckBox chckbxI;
     private JCheckBox chckbxF;
     private JCheckBox chckbxR;
+    private JButton btnNewButton;
     
     public IndexGuessSpaceGroupDialog(IndexDialog d, IndexSolution is) {
 //        this.plotpanel=p;
@@ -82,13 +80,13 @@ public class IndexGuessSpaceGroupDialog {
         GuessSpaceGroupDialog.getContentPane().add(chckbxHexa, "cell 3 1");
         
         chckbxOrto = new JCheckBox("orto");
-        GuessSpaceGroupDialog.getContentPane().add(chckbxOrto, "cell 5 1");
+        GuessSpaceGroupDialog.getContentPane().add(chckbxOrto, "cell 4 1");
         
         chckbxMono = new JCheckBox("mono");
-        GuessSpaceGroupDialog.getContentPane().add(chckbxMono, "cell 6 1");
+        GuessSpaceGroupDialog.getContentPane().add(chckbxMono, "cell 5 1");
         
         chckbxTric = new JCheckBox("tric");
-        GuessSpaceGroupDialog.getContentPane().add(chckbxTric, "cell 7 1");
+        GuessSpaceGroupDialog.getContentPane().add(chckbxTric, "cell 6 1");
         
         JLabel lblCentering = new JLabel("Force centering");
         GuessSpaceGroupDialog.getContentPane().add(lblCentering, "cell 0 2");
@@ -114,9 +112,6 @@ public class IndexGuessSpaceGroupDialog {
         chckbxR = new JCheckBox("R");
         GuessSpaceGroupDialog.getContentPane().add(chckbxR, "cell 7 2");
         
-        chckbxTrigo = new JCheckBox("trigo");
-        GuessSpaceGroupDialog.getContentPane().add(chckbxTrigo, "cell 4 1");
-        
         JButton btnCheck = new JButton("Calculate");
         btnCheck.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -124,6 +119,14 @@ public class IndexGuessSpaceGroupDialog {
             }
         });
         GuessSpaceGroupDialog.getContentPane().add(btnCheck, "cell 0 3");
+        
+        btnNewButton = new JButton("Close");
+        btnNewButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_btnNewButton_actionPerformed(e);
+            }
+        });
+        GuessSpaceGroupDialog.getContentPane().add(btnNewButton, "cell 7 3");
         
         init();
     }
@@ -166,72 +169,49 @@ public class IndexGuessSpaceGroupDialog {
         init();
     }
 
+    
+    private void testForcedCentering(IndexSolution is, SpaceGroup sg, CrystalCentering cc) {
+        IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
+        is2.getRefinedCell().setSg(sg);
+        is2.getRefinedCell().setCrystalCentering(cc);
+        if (is.getNumSpurious()>is.getIndexMethod().nImp)return;
+        is2.calcM20();
+        indexDialog.sols.add(is2);
+    }
+    
+    private void testCrystalFamily(CrystalFamily cf) {
+        for (SpaceGroup sg:cf.getSpaceGroups()) {
+            IndexSolution is = this.indexSolToGuessSG.getDuplicate();
+            is.getRefinedCell().setSg(sg);
+            if (is.getNumSpurious()>is.getIndexMethod().nImp)continue;
+            is.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
+            indexDialog.sols.add(is);
+            //TODO implementar centering --- o posar-ho com a force centering
+            if(this.chckbxA.isSelected()) testForcedCentering(is,sg,CrystalCentering.A);
+            if(this.chckbxB.isSelected()) testForcedCentering(is,sg,CrystalCentering.B);
+            if(this.chckbxC.isSelected()) testForcedCentering(is,sg,CrystalCentering.C);
+            if(this.chckbxI.isSelected()) testForcedCentering(is,sg,CrystalCentering.I);
+            if(this.chckbxF.isSelected()) testForcedCentering(is,sg,CrystalCentering.F);
+            if(this.chckbxR.isSelected()) testForcedCentering(is,sg,CrystalCentering.R);
+            if(this.chckbxP.isSelected()) testForcedCentering(is,sg,CrystalCentering.P);
+        }
+    }
+    
     protected void do_btnCheck_actionPerformed(ActionEvent e) {
         //TODO preguntar que això borrarà els resultats de la indexació (o podem afegir-los a la taula).?? de moment afegeixo
-        if(this.chckbxCubic.isSelected()) {
-            for (SpaceGroup sg:CrystalFamily.CUBIC.getSpaceGroups()) {
-                IndexSolution is = this.indexSolToGuessSG.getDuplicate();
-                is.getRefinedCell().setSg(sg);
-                is.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                indexDialog.sols.add(is);
-                //TODO implementar centering --- o posar-ho com a force centering
-                
-                if(this.chckbxA.isSelected()) {
-                    IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
-                    is2.getRefinedCell().setSg(sg);
-                    is2.getRefinedCell().setCrystalCentering(CrystalCentering.A);
-                    is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                    indexDialog.sols.add(is2);
-                }
-                if(this.chckbxB.isSelected()) {
-                    IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
-                    is2.getRefinedCell().setSg(sg);
-                    is2.getRefinedCell().setCrystalCentering(CrystalCentering.B);
-                    is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                    indexDialog.sols.add(is2);
-                }
-                if(this.chckbxC.isSelected()) {
-                    IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
-                    is2.getRefinedCell().setSg(sg);
-                    is2.getRefinedCell().setCrystalCentering(CrystalCentering.C);
-                    is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                    indexDialog.sols.add(is2);
-                }
-                if(this.chckbxI.isSelected()) {
-                    IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
-                    is2.getRefinedCell().setSg(sg);
-                    is2.getRefinedCell().setCrystalCentering(CrystalCentering.I);
-                    is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                    indexDialog.sols.add(is2);
-                }
-                if(this.chckbxF.isSelected()) {
-                    IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
-                    is2.getRefinedCell().setSg(sg);
-                    is2.getRefinedCell().setCrystalCentering(CrystalCentering.F);
-                    is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                    indexDialog.sols.add(is2);
-                }
-                if(this.chckbxR.isSelected()) {
-                    IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
-                    is2.getRefinedCell().setSg(sg);
-                    is2.getRefinedCell().setCrystalCentering(CrystalCentering.R);
-                    is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                    indexDialog.sols.add(is2);
-                }
-                if(this.chckbxP.isSelected()) {
-                    IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
-                    is2.getRefinedCell().setSg(sg);
-                    is2.getRefinedCell().setCrystalCentering(CrystalCentering.P);
-                    is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
-                    indexDialog.sols.add(is2);
-                }
-                
-                
-            }
-            
-
-        }
+        if(this.chckbxCubic.isSelected()) this.testCrystalFamily(CrystalFamily.CUBIC);
+        if(this.chckbxTetra.isSelected()) this.testCrystalFamily(CrystalFamily.TETRA);
+        if(this.chckbxHexa.isSelected()) this.testCrystalFamily(CrystalFamily.HEXA);
+        if(this.chckbxOrto.isSelected()) this.testCrystalFamily(CrystalFamily.ORTO);
+        if(this.chckbxMono.isSelected()) this.testCrystalFamily(CrystalFamily.MONO);
+        if(this.chckbxTric.isSelected()) this.testCrystalFamily(CrystalFamily.TRIC);
         indexDialog.fillTable(indexDialog.sols);
     }
     
+    protected void do_btnNewButton_actionPerformed(ActionEvent e) {
+        this.GuessSpaceGroupDialog.dispose();
+    }
 }
+
+
+

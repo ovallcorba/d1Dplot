@@ -13,251 +13,383 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.swing.JProgressBar;
+
 import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.cellsymm.Cell;
-import com.vava33.cellsymm.HKLrefl;
 import com.vava33.cellsymm.CellSymm_global.CrystalFamily;
-import com.vava33.cellsymm.CellSymm_global.CrystalSystem;
 import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.IndexDialog.DichothomyWorker;
+import com.vava33.d1dplot.auxi.CartesianProduct;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
-public class IndexDichotomy {
+public class IndexDichotomy extends IndexMethod{
 
     private static final String className = "IndexDichotomy";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
-	
-    private static final float DEF_iniIncPar = 0.5f;
-    private static final float DEF_iniIncAng = 5.0f;
-    private static final int DEF_numIter = 6;
-    private static final int DEF_maxSol = 15;
+
+    private static final float DEF_iniIncPar = 1.2f;
+    private static final float DEF_iniIncAngDeg = 5.0f;
+    private static final int DEF_numIter = 5;
+    private static final int DEF_maxSol = 100000; //estava a 15 inicialment... ho pujo a 60, mes no poso perque trigaria massa i probablement està divergint (es podria comprovar aixo...)
+
+    float[] aVals,bVals,cVals,alVals,beVals,gaVals; //ELS inicials (primera iteracio)
     
-    private double aMin,bMin,cMin,alMin,beMin,gaMin; //in radians
-    private double aMax,bMax,cMax,alMax,beMax,gaMax;
-	private double vMin, vMax;
-    
-    
-    private boolean cubic,tetra,hexa,orto,mono,tric;
-	private double[] Qobs;
-	private int nPeaksToUse=20; //default 20 maximum
-    
-    private double mindsp, Qmax, maxdsp, Qmin; //valors de les reflexions entrades
-    private float deltaQerr;
-    
-    
+//    List<IndexSolutionDichotomy> finalSols;
     
     //constructor mínim
-	public IndexDichotomy(DataSerie ds, int nPeaksToUse, double deltaQerror) {
-		Qobs = ds.getListXvaluesAsInvdsp2();
-		Arrays.sort(Qobs);
-		this.nPeaksToUse = FastMath.min(nPeaksToUse, Qobs.length);
-		if (Qobs.length>this.nPeaksToUse) {
-			Qobs = Arrays.copyOfRange(Qobs, 0, this.nPeaksToUse-1);
-		}
-
-		deltaQerr = (float) deltaQerror;
-		Qmax = Qobs[Qobs.length-1]+deltaQerr;
-		Qmin = Qobs[0];
-
-		log.writeNameNumPairs("config", true, "deltaQerr", deltaQerr);
-	}
-	
-	//TODO:es podria fer un constructor complert
-	
-	public void setMinPars(double a, double b, double c, double al, double be, double ga, boolean anglesInDegrees) {
-		this.aMin=a;
-		this.bMin=b;
-		this.cMin=c;
-		if (anglesInDegrees) {
-			this.alMin=FastMath.toRadians(al);
-			this.beMin=FastMath.toRadians(be);
-			this.gaMin=FastMath.toRadians(ga);
-		}else {
-			this.alMin=al;
-			this.beMin=be;
-			this.gaMin=ga;
-		}	
-	}
-
-	public void setMaxPars(double a, double b, double c, double al, double be, double ga, boolean anglesInDegrees) {
-		this.aMax=a;
-		this.bMax=b;
-		this.cMax=c;
-		if (anglesInDegrees) {
-			this.alMax=FastMath.toRadians(al);
-			this.beMax=FastMath.toRadians(be);
-			this.gaMax=FastMath.toRadians(ga);
-		}else {
-			this.alMax=al;
-			this.beMax=be;
-			this.gaMax=ga;
-		}
-	}
-	
-	public void setVMinMax(double volMin, double volMax) {
-	    this.vMin=volMin;
-	    this.vMax=volMax;
-	}
-	
-	public void setSystemsSearch(boolean cubic, boolean tetra, boolean hexa, boolean orto, boolean mono, boolean tric) {
-		this.cubic=cubic;
-		this.tetra=tetra;
-		this.hexa=hexa;
-		this.orto=orto;
-		this.mono=mono;
-		this.tric=tric;
-	}
+    public IndexDichotomy(DataSerie ds, int nPeaksToUse, double deltaQerror, float minfom, int spurious) {
+        super(ds,nPeaksToUse,deltaQerror,minfom,spurious);
+//        finalSols = new ArrayList<IndexSolutionDichotomy>();
+    }
     
-	
-	public List<IndexSolutionDichotomy> runIndexing(int numIter, float iniIncPar, float iniIncAng) {
-	    
-	    if (iniIncPar<=0)iniIncPar=DEF_iniIncPar;
-	    if (iniIncAng<=0)iniIncAng=DEF_iniIncAng;
-	    if (numIter<=0)numIter=DEF_numIter;
-	    
-	    //first iteration
-//	    IndexSolutionDichotomy sol = new IndexSolutionDichotomy(this.aMin,this.aMax,this.bMin,this.bMax,this.cMin,this.cMax,this.alMin,this.alMax,this.beMin,this.beMax,this.gaMin,this.gaMax,iniIncPar,(float) FastMath.toRadians(iniIncAng));
-	    Cell iniCell = new Cell(this.aMin,this.bMin,this.cMin,this.alMin,this.beMin,this.gaMin,false,CrystalFamily.NONE);
-//	    IndexSolutionDichotomy sol = new IndexSolutionDichotomy((float)this.aMin,(float)this.bMin,(float)this.cMin,(float)this.alMin,(float)this.beMin,(float)this.gaMin,CrystalFamily.NONE,iniIncPar,(float) FastMath.toRadians(iniIncAng),Qobs);
-	    IndexSolutionDichotomy startSol = new IndexSolutionDichotomy(iniCell,iniIncPar,(float) FastMath.toRadians(iniIncAng),Qobs,Qmax,deltaQerr);
-	    log.info("start SOL= "+startSol.toString());
-	    //al ser la primera iteracio hem de generar el conjunt de parametres per min-max parameters
-	    List<IndexSolutionDichotomy> sols = this.runIteration(startSol,true);
+    protected void updateProgressBar(JProgressBar pbar, int currValue, int maxValue, String crystsystem, float estTimeMin) {
+        pbar.setIndeterminate(false);
+        pbar.setValue(currValue);
+        pbar.setString(String.format("[%s] %d of %d iter (est. time %6.2f min.)",crystsystem,currValue,maxValue,estTimeMin));
+    }
+    
+    private void generateIniVals(float incp, float inca) {
+        //primer hem d'agafar els increments inicials i generar la primera iteració que és la general
+        aVals = FileUtils.arange(aMin, aMax, incp);
+        bVals = FileUtils.arange(bMin, bMax, incp);
+        cVals = FileUtils.arange(cMin, cMax, incp);
+        alVals = FileUtils.arange(alMin, alMax, inca);
+        beVals = FileUtils.arange(beMin, beMax, inca);
+        gaVals = FileUtils.arange(gaMin, gaMax, inca);
+    }
+    
+    //agafa una llista de solucions i fa la particio (dicotomia), checkeja noves solucions i retorna les poteincials
+    private List<IndexSolutionDichotomy> runIteration(List<IndexSolutionDichotomy> iterSols){
+        //ara hem de seguir la iteració per cadascuna de les solucions
+        Iterator<IndexSolutionDichotomy> itrS = iterSols.iterator();
+        List<IndexSolutionDichotomy> iterSols2 = new ArrayList<IndexSolutionDichotomy>();
+        while (itrS.hasNext()) {
+            IndexSolutionDichotomy is = itrS.next();
+            //ara hem de crear la particio d'aquesta is a incPar/2
+            for (IndexSolutionDichotomy isnext: is.generateNextIter()) {
+                //check sol
+                if (isnext.areAllQobsInsideHKLQintervals()) {
+                    iterSols2.add(isnext);
+                    log.debug("is solution:"+isnext.toString());   
+                }
+            }
+        }
+        return iterSols2;
+    }
+    
+    
+    public List<IndexSolutionDichotomy> runIndexing(int numIter, float iniIncPar, float iniIncAng, JProgressBar pbar, DichothomyWorker sw) {
 
-	    log.info("iter 1, sols="+sols.size());
+        if (iniIncPar<=0)iniIncPar=DEF_iniIncPar;
+        if (iniIncAng<=0)iniIncAng=DEF_iniIncAngDeg;
+        if (numIter<=0)numIter=DEF_numIter;
+        
+        List<IndexSolutionDichotomy> finalSols = new ArrayList<IndexSolutionDichotomy>();
+        
+        //debug print Qobs
+        for (double q:Qobs) {
+            log.infof("Qobs=%.5f",q);
+        }
+        
+        //progress
+        long startTime = System.currentTimeMillis();
+        int ns=0;
+        if (cubic)ns++;
+        if (tetra)ns++;
+        if (hexa)ns++;
+        if (orto)ns++;
+        if (mono)ns++;
+        if (tric)ns++;
+        int maxValue = ns*numIter;
+        prepareProgressBar(pbar, maxValue);
+        int iIter = 0;
+        pbar.setIndeterminate(true);
+        pbar.setString("running...");
+        
+        
+        //preparacio i calculs previs
+        float currIncPar = iniIncPar;
+        float currIncAng = (float) FastMath.toRadians(iniIncAng);
+        this.generateIniVals(currIncPar, currIncAng);
+        //has colinear?
+        this.prepareD1D2Colinear();
+        
+        //cal fer-ho tot per cada sistema cristal·lí
+        if (this.cubic) {
+            log.info("CUBIC search");
+            List<IndexSolutionDichotomy> iterSols = new ArrayList<IndexSolutionDichotomy>();
+            //primera iteracion (es la diferent per cada sistema)
+            for (float par:aVals) {
+                Cell candidateCell = new Cell(par,par,par,90.0,90.0,90.0,true, CrystalFamily.CUBIC);
+                if (!this.considerForIndexing(candidateCell)) continue;
+                //TODO: A partir d'aqui comú a tots els sistemes, podriem fer un metode que fos checkAndAdd(solucions) que retornes solucions actualitzat
+                if (candidateCell.getVol()<this.vMin)continue; //volume only tested on first iteration
+                if (candidateCell.getVol()>this.vMax)continue;
+                //check sol
+                IndexSolutionDichotomy candidateSol = new IndexSolutionDichotomy(candidateCell,currIncPar,0,this); //0 increment a angle (cubic)
+                if (candidateSol.areAllQobsInsideHKLQintervals()) {
+                    iterSols.add(candidateSol);
+                    log.debug("is solution:"+candidateSol.toString());   
+                }
+                if (sw.isCancelled())return finalSols;
+            }
+            iIter++;
+            this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.CUBIC.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+            log.info("[cubic] iter 1, sols="+iterSols.size());
 
-	    boolean error = false;
-	    for (int i=2;i<=numIter;i++) {
-	        
-	        //primer comprovem si el num de solucions no es molt gran
-	        if (sols.size()>DEF_maxSol) {
-	            log.warning("Too many solutions, please reduce cell volume (or parameters) and/or Q error");
-	            error=true;
-	            break;
-	        }
-	        
-	        //ara hem de seguir la iteració per cadascuna de les solucions
-	        
-	        Iterator<IndexSolutionDichotomy> itrS = sols.iterator();
-	        List<IndexSolutionDichotomy> sols2 = new ArrayList<IndexSolutionDichotomy>();
-	        while (itrS.hasNext()) {
-	            IndexSolutionDichotomy is = itrS.next();
-	            sols2.addAll(this.runIteration(is,false));
-	        }
-	        //borrem sols i copiem les de sols2
-	        sols.clear();
-	        sols.addAll(sols2);
-	        
-	        log.info("iter "+i+", sols="+sols.size());
-	        
-	        
-	    }
-	    
-	    if (error)return null;
-	    
-	    //mostrar solucions DEBUG (abans de afinar solucions i calcular figures mèrit)
-	    Iterator<IndexSolutionDichotomy> itrS = sols.iterator();
-	    int n=1;
-	    while (itrS.hasNext()) {
-	        log.info("*** SOL "+n+" ***\n"+itrS.next().toString());
-	        n++;
-	    }
-	    
-	    return sols;
-	}
-	
-	private List<IndexSolutionDichotomy> runIteration(IndexSolutionDichotomy is, boolean firstIter){
+            //ara les iteracions amb les solucions que tenim per anar "afinant"  --> practicament identic per tots els sistemes
+            boolean error = false;
+            for (int i=2;i<=numIter;i++) {
+                //primer comprovem si el num de solucions no es molt gran
+                if (iterSols.size()>DEF_maxSol) {
+                    log.warning("[cubic] Too many solutions, please reduce cell volume (or parameters) and/or Q error");
+                    error=true;
+                    iIter = iIter + (numIter-i);
+                    break;
+                }
+                //ara hem de seguir la iteració per cadascuna de les solucions
+                List<IndexSolutionDichotomy> iterSols2 = this.runIteration(iterSols);
+                //borrem sols i copiem les de sols2
+                iterSols.clear();
+                iterSols.addAll(iterSols2);
 
-	    List<IndexSolutionDichotomy> solutions = new ArrayList<IndexSolutionDichotomy>();
-	    
-	    //PRIMER GENEREM PARAMETRES
-	    float[] aVals = new float[] {is.getAbase()};
-	    float[] bVals = new float[] {is.getBbase()};
-	    float[] cVals = new float[] {is.getCbase()};
-	    float[] alVals = new float[] {is.getAlBaseRad()};
-	    float[] beVals = new float[] {is.getBeBaseRad()};
-	    float[] gaVals = new float[] {is.getGaBaseRad()};
-	    
-	    if (firstIter) {
-	        aVals = is.getAVals((float)this.aMax);
-	        bVals = is.getBVals((float)this.bMax);
-	        cVals = is.getCVals((float)this.cMax);
-	        alVals = is.getAlVals((float)this.alMax);
-	        beVals = is.getBeVals((float)this.beMax);
-	        gaVals = is.getGaVals((float)this.gaMax);
-	    }else{
-            aVals = is.getAVals(-1);
-            bVals = is.getBVals(-1);
-            cVals = is.getCVals(-1);
-            alVals = is.getAlVals(-1);
-            beVals = is.getBeVals(-1);
-            gaVals = is.getGaVals(-1);
-	    }
-	    	    
-	    
-		//ho he separat per sistemes cristalins. Més complicat de mantenir (menys general) però més eficient.
-	    //a=b=c 90º
-	    if (this.cubic) {
-            log.debug(Arrays.toString(aVals));
-	        //temps
-	        long startTime = System.currentTimeMillis();
-	        int processedComb = 0;
-	        int totalComb = aVals.length;
-	        float onePercent = (float)totalComb/100.f;
-	        
-	        //iteracio celles
-	        for (int j=0;j<aVals.length;j++) {
-	            //ACTUALITZO PARAMETRE
-	            float a= aVals[j]; //TODO: no he implementat limit parametres, cal?
-	            Cell candidateCell = new Cell(a,a,a,is.getAlBaseRad(), is.getBeBaseRad(),is.getGaBaseRad(),false, CrystalFamily.CUBIC);
-	            if (candidateCell.getVol()>this.vMax)continue;
-	            if (candidateCell.getVol()<this.vMin)continue;
-	            IndexSolutionDichotomy candidateSol = new IndexSolutionDichotomy(candidateCell,is.incPar/2.f,0,Qobs,Qmax,deltaQerr); //0 increment a angle (cubic)
-	            
-                //Iteracio HKLs
-	            //A PARTIR D'AQUI HO PODRIEM MOURE A UN ALTRE METODE JA QEU SERA EQUIVALENT PER CUBIC,TETRA,HEXA,ORTO
-	            //finalment això passa a ser responsabilitat de candidateSol... li preguntem si aquesta cel·la es solucio considerant els Qobs actuals (que ja sap també)
-	            if (candidateSol.areAllQobsInsideHKLQintervals()) {
-                  solutions.add(candidateSol);
-                  log.debug("is solution:"+candidateSol.toString());    
-	            }
-	            
-//	            if(this.iterHKLhighSymm(candidateSol)) {
-//	                solutions.add(candidateSol);
-//	                log.debug("is solution:"+candidateSol.toString());    
-//	            }
-	            
-	            //temps
-	            processedComb++;
-	            if (processedComb%onePercent==0) {
-	                long elapTime = (System.currentTimeMillis() - startTime)/1000;
-	                float percent = ((float)processedComb/(float)totalComb)*100;
-	                float estTime = (((100-percent)*elapTime)/percent)/60; //en minuts
-	                log.info(String.format("[%s] %6.2f %% (est. time %6.2f min.)",CrystalFamily.CUBIC.getNameString(), percent,estTime));
-	            }
-	        }//for avals
-	    }//iscubic
-	    
-	    //a=b!=c 90º
-	    if (this.tetra) {
+                log.info("[cubic] iter "+i+", sols="+iterSols.size());
+                iIter++;
+                this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.CUBIC.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+                if (sw.isCancelled())return finalSols;
+            }
+            if (!error) {
+                finalSols.addAll(iterSols); //necessari per afegir altres sistemes cristal·lins
+            }
+        }
+        
+        if (this.tetra) {
+            log.info("TETRA search");
+            List<IndexSolutionDichotomy> iterSols = new ArrayList<IndexSolutionDichotomy>();
+            //primera iteracion (es la diferent per cada sistema)
+            int[] lengths = new int[] { aVals.length, cVals.length };
+            for (int[] indices : new CartesianProduct(lengths)) {
+                Cell candidateCell = new Cell(aVals[indices[0]],aVals[indices[0]],cVals[indices[1]],90.0,90.0,90.0,true, CrystalFamily.TETRA);
+                if (!this.considerForIndexing(candidateCell)) continue;
+                //TODO: A partir d'aqui comú a tots els sistemes, podriem fer un metode que fos checkAndAdd(solucions) que retornes solucions actualitzat
+                if (candidateCell.getVol()<this.vMin)continue; //volume only tested on first iteration
+                if (candidateCell.getVol()>this.vMax)continue;
+                //check sol
+                IndexSolutionDichotomy candidateSol = new IndexSolutionDichotomy(candidateCell,currIncPar,0,this); //0 increment a angle (cubic)
+                if (candidateSol.areAllQobsInsideHKLQintervals()) {
+                    iterSols.add(candidateSol);
+                    log.debug("is solution:"+candidateSol.toString());   
+                }
+                if (sw.isCancelled())return finalSols;
+            }
+            iIter++;
+            this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.TETRA.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+            log.info("[TETRA] iter 1, sols="+iterSols.size());
 
-	    }
+            //ara les iteracions amb les solucions que tenim per anar "afinant"  --> practicament identic per tots els sistemes
+            boolean error = false;
+            for (int i=2;i<=numIter;i++) {
+                //primer comprovem si el num de solucions no es molt gran
+                if (iterSols.size()>DEF_maxSol) {
+                    log.warning("[TETRA] Too many solutions, please reduce cell volume (or parameters) and/or Q error");
+                    error=true;
+                    iIter = iIter + (numIter-i);
+                    break;
+                }
+                //ara hem de seguir la iteració per cadascuna de les solucions
+                List<IndexSolutionDichotomy> iterSols2 = this.runIteration(iterSols);
+                //borrem sols i copiem les de sols2
+                iterSols.clear();
+                iterSols.addAll(iterSols2);
 
-	    //a=b!=c gamma=120º
-	    if (this.hexa) {
+                log.info("[TETRA] iter "+i+", sols="+iterSols.size());
+                iIter++;
+                this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.TETRA.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+                if (sw.isCancelled())return finalSols;
+            }
+            if (!error) {
+                finalSols.addAll(iterSols); //necessari per afegir altres sistemes cristal·lins
+            }
+        }
+        
+        if (this.hexa) {
+            log.info("HEXA search");
+            List<IndexSolutionDichotomy> iterSols = new ArrayList<IndexSolutionDichotomy>();
+            //primera iteracion (es la diferent per cada sistema)
+            int[] lengths = new int[] { aVals.length, cVals.length };
+            for (int[] indices : new CartesianProduct(lengths)) {
+                Cell candidateCell = new Cell(aVals[indices[0]],aVals[indices[0]],cVals[indices[1]],90.0,90.0,120.0,true, CrystalFamily.HEXA);
+                if (!this.considerForIndexing(candidateCell)) continue;
+                //TODO: A partir d'aqui comú a tots els sistemes, podriem fer un metode que fos checkAndAdd(solucions) que retornes solucions actualitzat
+                if (candidateCell.getVol()<this.vMin)continue; //volume only tested on first iteration
+                if (candidateCell.getVol()>this.vMax)continue;
+                //check sol
+                IndexSolutionDichotomy candidateSol = new IndexSolutionDichotomy(candidateCell,currIncPar,0,this); //0 increment a angle (cubic)
+                if (candidateSol.areAllQobsInsideHKLQintervals()) {
+                    iterSols.add(candidateSol);
+                    log.debug("is solution:"+candidateSol.toString());   
+                }
+                if (sw.isCancelled())return finalSols;
+            }
+            iIter++;
+            this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.HEXA.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+            log.info("[HEXA] iter 1, sols="+iterSols.size());
 
-	    }
-	    
-	    //a!=b!=c 90º
-	    if (this.orto) {
+            //ara les iteracions amb les solucions que tenim per anar "afinant"  --> practicament identic per tots els sistemes
+            boolean error = false;
+            for (int i=2;i<=numIter;i++) {
+                //primer comprovem si el num de solucions no es molt gran
+                if (iterSols.size()>DEF_maxSol) {
+                    log.warning("[HEXA] Too many solutions, please reduce cell volume (or parameters) and/or Q error");
+                    error=true;
+                    iIter = iIter + (numIter-i);
+                    break;
+                }
+                //ara hem de seguir la iteració per cadascuna de les solucions
+                List<IndexSolutionDichotomy> iterSols2 = this.runIteration(iterSols);
+                //borrem sols i copiem les de sols2
+                iterSols.clear();
+                iterSols.addAll(iterSols2);
 
-	    }
-	    
-	    return solutions;
+                log.info("[HEXA] iter "+i+", sols="+iterSols.size());
+                iIter++;
+                this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.HEXA.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+                if (sw.isCancelled())return finalSols;
+            }
+            if (!error) {
+                finalSols.addAll(iterSols); //necessari per afegir altres sistemes cristal·lins
+            }
+        }
+        
+        if (this.orto) {
+            log.info("ORTO search");
+//            this.generateIniVals(currIncPar/2.f, currIncAng/2.f); //reduim mida en cas orto (sino massa solucions)
+            List<IndexSolutionDichotomy> iterSols = new ArrayList<IndexSolutionDichotomy>();
+            //primera iteracion (es la diferent per cada sistema)
+            int[] lengths = new int[] { aVals.length, bVals.length, cVals.length };
+            for (int[] indices : new CartesianProduct(lengths)) {
+                Cell candidateCell = new Cell(aVals[indices[0]],bVals[indices[1]],cVals[indices[2]],90.0,90.0,90.0,true, CrystalFamily.ORTO);
+                if (!this.considerForIndexing(candidateCell)) continue;
+                //TODO: A partir d'aqui comú a tots els sistemes, podriem fer un metode que fos checkAndAdd(solucions) que retornes solucions actualitzat
+                if (candidateCell.getVol()<this.vMin)continue; //volume only tested on first iteration
+                if (candidateCell.getVol()>this.vMax)continue;
+                //check sol
+                IndexSolutionDichotomy candidateSol = new IndexSolutionDichotomy(candidateCell,currIncPar,0,this); //0 increment a angle (cubic)
+                if (candidateSol.areAllQobsInsideHKLQintervals()) {
+                    iterSols.add(candidateSol);
+                    log.debug("is solution:"+candidateSol.toString());   
+                }
+                if (sw.isCancelled())return finalSols;
+            }
+            iIter++;
+            this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.ORTO.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+            log.info("[ORTO] iter 1, sols="+iterSols.size());
 
-	}
+            //ara les iteracions amb les solucions que tenim per anar "afinant"  --> practicament identic per tots els sistemes
+            boolean error = false;
+            for (int i=2;i<=numIter;i++) {
+                //primer comprovem si el num de solucions no es molt gran
+                if (iterSols.size()>DEF_maxSol) {
+                    log.warning("[ORTO] Too many solutions, please reduce cell volume (or parameters) and/or Q error");
+                    error=true;
+                    iIter = iIter + (numIter-i);
+                    break;
+                }
+                //ara hem de seguir la iteració per cadascuna de les solucions
+                List<IndexSolutionDichotomy> iterSols2 = this.runIteration(iterSols);
+                //borrem sols i copiem les de sols2
+                iterSols.clear();
+                iterSols.addAll(iterSols2);
+
+                log.info("[ORTO] iter "+i+", sols="+iterSols.size());
+                iIter++;
+                this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.ORTO.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+                if (sw.isCancelled())return finalSols;
+            }
+            if (!error) {
+                finalSols.addAll(iterSols); //necessari per afegir altres sistemes cristal·lins
+            }
+        }
+        
+        if (this.mono) {
+            log.info("MONO search");
+//            this.generateIniVals(currIncPar/4.f, currIncAng/4.f); //reduim mida en cas monoclinic
+            this.generateIniVals(currIncPar*2, currIncAng*2); //reduim mida en cas monoclinic
+            List<IndexSolutionDichotomy> iterSols = new ArrayList<IndexSolutionDichotomy>();
+            //primera iteracion (es la diferent per cada sistema)
+            int[] lengths = new int[] { aVals.length, bVals.length, cVals.length, beVals.length };
+            int ncomb = aVals.length*bVals.length*cVals.length*beVals.length;
+            int icomb = 0;
+            
+            for (int[] indices : new CartesianProduct(lengths)) {
+                Cell candidateCell = new Cell(aVals[indices[0]],bVals[indices[1]],cVals[indices[2]],90.0,FastMath.toDegrees(beVals[indices[3]]),90.0,true, CrystalFamily.MONO);
+                if (!this.considerForIndexing(candidateCell)) continue;
+                //TODO: A partir d'aqui comú a tots els sistemes, podriem fer un metode que fos checkAndAdd(solucions) que retornes solucions actualitzat
+                if (candidateCell.getVol()<this.vMin)continue; //volume only tested on first iteration
+                if (candidateCell.getVol()>this.vMax)continue;
+                //check sol
+                IndexSolutionDichotomy candidateSol = new IndexSolutionDichotomy(candidateCell,currIncPar,currIncAng,this); //0 increment a angle (cubic)
+                if (candidateSol.areAllQobsInsideHKLQintervals()) {
+                    iterSols.add(candidateSol);
+                    //debug
+                    //                    log.info("is solution:"+candidateSol.toString());
+                    //                    candidateSol.Qintervals.sort(null);
+                    //                    for (Qinterval q:candidateSol.Qintervals) {
+                    //                        log.info(q.printLong());
+                    //                    }
+                }
+                icomb++;
+                if (icomb%500==0) {
+                    log.infof("comb %d of %d, nsols=%d (last cell %s)",icomb,ncomb,iterSols.size(),candidateCell.toStringCellParamOnly());
+                }
+                if (sw.isCancelled())return finalSols;
+            }
+            iIter++;
+            this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.MONO.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+            log.info("[MONO] iter 1, sols="+iterSols.size());
+
+            //ara les iteracions amb les solucions que tenim per anar "afinant"  --> practicament identic per tots els sistemes
+            boolean error = false;
+            for (int i=2;i<=numIter;i++) {
+                //primer comprovem si el num de solucions no es molt gran
+                if (iterSols.size()>DEF_maxSol) {
+                    log.warning("[MONO] Too many solutions, please reduce cell volume (or parameters) and/or Q error");
+                    error=true;
+                    iIter = iIter + (numIter-i);
+                    break;
+                }
+                //ara hem de seguir la iteració per cadascuna de les solucions
+                List<IndexSolutionDichotomy> iterSols2 = this.runIteration(iterSols);
+                //borrem sols i copiem les de sols2
+                iterSols.clear();
+                iterSols.addAll(iterSols2);
+
+                log.info("[MONO] iter "+i+", sols="+iterSols.size());
+                iIter++;
+                this.updateProgressBar(pbar, iIter, maxValue, CrystalFamily.MONO.getNameString(), this.calcEstTime(startTime, iIter, maxValue));
+                if (sw.isCancelled())return finalSols;
+            }
+            if (!error) {
+                finalSols.addAll(iterSols); //necessari per afegir altres sistemes cristal·lins
+            }
+        }
+        
+        if (this.tric) {
+            //TODO
+        }
+
+        finishProgressBar(pbar,maxValue);
+
+        //minimum FOM
+        Iterator<IndexSolutionDichotomy> itrd = finalSols.iterator();
+        while (itrd.hasNext()) {
+            if(itrd.next().getM20()<this.minFoM)itrd.remove();
+        }
+        return finalSols;
+    }
+    
 }
-
-
