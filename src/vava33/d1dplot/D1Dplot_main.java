@@ -6,16 +6,16 @@ package com.vava33.d1dplot;
  *
  * It uses the following libraries from the same author:
  *  - com.vava33.jutils
- *
+ *  
  * And the following 3rd party libraries: 
  *  - net.miginfocom.swing.MigLayout
  *  - org.apache.commons.math3.util.FastMath
  *  - org.apache.batik
  *  - org.w3c.dom
- *
+ *  
  * @author Oriol Vallcorba
  * Licence: GPLv3
- *   
+ *  
  */
 
 import java.awt.Color;
@@ -96,6 +96,7 @@ import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.Data_Common;
 import com.vava33.d1dplot.data.Plottable;
 import com.vava33.d1dplot.data.Plottable_point;
+import com.vava33.d1dplot.data.SerieType;
 import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.LogJTextArea;
@@ -195,6 +196,7 @@ public class D1Dplot_main {
     private JTextField txtTini;
     private JTextField txtFactor;
     private JSeparator separator_5;
+    private JMenuItem mntmSaveProfile;
     
     /**
      * Launch the application.
@@ -705,7 +707,7 @@ public class D1Dplot_main {
         mnFile.setMnemonic('f');
         menuBar.add(mnFile);
         
-        mntmOpen = new JMenuItem("Open Data File...");
+        mntmOpen = new JMenuItem("Open Data File");
         mntmOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_MASK));
         mntmOpen.setMnemonic('o');
         mntmOpen.addActionListener(new ActionListener() {
@@ -722,7 +724,7 @@ public class D1Dplot_main {
             }
         });
         
-        mntmSaveAs = new JMenuItem("Save Data as...");
+        mntmSaveAs = new JMenuItem("Save Data as");
         mntmSaveAs.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
                 do_mntmSaveAs_actionPerformed(arg0);
@@ -730,7 +732,15 @@ public class D1Dplot_main {
         });
         mnFile.add(mntmSaveAs);
         
-        mntmExportAsPng = new JMenuItem("Export as PNG...");
+        mntmSaveProfile = new JMenuItem("Save obs/cal/hkl matching");
+        mntmSaveProfile.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_mntmSaveProfile_actionPerformed(e);
+            }
+        });
+        mnFile.add(mntmSaveProfile);
+        
+        mntmExportAsPng = new JMenuItem("Export as PNG");
         mnFile.add(mntmExportAsPng);
         mntmExportAsPng.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -738,7 +748,7 @@ public class D1Dplot_main {
             }
         });
         
-        mntmExportAsSvg = new JMenuItem("Export as SVG...");
+        mntmExportAsSvg = new JMenuItem("Export as SVG");
         mnFile.add(mntmExportAsSvg);
         mntmExportAsSvg.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -746,7 +756,7 @@ public class D1Dplot_main {
             }
         });
         
-        mntmSaveProject = new JMenuItem("Save project...");
+        mntmSaveProject = new JMenuItem("Save project");
         mntmSaveProject.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
         		do_mntmSaveProject_actionPerformed(e);
@@ -754,7 +764,7 @@ public class D1Dplot_main {
         });
         mnFile.add(mntmSaveProject);
         
-        mntmOpenProject = new JMenuItem("Open project...");
+        mntmOpenProject = new JMenuItem("Open project");
         mntmOpenProject.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent e) {
         		do_mntmOpenProject_actionPerformed(e);
@@ -812,7 +822,7 @@ public class D1Dplot_main {
         mnOps = new JMenu("Processing");
         menuBar.add(mnOps);
         
-        mntmFindPeaks_1 = new JMenuItem("Find Peaks...");
+        mntmFindPeaks_1 = new JMenuItem("Find Peaks");
         mntmFindPeaks_1.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntmFindPeaks_1_actionPerformed(e);
@@ -820,7 +830,7 @@ public class D1Dplot_main {
         });
         mnOps.add(mntmFindPeaks_1);
         
-        mntmCalcBackground = new JMenuItem("Calc Background...");
+        mntmCalcBackground = new JMenuItem("Calc Background");
         mntmCalcBackground.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntmCalcBackground_actionPerformed(e);
@@ -828,7 +838,7 @@ public class D1Dplot_main {
         });
         mnOps.add(mntmCalcBackground);
         
-        mntmSubtractPatterns = new JMenuItem("Subtract patterns...");
+        mntmSubtractPatterns = new JMenuItem("Subtract patterns");
         mntmSubtractPatterns.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntmSubtractPatterns_actionPerformed(e);
@@ -843,7 +853,7 @@ public class D1Dplot_main {
             }
         });
         
-        mntmRebinning = new JMenuItem("Rebinning...");
+        mntmRebinning = new JMenuItem("Rebinning");
         mntmRebinning.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
                 do_mntmRebinning_actionPerformed(arg0);
@@ -896,6 +906,7 @@ public class D1Dplot_main {
         mnHelp.add(mntmCheckForUpdates);
         
         mntmDebug = new JMenuItem("debug");
+        mntmDebug.setVisible(false);
         mntmDebug.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntmDebug_actionPerformed(e);
@@ -1191,6 +1202,69 @@ public class D1Dplot_main {
 	    
 	}
 
+	private void saveDataProf() {
+	    if (table_files.getRowCount()<=0)return;
+	    
+	    //PRIMER INTENTEM FER-HO AUTOMATIC SI TOT ÉS CORRECTE
+	    List<DataSerie> dsOBS = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.dat);
+	    if (dsOBS.isEmpty()) dsOBS = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.obs);
+	    List<DataSerie> dsCAL = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.cal);
+	    List<DataSerie> dsHKL = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.hkl);
+	    
+	    int nobs = dsOBS.size();
+	    int ncal = dsCAL.size();
+	    int nhkl = dsHKL.size();
+
+	    boolean saveIt = false;
+	    
+	    if ((nobs==1)&&(ncal==1)&&(nhkl>0)) {
+	        //tot correcte, autosave
+	        saveIt = true;
+	    }else {
+	        //provarem de mirar amb tot el que està obert i mostrat
+	        dsOBS.clear();
+	        dsCAL.clear();
+	        dsHKL.clear();
+	        for(int i=0;i<this.getPanel_plot().getNplottables();i++) {
+	            dsOBS.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.dat));
+	            dsOBS.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.obs));
+	            dsCAL.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.cal));
+	            dsHKL.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.hkl));
+	        }
+	        nobs = dsOBS.size();
+	        ncal = dsCAL.size();
+	        nhkl = dsHKL.size();
+	        if ((nobs==1)&&(ncal==1)&&(nhkl>0)) {
+	            //tot correcte, autosave
+	            saveIt=true;
+	        }else {
+	            dsOBS.clear();
+	            dsCAL.clear();
+	            dsHKL.clear();
+	            //FINALMENT com a ultima opcio obrirem un dialeg on s'hauran de seleccionar les dataseries	    
+	            SavePRFdialog prfdiag = new SavePRFdialog(this.getPanel_plot());
+	            prfdiag.visible(true);
+	            if (prfdiag.getOBS()!=null)dsOBS.add(prfdiag.getOBS());
+	            if (prfdiag.getCALC()!=null)dsCAL.add(prfdiag.getCALC());
+	            if (prfdiag.getHKLs()!=null)dsHKL.addAll(prfdiag.getHKLs());
+	            nobs = dsOBS.size();
+	            ncal = dsCAL.size();
+	            nhkl = dsHKL.size();
+	            if ((nobs==1)&&(ncal==1)&&(nhkl>0)) saveIt=true;
+	        }
+	    }
+	    if (saveIt) {
+	        FileNameExtensionFilter[] filt = new FileNameExtensionFilter[1];
+	        filt[0] = new FileNameExtensionFilter("d1Dplot project","d1p");
+	        File f = FileUtils.fchooserSaveAsk(this.mainFrame, D1Dplot_global.getWorkdirFile(), filt, "d1p", "Save obs/calc/hkl matching");
+	        if (f!=null) {
+	            DataFileUtils.writeProfileFile(f, dsOBS.get(0),dsCAL.get(0),dsHKL, true);
+	        }
+	    }else {
+	        log.info("error saving obs/calc/hkl matching");
+	    }
+	}
+	
 	private void saveDataFile(){
 	    logdebug("saveDataFile entered");
 	    if (table_files.getRowCount()<=0)return;
@@ -1198,7 +1272,7 @@ public class D1Dplot_main {
 	    List<DataSerie> dss = panel_plot.getSelectedSeries();
 	    
 	    if (dss.isEmpty()) {
-	        log.warning("Select on the table the pattern you want to save");
+	        log.warning("Select on the table the pattern(s) you want to save");
 	        return;
 	    }
 
@@ -1270,7 +1344,7 @@ public class D1Dplot_main {
 	                i++;
 	            }
 	        }
-
+	    
 	}
 
 	private void saveSVG(File fsvg){
@@ -1506,7 +1580,7 @@ public class D1Dplot_main {
                 
 //                DataSerie newDS = ds.convertToNewWL(newWL);
                 ds.convertDStoWavelength(newWL);
-
+                
                 
             }
             
@@ -1830,14 +1904,14 @@ public class D1Dplot_main {
 	        int selRow = selRows[i];
 	        int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
 	            //moure el pattern
-            try{
+	            try{
 //	                Collections.swap(panel_plot.getDataToPlot(), npat, npat+1);    
-                panel_plot.swapPlottables(npat, npat+1);
-                table_files.setRowSelectionInterval(selRow+1, selRow+1);
-            }catch(Exception ex){
-                logdebug("moving pattern... index not existing");
-            }
-            continue;
+	                panel_plot.swapPlottables(npat, npat+1);
+	                table_files.setRowSelectionInterval(selRow+1, selRow+1);
+	            }catch(Exception ex){
+	                logdebug("moving pattern... index not existing");
+	            }
+	            continue;
 	    }
 	    
 	    updateData(false,true);
@@ -1848,6 +1922,11 @@ public class D1Dplot_main {
 	    saveDataFile();
 	}
 
+	   
+	private void do_mntmSaveProfile_actionPerformed(ActionEvent e) {
+	    saveDataProf();
+    }
+	
 	private void do_chckbxShowLegend_itemStateChanged(ItemEvent arg0) {
 	    if (this.panel_plot!=null)panel_plot.setShowLegend(chckbxShowLegend.isSelected());
 //	    panel_plot.actualitzaPlot();
@@ -2290,46 +2369,12 @@ public class D1Dplot_main {
         
     }
     private void do_mntmDebug_actionPerformed(ActionEvent e) {
-        debug_latgen dl = new debug_latgen(this);
-        dl.visible(true);
+//        debug_latgen dl = new debug_latgen(this);
+//        dl.visible(true);
     }
 
 	private void do_mntmCheckForUpdates_actionPerformed(ActionEvent e) {
-        String bona="";
-        String url="https://www.cells.es/en/beamlines/bl04-mspd/preparing-your-experiment";
-        
-		try {
-			URL mspd = new URL(url);
-			BufferedReader in = new BufferedReader(new InputStreamReader(mspd.openStream()));
-	        String inputLine;
-	        while ((inputLine = in.readLine()) != null) {
-	            if (FileUtils.containsIgnoreCase(inputLine, "d1Dplot software for windows v")) {
-	            	bona = inputLine;
-	            	break;
-	            }
-	        }
-	        in.close();
-			
-		} catch (Exception e1) {
-			if(D1Dplot_global.isDebug())e1.printStackTrace();
-			log.warning("Error checking for new versions");
-		}
-
-		//d2Dplot software for linux v1811" href="https://www.cells.es/en/beamlines/bl04-mspd/d2dplot1811win_181122-tar.gz
-		if (bona.length()>0) {
-			String data = bona.split(".zip")[0];
-			data = data.split("win_")[1];
-			int webVersion = Integer.parseInt(data);
-			if (webVersion != D1Dplot_global.build_date) {
-				boolean yes = FileUtils.YesNoDialog(this.getMainFrame(), "New d1Dplot version is available ("+webVersion+"). Please download at\n"+url,"New version available!");
-				if (yes) {
-					FileUtils.openURL(url);
-				}
-			}
-			if (webVersion == D1Dplot_global.build_date) {
-				FileUtils.InfoDialog(this.getMainFrame(), "You have the last version of d1Dplot ("+D1Dplot_global.build_date+").", "d1Dplot is up to date");
-			}
-		}
+	    log.info("software updates not available");
 	}
     
 	private void do_btnReassignColors_actionPerformed(ActionEvent e) {
@@ -2412,5 +2457,5 @@ public class D1Dplot_main {
 	        log.debug(s);
 	    }
 	}
-	
+
 }

@@ -72,7 +72,7 @@ public final class DataFileUtils {
 //		}
     }
     
-    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,FF,PRF,GR,TXT;}
+    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,FF,D1P,PRF,GR,TXT;}
     public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR,FF;}
     public static final LinkedHashMap<String, FileFormat> XRDformatInfo;
     static
@@ -85,6 +85,7 @@ public final class DataFileUtils {
         XRDformatInfo.put("gsa", new FileFormat(new String[]{"gsa","GSA"},"GSAS Standard Powder Data File (*.gsa)"));
         XRDformatInfo.put("xrdml", new FileFormat(new String[]{"xrdml","XRDML"},"Panalytical format (*.xrdml)"));
         XRDformatInfo.put("ff", new FileFormat(new String[]{"ff","FF"},"List of intensities in free format (*.ff)"));
+        XRDformatInfo.put("d1p", new FileFormat(new String[]{"d1p","D1P"},"Obs,calc and difference profiles from d1Dplot (*.d1p)"));
         XRDformatInfo.put("prf", new FileFormat(new String[]{"prf","PRF"},"Obs,calc and difference profiles from fullprof (*.prf)"));
         XRDformatInfo.put("gr", new FileFormat(new String[]{"gr","GR"},"g(r) from pdfgetx3 (*.gr)"));
         XRDformatInfo.put("txt", new FileFormat(new String[]{"txt","TXT"},"2 columns space or comma separated (*.txt)"));
@@ -257,6 +258,9 @@ public final class DataFileUtils {
                 break;
             case FF:
                 p = readFF(d1file);
+                break;
+            case D1P:
+                p = readD1P(d1file);
                 break;
             case PRF:
                 p = readPRF(d1file);
@@ -1018,22 +1022,161 @@ public final class DataFileUtils {
             return null;
         }
     }
-
-        
-    //TODO: cal revisar la lectura, posar mes excepcions, etc...
-    private static Data_Common readPRF(File f){
+    
+    private static Data_Common readD1P(File f){
         boolean readed = true;
-        boolean startData = false;
-        boolean starthkl = false;
-        double previous2t = -100.0;
-        int linecount = 0;
         
         //creem un DataSerie_PRF
         Data_Common dsPRF = new Data_Common();
         DataSerie dsObs = new DataSerie(SerieType.obs,Xunits.tth,dsPRF);
         DataSerie dsCal = new DataSerie(SerieType.cal,Xunits.tth,dsPRF);
         DataSerie dsDif = new DataSerie(SerieType.diff,Xunits.tth,dsPRF);
-        DataSerie dsHKL = new DataSerie(SerieType.hkl,Xunits.tth,dsPRF);
+//        ArrayList<DataSerie> dssHKL = new ArrayList<DataSerie>();
+        
+        //FIRST CHECK ENCODING
+        String enc = getEncodingToUse(f);
+        
+        double wave = -1.0;
+        double zero = 0.0;
+        Xunits units = Xunits.tth;
+        
+        Scanner sf = null;
+        String line = "";
+        try {
+            sf = new Scanner(f,enc);
+            while (sf.hasNextLine()){
+                line = sf.nextLine();
+                if (isComment(line))continue;
+                
+                if (FileUtils.containsIgnoreCase(line, "name")) {
+                    final int iigual = line.trim().indexOf("=") + 1;
+                    dsObs.serieName=line.trim().substring(iigual, line.trim().length()).trim()+" (obs)";
+                    dsCal.serieName=line.trim().substring(iigual, line.trim().length()).trim()+" (calc)";
+                    dsDif.serieName=line.trim().substring(iigual, line.trim().length()).trim()+" (diff)";
+                }
+                
+//                if (FileUtils.containsIgnoreCase(line, "cell")) {
+//                    final int iigual = line.trim().indexOf("=") + 1;
+//                    String cell =line.trim().substring(iigual, line.trim().length()).trim();
+//                }
+//                if (FileUtils.containsIgnoreCase(line, "sg")) {
+//                    final int iigual = line.trim().indexOf("=") + 1;
+//                    String cell =line.trim().substring(iigual, line.trim().length()).trim();
+//                }
+                
+                if (FileUtils.containsIgnoreCase(line, "wave")) {
+                    final int iigual = line.trim().indexOf("=") + 1;
+                    wave =Double.parseDouble(line.trim().substring(iigual, line.trim().length()).trim());
+                }
+                if (FileUtils.containsIgnoreCase(line, "zero")) {
+                    final int iigual = line.trim().indexOf("=") + 1;
+                    zero =Double.parseDouble(line.trim().substring(iigual, line.trim().length()).trim());
+                }
+                if (FileUtils.containsIgnoreCase(line, "units")) {
+                    final int iigual = line.trim().indexOf("=") + 1;
+                    String xun =line.trim().substring(iigual, line.trim().length()).trim();
+                    units = Xunits.getEnum(xun);
+                    dsObs.setxUnits(units);
+                    dsCal.setxUnits(units);
+                    dsDif.setxUnits(units);
+                }
+                if (line.trim().startsWith("DATA"))break; //inici dades
+            }
+            //DATA
+            while (sf.hasNextLine()){
+                line = sf.nextLine();
+                if (isComment(line))continue;
+                if (line.trim().startsWith("HKL")) break; //start HKL data
+                String values[] = line.trim().split("\\s+");
+                double t2i = Double.parseDouble(values[0]);
+                try {
+                    double Iobs = Double.parseDouble(values[1]);
+                    double Ical = Double.parseDouble(values[2]);
+                    double Ibkg = Double.parseDouble(values[3]);
+                    dsObs.addPoint(new DataPoint(t2i,Iobs,0,Ibkg));
+                    dsCal.addPoint(new DataPoint(t2i,Ical,0,Ibkg));
+                    dsDif.addPoint(new DataPoint(t2i,Iobs-Ical,0));
+                }catch(Exception ex) {
+                        //vol dir que hem llegit alguna cosa rara
+                        log.warning("error reading prf intensity");
+                        dsObs.addPoint(new DataPoint(t2i,0,0,0));
+                        dsCal.addPoint(new DataPoint(t2i,0,0,0));
+                        dsDif.addPoint(new DataPoint(t2i,0,0,0));                        
+                }
+            }
+            dsPRF.addDataSerie(dsObs);
+            dsPRF.addDataSerie(dsCal);
+            double[] maxminXY = dsDif.getPuntsMaxXMinXMaxYMinY();
+            double maxdif = FastMath.max(FastMath.abs(maxminXY[2]), FastMath.abs(maxminXY[3]));
+            dsDif.setYOff(-1*((int)maxdif+100));
+            dsPRF.addDataSerie(dsDif);
+            maxminXY = dsObs.getPuntsMaxXMinXMaxYMinY();
+            //HKLs  
+            int nhkl=0;
+            DataSerie dsHKL = new DataSerie(SerieType.hkl,units,dsPRF);
+            dsHKL.serieName = line.substring(3, line.length());
+            while (sf.hasNextLine()) {
+                line = sf.nextLine();
+                if (line.trim().startsWith("HKL")) {
+                    //new hkl serie
+                    //first we add the current one to the plottable
+                    dsHKL.setYOff(maxminXY[3]-maxminXY[3]*(nhkl));
+                    dsPRF.addDataSerie(dsHKL);
+                    //and create a new one
+                    dsHKL = new DataSerie(SerieType.hkl,units,dsPRF);
+                    dsHKL.serieName = line.substring(3, line.length());
+                    nhkl++;
+                    continue;
+                }                        
+                
+                String values[] = line.trim().split("\\s+");
+                double t2i = Double.parseDouble(values[0]);
+                int h = Integer.parseInt(values[1]);
+                int k = Integer.parseInt(values[2]);
+                int l = Integer.parseInt(values[3]);
+                HKLrefl hkl = new HKLrefl(h,k,l,wave,t2i);
+                dsHKL.addPoint(new DataPoint_hkl(hkl,t2i));
+            }
+            //afegim "ultima" HKL
+            dsHKL.setYOff(maxminXY[3]-maxminXY[3]*(nhkl));
+            dsPRF.addDataSerie(dsHKL);
+            //and create a new one
+            dsHKL = new DataSerie(SerieType.hkl,units,dsPRF);
+            dsHKL.serieName = line.substring(3, line.length());
+
+        }catch(Exception ex){
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
+            readed=false;
+        }finally {
+            if(sf!=null)sf.close();
+        }
+        
+        dsPRF.setWavelengthToAllSeries(wave);
+        dsPRF.setZeroToAllSeries(zero);
+        
+        if (readed){
+            return dsPRF;
+        }else{
+            return null;
+        }
+    }
+    
+    //TODO: fare arrayList de dataPoint_hkl i posare el yoff com a intensitat! (que per defecte es zero) i llavors faré les diferents series segons això (tornant la Y a zero)
+    private static Data_Common readPRF(File f){
+        boolean readed = true;
+        boolean startData = false;
+        boolean starthkl = false;
+        double previous2t = -100.0;
+        int linecount = 0;
+        int phases = 0;
+        
+        //creem un DataSerie_PRF
+        Data_Common dsPRF = new Data_Common();
+        DataSerie dsObs = new DataSerie(SerieType.obs,Xunits.tth,dsPRF);
+        DataSerie dsCal = new DataSerie(SerieType.cal,Xunits.tth,dsPRF);
+        DataSerie dsDif = new DataSerie(SerieType.diff,Xunits.tth,dsPRF);
+        ArrayList<DataSerie> dsHKL = new ArrayList<DataSerie>();
+        ArrayList<DataPoint_hkl> hkls = new ArrayList<DataPoint_hkl>();
         
         //FIRST CHECK ENCODING
         String enc = getEncodingToUse(f);
@@ -1048,6 +1191,11 @@ public final class DataFileUtils {
                 if (linecount == 2){
                     String values[] = line.trim().split("\\s+");
                     dsPRF.setOriginalWavelength(Double.parseDouble(values[2]));
+                    phases = Integer.parseInt(values[0]);
+//                    dsHKL = new ArrayList<DataSerie>(phases);
+                    for (int i=0;i<phases;i++) {
+                        dsHKL.add(new DataSerie(SerieType.hkl,Xunits.tth,dsPRF));
+                    }
                 }
                 
                 if (line.trim().startsWith("2Theta")){
@@ -1055,6 +1203,7 @@ public final class DataFileUtils {
                     continue;
                 }
                 if (!startData)continue;
+                
                 String values[] = line.trim().split("\\s+");
                 double t2i = Double.parseDouble(values[0]);
                 
@@ -1071,8 +1220,13 @@ public final class DataFileUtils {
                     int k = Integer.parseInt(shkl[1]);
                     int l = Integer.parseInt(shkl[2]);
                     HKLrefl hkl = new HKLrefl(h,k,l,dsObs.getWavelength(),t2i);
-                    dsHKL.addPoint(new DataPoint_hkl(hkl,t2i));
+//                    dsHKL.addPoint(new DataPoint_hkl(hkl,t2i));
+                    //the y offset (more than one phase)
+                    shkl = line.substring(0,ini).trim().split("\\s+");
+                    double yoff = Double.parseDouble(shkl[shkl.length-1].trim());
+                    hkls.add(new DataPoint_hkl(t2i,yoff,0.,hkl));
                 }else{
+                    //mirem si hi ha info d'hkl també aquí
                     try {
                         double Iobs = Double.parseDouble(values[1]);
                         double Ical = Double.parseDouble(values[2]);
@@ -1080,6 +1234,24 @@ public final class DataFileUtils {
                         dsObs.addPoint(new DataPoint(t2i,Iobs,0,Ibkg));
                         dsCal.addPoint(new DataPoint(t2i,Ical,0,Ibkg));
                         dsDif.addPoint(new DataPoint(t2i,Iobs-Ical,0));
+                        
+                        if (values.length>6) {                            //has hkl
+                            int ini = line.indexOf("(");
+                            int fin = line.indexOf(")");
+                            log.debug(line.substring(ini+1, fin));
+                            String shkl[] = line.substring(ini+1, fin).trim().split("\\s+");
+                            int h = Integer.parseInt(shkl[0]);
+                            int k = Integer.parseInt(shkl[1]);
+                            int l = Integer.parseInt(shkl[2]);
+                            shkl = line.substring(0,ini).trim().split("\\s+");
+                            double t2r = Double.parseDouble(shkl[shkl.length-2]);
+                            HKLrefl hkl = new HKLrefl(h,k,l,dsObs.getWavelength(),t2r);
+//                            dsHKL.addPoint(new DataPoint_hkl(hkl,t2i));
+                            //the y offset (more than one phase)
+                            
+                            double yoff = Double.parseDouble(shkl[shkl.length-1].trim());
+                            hkls.add(new DataPoint_hkl(t2r,yoff,0.,hkl));
+                        }
                     }catch(Exception ex) {
                         //vol dir que hem llegit alguna cosa rara
                         log.warning("error reading prf intensity");
@@ -1099,12 +1271,60 @@ public final class DataFileUtils {
             dsObs.serieName=f.getName()+" ("+dsObs.getTipusSerie().toString()+")";
             dsCal.serieName=f.getName()+" ("+dsCal.getTipusSerie().toString()+")";
             dsDif.serieName=f.getName()+" ("+dsDif.getTipusSerie().toString()+")";
-            dsHKL.serieName=f.getName()+" ("+dsHKL.getTipusSerie().toString()+")";
-            dsHKL.setYOff(maxminXY[3]+DataSerie.def_hklYOff);
             dsPRF.addDataSerie(dsObs);
             dsPRF.addDataSerie(dsCal);
             dsPRF.addDataSerie(dsDif);
-            dsPRF.addDataSerie(dsHKL);
+            //HKLS:
+            if (phases<=1) {
+                for (DataPoint_hkl hkl:hkls) {
+                    hkl.setY(0);
+                    dsHKL.get(0).addPoint(hkl);
+                }
+                dsHKL.get(0).setYOff(maxminXY[3]-DataSerie.def_hklYOff);
+            }else {
+                //more phases
+                int[] vals = new int[phases];
+                for (int i=0;i<vals.length;i++) {
+                    vals[i]=Integer.MAX_VALUE;
+                }
+                int nph = 0;
+                
+                for (DataPoint_hkl hkl:hkls) {
+                    boolean newVal=true;
+                    int yoff = (int) hkl.getY();
+                    for (int i=0;i<vals.length;i++) {
+                        if (yoff==vals[i]) {
+                            newVal=false;
+                            break;
+                        }
+                    }
+                    if (newVal) {
+                        vals[nph] = yoff;
+                        nph++;
+                    }
+                    if (nph==phases)break;
+                }
+                //ara ja tinc els Nph valors de Yoff
+                for (DataPoint_hkl hkl:hkls) {
+                    for (int i=0;i<vals.length;i++) {
+                        int yoff = (int) hkl.getY();
+                        if (yoff==vals[i]) {
+                            hkl.setY(0);
+                            dsHKL.get(i).addPoint(hkl);
+                            break;
+                        }
+                    }
+                }
+                for (int i=0;i<phases;i++) {
+                    dsHKL.get(i).setYOff(maxminXY[3]-maxminXY[3]*(i)); 
+                }
+            }
+            
+            //general info
+            for (DataSerie ds:dsHKL) {
+                ds.serieName=f.getName()+" ("+ds.getTipusSerie().toString()+")";
+                dsPRF.addDataSerie(ds);
+            }
             dsPRF.setWavelengthToAllSeries(dsPRF.getOriginalWavelength());
             
             
@@ -1119,8 +1339,6 @@ public final class DataFileUtils {
         }else{
             return null;
         }
-        
-        
         
     }
     
@@ -1282,6 +1500,58 @@ public final class DataFileUtils {
         
         return readed;
     }
+    
+//  #TITOL
+//  name=XXX
+//  cell=
+//  sg=
+//  wave=
+//  zero=
+//  units=tth
+//  aleshores llista:
+//  DATA
+//  tth Yobs Ycal Ybkg
+//
+//  seguit de bloc(S) hkl (poden haver-hi varis)
+//  HKL name
+//  tth h k l
+  public static File writeProfileFile(File d1File, DataSerie dsOBS, DataSerie dsCAL, List<DataSerie> dsHKL, boolean overwrite) {
+      log.debug(d1File.toString());
+      if (d1File.exists()&&!overwrite)return null;
+      if (d1File.exists()&&overwrite)d1File.delete();
+      
+      PrintWriter out = null;
+      try {
+          out = new PrintWriter(new BufferedWriter(new FileWriter(d1File,true)));
+          out.println("#d1Dplot pattern matching obs/calc/hkl data");//TODO print comments?
+          out.println("name="+dsOBS.serieName);
+          out.println(String.format("cell=%s",""));
+          out.println(String.format("sg=%s",""));
+          out.println(String.format("wave=%.5f",dsOBS.getWavelength()));
+          out.println(String.format("zero=%.5f",dsOBS.getZerrOff()));
+          out.println(String.format("units=%s",dsOBS.getxUnits().getName()));
+          out.println("DATA");
+          for (int i=0;i<dsOBS.getNpoints();i++) {
+              double t2 = dsOBS.getPointWithCorrections(i, 0, 0, 1.0, false).getX();//no corrections
+              double yobs = dsOBS.getPointWithCorrections(i, 0, 0, 1.0, false).getY();//no corrections
+              double ycal = dsCAL.getPointWithCorrections(i, 0, 0, 1.0, false).getY();//no corrections
+              double ybkg = dsOBS.getPointWithCorrections(i, 0, 0, 1.0, false).getYbkg();//no corrections
+              out.println(String.format(" %10.7e  %10.7e  %10.7e  %10.7e", t2,yobs,ycal,ybkg));
+          }
+          for (DataSerie ds:dsHKL) {
+              out.println(String.format("HKL %s",ds.serieName));
+              for (int i=0;i<ds.getNpoints();i++) {
+                  out.println(String.format(" %10.7e  %s", ds.getPointWithCorrections(i, 0, 0, 1.0,false).getX(),ds.getPointWithCorrections(i, 0, 0, 1.0,false).getInfo()));
+              }
+          }
+      } catch (Exception ex) {
+          ex.printStackTrace();
+      }finally {
+          if(out!=null)out.close();
+      }
+      
+      return d1File;
+  }
     
     private static boolean writeBKG(DataSerie ds, int npoints, File outf, boolean overwrite){
         if (outf.exists()&&!overwrite)return false;
