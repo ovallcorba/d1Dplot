@@ -273,7 +273,7 @@ public class SubtractDialog {
         int np2 = (Integer) tableDS2.getValueAt(r2, 0);
         int nds1 = (Integer) tableDS1.getValueAt(r1, 1);
         int nds2 = (Integer) tableDS2.getValueAt(r2, 1);
-        DataSerie ds1 = plotpanel.getPlottable(np1).getDataSerie(nds2);
+        DataSerie ds1 = plotpanel.getPlottable(np1).getDataSerie(nds1);
         DataSerie ds2 = plotpanel.getPlottable(np2).getDataSerie(nds2);
         
         if (ds1.getNpoints()!=ds2.getNpoints()){

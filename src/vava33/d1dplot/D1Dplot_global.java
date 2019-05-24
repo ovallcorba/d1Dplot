@@ -56,12 +56,12 @@ public final class D1Dplot_global {
     
     private static D1Dplot_main d1DMainFrame;
     
-    private static final boolean overrideLogLevelConfigFile = false;
+    private static final boolean overrideLogLevelConfigFile = true;
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     
     //global 
-    private static boolean loggingConsole = true; //console
+    private static boolean loggingConsole = false; //console
     private static boolean loggingFile = false; //file
     private static boolean loggingTA = true; //textArea -- NO ESCRIT AL FITXER DE CONFIGURACIO JA QUE VOLEM SEMPRE ACTIVAT
     private static String loglevel = "config"; //info, config, etc...
@@ -164,7 +164,7 @@ public final class D1Dplot_global {
         DataSerie.def_lineWidth=readedOpt.getValAsFloat("linewidth", DataSerie.def_lineWidth);
         DataSerie.def_markerSize=readedOpt.getValAsFloat("markersize", DataSerie.def_markerSize);
         DataSerie.prfFullprofColors=readedOpt.getValAsBoolean("prfFullprofColors", DataSerie.prfFullprofColors);
-        PDDatabase.setLocalDB(readedOpt.getValAsString("compoundDB", PDDatabase.getLocalDB()));
+        PDDatabase.setLocalDB(readedOpt.getValAsString("defCompoundDB", PDDatabase.getLocalDB()));
         DBfile = PDDatabase.getLocalDB();
         	    
 	    initLogger(D1Dplot_global.class.getName()); //during the par reading

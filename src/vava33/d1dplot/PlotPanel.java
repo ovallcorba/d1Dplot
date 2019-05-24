@@ -17,7 +17,6 @@ package com.vava33.d1dplot;
  * 
  */
 
-
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -186,7 +185,7 @@ public class PlotPanel {
     //series "propies" i arraylist de les seleccionades -- AUXILIARY DATASERIES
     DataSerie bkgseriePeakSearch; //threshold del background
     DataSerie bkgEstimP; //threshold del background
-    DataSerie indexSolution;
+    private DataSerie indexSolution;
     DataSerie dbCompound;
     private List<DataSerie> selectedSeries;
     int nTotalOpenedDatSeries;
@@ -594,6 +593,13 @@ public class PlotPanel {
 	    return dataToPlot.indexOf(p);
 	}
 
+//	public Set<Plottable> getSelectedPlottables(){
+//	    Set<Plottable> selectedPlottables = new HashSet();
+//	    for (DataSerie ds:selectedSeries) {
+//	        selectedPlottables.add(ds.getParent());
+//	    }
+//	    return selectedPlottables;
+//	}
 	
 	public void replacePlottable(int index, Plottable newPlottable) {
 	    this.dataToPlot.set(index, newPlottable);
@@ -625,7 +631,7 @@ public class PlotPanel {
     public void actualitzaPlot() {
 		this.graphPanel.repaint();
 	}
-	    
+
 	    // ajusta la imatge al panell, mostrant-la tota sencera (calcula l'scalefit inicial)
 	public void fitGraph() {
 	    this.resetView(false);
@@ -743,7 +749,7 @@ public class PlotPanel {
         }
         return yval;
     }
-
+    
     
     //NOMES S'HAURIA DE CRIDAR QUAN OBRIM UN PATTERN (per aixo private)
     private void autoDivLines(){
@@ -856,7 +862,7 @@ public class PlotPanel {
         }
         
         if (thereIsHKL) {
-
+            
             double newYframe = this.getFrameYFromDataPointY(0)+hklsize-hkloff;
             double newYdata = this.getDataPointFromFramePointIgnoreIfInside(new Point2D.Double(0, newYframe)).getY();
             minY = FastMath.min(minY, newYdata);
@@ -1153,8 +1159,8 @@ public class PlotPanel {
 	                    List<Plottable_point> dhkl = new ArrayList<Plottable_point>();
 	                    for (Plottable p:dataToPlot) {
 	                        for (DataSerie dshkl:p.getDataSeriesByType(SerieType.hkl)) {
-	                            double tol = FastMath.min(10*getXunitsPerPixel(), 0.025); //provem el minim entre 10 pixels o 0.025º 2th
-	                            dhkl = dshkl.getClosestPointsToAGivenX(dtth, tol);
+	                            double tol = FastMath.min(10*getXunitsPerPixel(), 0.10); //provem el minim entre 10 pixels o 0.025º 2th
+	                            dhkl.addAll(dshkl.getClosestPointsToAGivenX(dtth, tol)); //TODOK afegit addall 23/05/19
 	                        }
 	                    }
                         if (dhkl.size()>0){
@@ -1166,6 +1172,8 @@ public class PlotPanel {
                                 shkl.append(hkl.getInfo()).append(" ; ");
                             }
                             lblHkl.setText(shkl.substring(0, shkl.length()-2));
+                        }else {
+                            lblHkl.setText("");
                         }
 	                }else{
 	                    lblHkl.setText("");
@@ -1685,6 +1693,11 @@ public class PlotPanel {
         this.showIndexSolution = showIS;
         this.actualitzaPlot();
     }
+	
+	protected void setIndexSolution(DataSerie dsIS) {
+	    this.indexSolution = dsIS;
+	    this.actualitzaPlot();
+	}
 
 	protected boolean isPlotwithbkg() {
         return plotwithbkg;
@@ -2357,10 +2370,18 @@ public class PlotPanel {
               //MARKERS
               if(serie.markerSize>0) {
                   drawPatternPoint(g1,fp1,serie.markerSize/2.f,serie.color);
+                  //cal recuperar
+                  g1.setColor(col);
+                  stroke = new BasicStroke(serie.lineWidth);
+                  g1.setStroke(stroke);
               }
               //ERROR BARS
               if(serie.showErrBars) {
                   drawErrorBar(g1,pp1,serie.color);
+                  //cal recuperar
+                  g1.setColor(col);
+                  stroke = new BasicStroke(serie.lineWidth);
+                  g1.setStroke(stroke);
               }
 //            if(ds.showErrBars)drawErrorBars(g2,ds,ds.color);
               
@@ -2378,7 +2399,7 @@ public class PlotPanel {
                 g1.drawOval((int)FastMath.round(framePoint.x-radiPunt), (int)FastMath.round(framePoint.y-radiPunt), dia,dia);
 //            }
         }
-
+        
         //dibuixa una barra d'error
         private void drawErrorBar(Graphics2D g1, Plottable_point pp, Color col) {
             g1.setColor(col);

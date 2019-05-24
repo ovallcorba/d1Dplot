@@ -689,24 +689,26 @@ public class Database  {
         if (arg0.getValueIsAdjusting()) return;
 
         //Test for changes in compound
-        if (currCompound!=null) {
-            PDCompound oldCompound = this.currCompound;
-            PDCompound edited = new PDCompound("aa");
-            this.updateCompoundFromFields(edited,false);
-            if (edited.compareTo(oldCompound)!=0) {
-                boolean update = FileUtils.YesNoDialog(DBdialog, "Previous compound had changed, update it?");
-                if (update) {
-                    this.updateCompoundFromFields(oldCompound,true);
-                    PDDatabase.setDBmodified(true);
-                }
-            }
-        }
+//        if (currCompound!=null) {
+//            PDCompound oldCompound = this.currCompound;
+//            PDCompound edited = new PDCompound("aa");
+//            this.updateCompoundFromFields(edited,false);
+//            if (edited.compareTo(oldCompound)!=0) {
+//                boolean update = FileUtils.YesNoDialog(DBdialog, "Previous compound had changed, update it?");
+//                if (update) {
+//                    this.updateCompoundFromFields(oldCompound,true);
+//                    PDDatabase.setDBmodified(true);
+//                }
+//            }
+//        }
         
         PDCompound comp = this.getCurrentCompound();
         if (comp!=null) {
 //          tAOut.ln(comp.printInfo2Line());
           //fill the fields of DB
           this.updateInfo(comp);
+        }else {
+            return;
         }
         //now to plot
         DataSerie ds = comp.getPDCompoundAsREFDataSerie();
@@ -1186,10 +1188,15 @@ public class Database  {
         txtNamealt.setText("");
         txtFormula.setText("");
         txtCellParameters.setText(cf.getCellParametersAsString());
-        txtSpaceGroup.setText(cf.getSgString());
+        if (cf.getSgString().trim().length()<=0) {
+            //put the number
+            txtSpaceGroup.setText(Integer.toString(cf.getSgNum()));
+        }else {
+            txtSpaceGroup.setText(cf.getSgString());    
+        }
         txtReference.setText("");
         txtComment.setText("");
-        if (cf.getSgNum()==0) return;
+//        if (cf.getSgNum()==0) return;
         //else calculem reflexions, utilitzem directament cf que ha estat corregit si era necessari
         Cell cel = new Cell(cf);
         cel.generateHKLsAsymetricUnitCrystalFamily(1/(minDspacingLatGen*minDspacingLatGen), true, true, true, true, true);

@@ -31,6 +31,8 @@ import com.vava33.d1dplot.auxi.DoubleJSlider;
 import com.vava33.d1dplot.data.DataPoint_hkl;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.data.Xunits;
+import com.vava33.d1dplot.index.IndexSolution;
 
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
@@ -54,7 +56,7 @@ public class debug_latgen {
     private static final String className = "debug_latgen";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
-    private D1Dplot_main main;
+    private IndexDialog indexDialog;
     private DoubleJSlider sliderC;
     private DoubleJSlider sliderB;
     private DoubleJSlider sliderA;
@@ -73,13 +75,15 @@ public class debug_latgen {
     private JComboBox<CrystalFamily> comboBoxCrystFam;
     private JComboBox<CrystalCentering> comboBox;
     private JCheckBox chckbxCalcExt;
+    private JButton btnAdd;
+    private JButton btnClose;
     
-    public debug_latgen(D1Dplot_main m) {
-        this.debug_latgen_diag = new JDialog(m.getMainFrame(),"debug latgen",false);
-        this.main = m;
-        this.plotpanel = m.getPanel_plot();
+    public debug_latgen(IndexDialog id) {
+        this.debug_latgen_diag = new JDialog(D1Dplot_global.getD1DmainFrame(),"Manual Indexing",false);
+        this.indexDialog = id;
+        this.plotpanel = id.getPlotPanel();
         this.debug_latgen_diag.setIconImage(D1Dplot_global.getIcon());
-        debug_latgen_diag.getContentPane().setLayout(new MigLayout("", "[grow][]", "[][][][][][][][grow]"));
+        debug_latgen_diag.getContentPane().setLayout(new MigLayout("", "[grow][]", "[][][][][][][][grow][][]"));
         
         sliderA = new DoubleJSlider(0,30,5,10000);
         sliderA.addChangeListener(new ChangeListener() {
@@ -255,6 +259,22 @@ public class debug_latgen {
         });
         panel.add(btnApply, "cell 2 2");
         
+        btnAdd = new JButton("Add to list");
+        btnAdd.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_btnAdd_actionPerformed(e);
+            }
+        });
+        debug_latgen_diag.getContentPane().add(btnAdd, "flowx,cell 0 8 2 1,alignx center");
+        
+        btnClose = new JButton("Close");
+        btnClose.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_btnClose_actionPerformed(e);
+            }
+        });
+        debug_latgen_diag.getContentPane().add(btnClose, "cell 1 9,alignx right");
+        
         this.debug_latgen_diag.pack();
         init();
         
@@ -276,7 +296,7 @@ public class debug_latgen {
         txtGa.setText(FileUtils.dfX_3.format(sliderGa.getScaledValue()));
         
         //creem una dataserie per mostrar les reflexions
-        dsLatGen = new DataSerie(plotpanel.getSelectedSeries().get(0), SerieType.hkl,true);
+        dsLatGen = new DataSerie(plotpanel.getSelectedSeries().get(0), SerieType.hkl,false);
         dsLatGen.serieName="LATGen hkl";
         applyCrystalFamilyRestrictions();
         
@@ -395,17 +415,25 @@ public class debug_latgen {
         
         dsLatGen.clearPoints();
         
-        log.debug("tipus serie latgen="+dsLatGen.getTipusSerie()+" wave="+dsLatGen.getWavelength());
-        
+        dsLatGen.setxUnits(Xunits.dsp);
         Iterator<HKLrefl> itrh = refs.iterator();
         while (itrh.hasNext()) {
             HKLrefl hkl = itrh.next();
-            dsLatGen.addPoint(new DataPoint_hkl(hkl,(float) hkl.calct2((float) dsLatGen.getWavelength(),true)));
+            dsLatGen.addPoint(new DataPoint_hkl(hkl));    //(float) hkl.calct2((float) dsLatGen.getWavelength(),true)
 //            log.config(hkl.toString_HKL_tth_mult_Fc2((float) dsLatGen.getWavelength()));
-
         }
         
-        this.main.updateData(false,true); //TODO:revisar el TRUE
+        //ara ho posem a les unitats de la primera serie
+        dsLatGen.convertDStoXunits(this.plotpanel.getFirstPlottedSerie().getxUnits());
+        //en cas que haguem posat una wave a dsLatGen
+        if ((dsLatGen.getWavelength()>0)&&(this.plotpanel.getFirstPlottedSerie().getWavelength()<=0)){
+            this.plotpanel.getFirstPlottedSerie().setWavelength(dsLatGen.getWavelength());
+        }
+        
+        log.debug("tipus serie latgen="+dsLatGen.getTipusSerie()+" wave="+dsLatGen.getWavelength()+" scale="+dsLatGen.getScale());
+        
+        this.plotpanel.setIndexSolution(dsLatGen);
+//        this.main.updateData(false,true); //TODO:revisar el TRUE
     }
 
     protected void do_sliderA_stateChanged(ChangeEvent e) {
@@ -497,6 +525,32 @@ public class debug_latgen {
     public void visible(boolean vis) {
         this.debug_latgen_diag.setVisible(vis);
     }
+    
+    public boolean isVisible() {
+        return this.debug_latgen_diag.isVisible();
+    }
 
 
+    private void do_btnAdd_actionPerformed(ActionEvent e) {
+        //TODO crear indexsolution i afegir a la llista de IndexDialog
+        
+        
+        /*ex:
+         *          IndexSolution is2 = this.indexSolToGuessSG.getDuplicate();
+         *          is2.getRefinedCell().setSg(sg);
+         *          is2.getRefinedCell().setCrystalCentering(CrystalCentering.P);
+         *          is2.calcM20(); //TODO hauria de duplicar la indexSolution sino no funcionara
+         *          indexDialog.sols.add(is2);
+         */
+    }
+    
+    private void do_btnClose_actionPerformed(ActionEvent e) {
+        //comprovem que sigui l'últim supervivent de indexing:
+        boolean showsolution=false;
+        if (indexDialog!=null) {
+            if (indexDialog.isVisible())showsolution=true;
+        }
+        plotpanel.setShowIndexSolution(showsolution);
+        this.debug_latgen_diag.dispose();
+    }
 }
