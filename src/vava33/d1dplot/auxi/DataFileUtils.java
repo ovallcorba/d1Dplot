@@ -1,6 +1,5 @@
 package com.vava33.d1dplot.auxi;
 
-
 /**
  * D1Dplot
  * 
@@ -11,7 +10,6 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
-import java.awt.Dimension;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -63,17 +61,25 @@ public final class DataFileUtils {
     	}
 		public String[] getExtensions() {return extensions;}
 		public String getDescription() {return description;}
-//		public ArrayList<String> getExtensionsAsArrayList(){
-//			ArrayList<String> ar = new ArrayList<String>();
-//			for (int i=0;i<extensions.length;i++) {
-//				ar.add(extensions[i]);
-//			}
-//			return ar;
-//		}
     }
     
     public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,FF,D1P,PRF,GR,TXT;}
     public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR,FF;}
+    
+    public static SupportedReadExtensions getReadExtEnum(String n) {
+        for (SupportedReadExtensions x: SupportedReadExtensions.values()) {
+            if (n.equalsIgnoreCase(x.toString()))return x;
+        }
+        return null;
+    }
+    
+    public static SupportedWriteExtensions getWriteExtEnum(String n) {
+        for (SupportedWriteExtensions x: SupportedWriteExtensions.values()) {
+            if (n.equalsIgnoreCase(x.toString()))return x;
+        }
+        return null;
+    }
+    
     public static final LinkedHashMap<String, FileFormat> XRDformatInfo;
     static
     {
@@ -147,7 +153,6 @@ public final class DataFileUtils {
                 //afegim filtre
             	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
             	frmStrings.addAll(Arrays.asList(frm.getExtensions()));
-//            	frmStrings.addAll(frm.getExtensionsAsArrayList());
                 nfiltre = nfiltre +1;
             }
         }
@@ -190,7 +195,6 @@ public final class DataFileUtils {
                 //afegim filtre
             	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
             	frmStrings.addAll(Arrays.asList(frm.getExtensions()));
-//            	frmStrings.addAll(frm.getExtensionsAsArrayList());
                 nfiltre = nfiltre +1;
             }
         }
@@ -218,24 +222,8 @@ public final class DataFileUtils {
         return filter;
     }
     
-    //TEST
-    public static Plottable readPatternFile(File d1file) {
-        // comprovem extensio
-        log.debug(d1file.toString());
-        String ext = FileUtils.getExtension(d1file).trim();
-
-        // this line returns the FORMAT in the ENUM or NULL
-        SupportedReadExtensions format = FileUtils.searchEnum(SupportedReadExtensions.class, ext);
-        
-        if (format != null) {log.debug("Format=" + format.toString());}
-
-        if (format == null) {
-            SupportedReadExtensions[] possibilities = SupportedReadExtensions.values();
-            SupportedReadExtensions s = (SupportedReadExtensions) JOptionPane.showInputDialog(null, "Input format:", "Read File",
-                            JOptionPane.PLAIN_MESSAGE, null, possibilities,possibilities[0]);
-            if (s == null) {return null;}
-            format = s;
-        }
+    //give directly the extension
+    public static Plottable readPatternFile(File d1file, SupportedReadExtensions format) {
         Plottable p;
         switch (format) {
             case DAT:
@@ -285,19 +273,63 @@ public final class DataFileUtils {
             p.setFile(d1file);
         }
         
-        //SERIE CHECKS
-//        for (int i=0; i<patt1D.getNseries(); i++){
-//            DataSerie ds = patt1D.getSerie(i);
-//            if (ds.getTipusSerie()==DataSerie.SerieType.dat){
-//                if (ds.getT2i()<-99)ds.setT2i(ds.getPoint(0).getX());
-//                if (ds.getT2f()<-99)ds.setT2f(ds.getPoint(ds.getNpoints()-1).getX());
-//                if (ds.getStep()<-99)ds.calcStep();
-//            }
-//        }
         return p;
     }
     
-    //TODO considerar el PRF
+    //Autodetect format from extension or ask
+    public static Plottable readPatternFile(File d1file) {
+        // comprovem extensio
+        log.debug(d1file.toString());
+        String ext = FileUtils.getExtension(d1file).trim();
+
+        // this line returns the FORMAT in the ENUM or NULL
+        SupportedReadExtensions format = FileUtils.searchEnum(SupportedReadExtensions.class, ext);
+        
+        if (format != null) {log.debug("Format=" + format.toString());}
+
+        if (format == null) {
+            SupportedReadExtensions[] possibilities = SupportedReadExtensions.values();
+            SupportedReadExtensions s = (SupportedReadExtensions) JOptionPane.showInputDialog(null, "Input format:", "Read File",
+                            JOptionPane.PLAIN_MESSAGE, null, possibilities,possibilities[0]);
+            if (s == null) {return null;}
+            format = s;
+        }
+        
+        return readPatternFile(d1file,format);
+    }
+    
+    public static File writePatternFile(File d1File, DataSerie serie, SupportedWriteExtensions format, boolean overwrite, boolean addYbkg) {
+
+        boolean written = false;
+        File fout = null;
+        
+        switch (format) {
+            case DAT:
+                written = writeDAT_ALBA(serie,d1File,overwrite,addYbkg);
+                break;
+            case ASC:
+                written = writeASC(serie,d1File,overwrite,addYbkg);
+                break;
+            case GSA:
+                written = writeGSA(serie,d1File,overwrite,addYbkg);
+                break;
+            case XRDML:
+                written = writeXRDML(serie,d1File,true,overwrite,addYbkg);
+                break;
+            case FF:
+                written = writeDAT_FreeFormat(serie,d1File,overwrite,addYbkg);
+                break;
+            case GR:
+                written = writeGR(serie,d1File,overwrite,addYbkg);
+                break;
+            default:
+                log.warning("Unknown format to write");
+                return null;
+        }
+        if (written) fout = d1File;
+        return fout;
+    }
+    
     public static File writePatternFile(File d1File, DataSerie serie, boolean overwrite, boolean addYbkg) {
         // comprovem extensio
         log.debug(d1File.toString());
@@ -355,34 +387,8 @@ public final class DataFileUtils {
             format = s;
         }
 
-        boolean written = false;
-        File fout = null;
-
-        switch (format) {
-            case DAT:
-                written = writeDAT_ALBA(serie,d1File,overwrite,addYbkg);
-                break;
-            case ASC:
-                written = writeASC(serie,d1File,overwrite,addYbkg);
-                break;
-            case GSA:
-                written = writeGSA(serie,d1File,overwrite,addYbkg);
-                break;
-            case XRDML:
-                written = writeXRDML(serie,d1File,true,overwrite,addYbkg);
-                break;
-            case FF:
-                written = writeDAT_FreeFormat(serie,d1File,overwrite,addYbkg);
-                break;
-            case GR:
-                written = writeGR(serie,d1File,overwrite,addYbkg);
-                break;
-            default:
-                log.warning("Unknown format to write");
-                return null;
-        }
-        if (written) fout = d1File;
-        return fout;
+        return writePatternFile(d1File, serie, format, overwrite, addYbkg);
+        
     }
     
     public static File writePeaksFile(File d1File, DataSerie pksDS, boolean overwrite) {
@@ -425,7 +431,7 @@ public final class DataFileUtils {
     	if (detectFreeFormat(datFile)) {
     		return readFF(datFile);
     	}
-    	//TODO: es poden afegir altres comprovacions...
+    	//es poden afegir altres comprovacions...
     	
     	//Sino mirem de detectar linies on hi hagi dos valors t2, intensitat separats per espai, coma, etc...
         boolean readed = true;
@@ -475,9 +481,6 @@ public final class DataFileUtils {
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
 
-//                if (!sf.hasNextLine()){
-//                    ds.setT2f(t2);
-//                }
             }
             ds.serieName=datFile.getName();
             dsP.addDataSerie(ds);
@@ -494,11 +497,6 @@ public final class DataFileUtils {
             return null;
         }
     }
-    
-//    private static Reference readUNKref(File datFile) {
-////    	log.info("unknown ref file");
-//    	return null;
-//    }
 
     
     private static String getEncodingToUse(File f) {
@@ -525,7 +523,7 @@ public final class DataFileUtils {
     
     
     //only 1 serie
-    private static Data_Common readDAT(File datFile) {  //TODO: no se si es millor fer que el metode ho retorni...
+    private static Data_Common readDAT(File datFile) { 
         boolean firstLine = true;
         boolean readed = true;
         
@@ -539,8 +537,6 @@ public final class DataFileUtils {
         Scanner sf = null;
         try {
             sf = new Scanner(datFile,enc);
-            //        try {
-//            sf = new Scanner(datFile,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 if (isComment(line)){
@@ -566,7 +562,6 @@ public final class DataFileUtils {
                     inten = Double.parseDouble(values[1]);
                 }catch(Exception ex) {
                 	log.warning(String.format("Error reading (t2 Intensity) in line: %s",line));
-//                	if (!firstLine) return false; //no acceptem errors que no siguin a la primera linia, TODO:mirar si posar-ho o no
                 	continue;
                 }
                 double sdev = 0.0;
@@ -578,15 +573,13 @@ public final class DataFileUtils {
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
                 if (firstLine){
-//                    ds.setT2i(t2);
                     firstLine = false;
                 }
 
                 if (!sf.hasNextLine()){
-//                    ds.setT2f(t2);
                 }
             }
-            if (ds.getNpoints()<=0)return null; //TODO: mirar si poso un limit
+            if (ds.getNpoints()<=0)return null;
             ds.serieName=datFile.getName();
             dsP.addDataSerie(ds);
 
@@ -596,9 +589,6 @@ public final class DataFileUtils {
         }finally {
             if(sf!=null)sf.close();
         }
-//        finally {
-//            sf.close();
-//        }
         if (readed){
             return dsP;
         }else{
@@ -608,9 +598,7 @@ public final class DataFileUtils {
     
     
     private static Data_Common readGR(File datFile) {
-        boolean firstLine = true;
         boolean readed = true;
-//        double rstep=-1;
         //creem un DataSerie_Gr
         Data_Common dsGr = new Data_Common();
         DataSerie ds = new DataSerie(SerieType.gr,Xunits.G,dsGr);
@@ -641,14 +629,6 @@ public final class DataFileUtils {
                             log.debug("error parsing wave");
                         }
                     }
-//                    if (line.contains("rstep")){
-//                        String values[] = line.trim().split("\\s+");
-//                        try{
-//                            rstep=Double.parseDouble(values[2]);
-//                        }catch(Exception e){
-//                            log.debug("error parsing rstep");
-//                        }
-//                    }
                     continue;
                 }
                 
@@ -664,16 +644,7 @@ public final class DataFileUtils {
                 double x = Double.parseDouble(values[0]);
                 double y = Double.parseDouble(values[1]);
                 ds.addPoint(new DataPoint(x,y,0.0));
-                if (firstLine){
-//                    ds.setT2i(x);
-                    firstLine = false;
-                }
-
-                if (!sf.hasNextLine()){
-//                    ds.setT2f(x);
-                }
             }
-//            ds.setTipusSerie(SerieType.gr);
             ds.serieName=datFile.getName();
             dsGr.addDataSerie(ds);
             sf.close();
@@ -691,7 +662,7 @@ public final class DataFileUtils {
         }
     }
     
-    //TODO: es podria optimitzar omplint un datapoint i afegint-lo a la serie a cada cicle
+    //es podria optimitzar omplint un datapoint i afegint-lo a la serie a cada cicle
     //TODO: afegir lectura wavelength
     private static Data_Common readXRDML(File f){
         boolean pos = false;
@@ -725,14 +696,12 @@ public final class DataFileUtils {
                     if (line.contains("startPosition")){
                         String temp = line.split(">")[1];
                         temp = temp.split("<")[0];
-//                        ds.setT2i(Float.parseFloat(temp));
                         t2i=Double.parseDouble(temp);
                         
                         //now end position
                         line = sf.nextLine();
                         temp = line.split(">")[1];
                         temp = temp.split("<")[0];
-//                        ds.setT2f(Float.parseFloat(temp));
                         t2f=Double.parseDouble(temp);
                         
                         startend = true;
@@ -844,7 +813,7 @@ public final class DataFileUtils {
                     firstLine=false;
                     continue;
                 }
-                //a partir d'aqu� linies d'intensitats
+                //a partir d'aqui linies d'intensitats
                 for (int i=0;i<values.length;i++){
                     intensities.add(Double.parseDouble(values[i]));
                 }
@@ -1006,7 +975,6 @@ public final class DataFileUtils {
                 }
             }
             
-//            ds.setT2f(ds.getPoint(ds.getNpoints()-1).getX());
             ds.serieName=f.getName();
             dsP.addDataSerie(ds);
             
@@ -1031,7 +999,6 @@ public final class DataFileUtils {
         DataSerie dsObs = new DataSerie(SerieType.obs,Xunits.tth,dsPRF);
         DataSerie dsCal = new DataSerie(SerieType.cal,Xunits.tth,dsPRF);
         DataSerie dsDif = new DataSerie(SerieType.diff,Xunits.tth,dsPRF);
-//        ArrayList<DataSerie> dssHKL = new ArrayList<DataSerie>();
         
         //FIRST CHECK ENCODING
         String enc = getEncodingToUse(f);
@@ -1160,8 +1127,7 @@ public final class DataFileUtils {
             return null;
         }
     }
-    
-    //TODO: fare arrayList de dataPoint_hkl i posare el yoff com a intensitat! (que per defecte es zero) i llavors faré les diferents series segons això (tornant la Y a zero)
+
     private static Data_Common readPRF(File f){
         boolean readed = true;
         boolean startData = false;
@@ -1192,7 +1158,6 @@ public final class DataFileUtils {
                     String values[] = line.trim().split("\\s+");
                     dsPRF.setOriginalWavelength(Double.parseDouble(values[2]));
                     phases = Integer.parseInt(values[0]);
-//                    dsHKL = new ArrayList<DataSerie>(phases);
                     for (int i=0;i<phases;i++) {
                         dsHKL.add(new DataSerie(SerieType.hkl,Xunits.tth,dsPRF));
                     }
@@ -1220,7 +1185,6 @@ public final class DataFileUtils {
                     int k = Integer.parseInt(shkl[1]);
                     int l = Integer.parseInt(shkl[2]);
                     HKLrefl hkl = new HKLrefl(h,k,l,dsObs.getWavelength(),t2i);
-//                    dsHKL.addPoint(new DataPoint_hkl(hkl,t2i));
                     //the y offset (more than one phase)
                     shkl = line.substring(0,ini).trim().split("\\s+");
                     double yoff = Double.parseDouble(shkl[shkl.length-1].trim());
@@ -1246,9 +1210,7 @@ public final class DataFileUtils {
                             shkl = line.substring(0,ini).trim().split("\\s+");
                             double t2r = Double.parseDouble(shkl[shkl.length-2]);
                             HKLrefl hkl = new HKLrefl(h,k,l,dsObs.getWavelength(),t2r);
-//                            dsHKL.addPoint(new DataPoint_hkl(hkl,t2i));
                             //the y offset (more than one phase)
-                            
                             double yoff = Double.parseDouble(shkl[shkl.length-1].trim());
                             hkls.add(new DataPoint_hkl(t2r,yoff,0.,hkl));
                         }
@@ -1342,7 +1304,7 @@ public final class DataFileUtils {
         
     }
     
-    //TODO seria millor que plotpanel tingues un "toString" que t'ho passes tot ja directament
+    //DONE seria millor que plotpanel tingues un "toString" que t'ho passes tot ja directament
     //TODO lo seu seria guardar TOTES les dades i no dependre de fitxers... seria portable pero podria ocupar bastant...
     // s'hauria de preguntar al guardar (relative paths to files or all packed)
     public static boolean writeProject(File stateFile, PlotPanel p) {
@@ -1351,7 +1313,6 @@ public final class DataFileUtils {
         PrintWriter out = null;
         try {
             out = new PrintWriter(new BufferedWriter(new FileWriter(stateFile,true)));//        	//guardar axis info, zoom, bounds, etc...
-            
             out.println(p.getVisualParametersToSave());
             out.println("-----------");
             
@@ -1419,9 +1380,6 @@ public final class DataFileUtils {
             String xlabel = sf.nextLine();
             String ylabel = sf.nextLine();
 
-//            p.setVisualParametersFromSaved(vals1, vals2, xlabel, ylabel);
-
-            //            line = sf.nextLine(); //----
             //ara els patterns series
             Plottable currentPlottable=null;
             while (sf.hasNextLine()){
@@ -1439,9 +1397,6 @@ public final class DataFileUtils {
                         log.debug(fname);
                         currentPlottable=DataFileUtils.readPatternFile(new File(fname.trim()));
                         p.addPlottable(currentPlottable);
-//                        Pattern1D pat = new Pattern1D();
-//                        DataFileUtils.readPatternFile(new File(fname.trim()), pat);
-//                        p.getPatterns().add(pat);
                         continue; //seguim llegint les dataseries
                     }else {
                         break;
@@ -1452,7 +1407,6 @@ public final class DataFileUtils {
                 //aqui estem dins un pattern
                 if (currentPlottable!=null) {
                     String[] vals = line.trim().split("\\s+");
-//                    int nds = Integer.parseInt(vals[0]);
                     SerieType styp = SerieType.getEnum(vals[1]);
                     if (styp==null)styp=SerieType.dat;
                     String dsname = String.join(" ", Arrays.asList(vals).subList(2, vals.length));
@@ -1471,7 +1425,6 @@ public final class DataFileUtils {
                             ds.setScale(Float.parseFloat(vals[1]));
                             ds.setZerrOff(Double.parseDouble(vals[2]));
                             ds.setWavelength(Double.parseDouble(vals[3]));
-                            //                ds.setxUnits(vals[4]));
                             ds.setYOff(Double.parseDouble(vals[5]));
                             ds.markerSize=Float.parseFloat(vals[6]);
                             ds.lineWidth=Float.parseFloat(vals[7]);
@@ -1488,8 +1441,6 @@ public final class DataFileUtils {
             m.showTableTab();
 
             p.setVisualParametersFromSaved(vals1, vals2, xlabel, ylabel);
-
-
 
         }catch(Exception ex) {
             if (D1Dplot_global.isDebug())ex.printStackTrace();
@@ -1558,7 +1509,6 @@ public final class DataFileUtils {
         if (outf.exists()&&overwrite)outf.delete();
         
         boolean written = true;
-//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         
         PrintWriter out = null;
         try {
@@ -1623,7 +1573,6 @@ public final class DataFileUtils {
         if (outf.exists()&&overwrite)outf.delete();
         
         boolean written = true;
-//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         
         PrintWriter out = null;
         try {
@@ -1666,7 +1615,6 @@ public final class DataFileUtils {
         if (outf.exists()&&overwrite)outf.delete();
         
         boolean written = true;
-//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         
         PrintWriter out = null;
         try {
@@ -1710,7 +1658,6 @@ public final class DataFileUtils {
     private static boolean writeDAT_FreeFormat(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
         PrintWriter out = null;
         try {
@@ -1770,7 +1717,6 @@ public final class DataFileUtils {
     private static boolean writeGSA(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
         PrintWriter out = null;
         try {
@@ -1827,7 +1773,6 @@ public final class DataFileUtils {
     private static boolean writeASC(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
         PrintWriter out = null;
         try {
@@ -1852,7 +1797,6 @@ public final class DataFileUtils {
     private static boolean writeXRDML(DataSerie ds, File outf,boolean list2T,boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
         if (outf.exists()&&overwrite)outf.delete();
-//        DataSerie ds = patt1D.getSerie(serie); //SERIE TO WRITE
         boolean written = true;
         PrintWriter out = null;
         try {
@@ -1926,7 +1870,6 @@ public final class DataFileUtils {
     private static boolean writePeaksTXT(DataSerie ds, File outf, boolean overwrite){
 	    if (outf.exists()&&!overwrite)return false;
 	    if (outf.exists()&&overwrite)outf.delete();
-//	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
 	    boolean written = true;
 	    PrintWriter out = null;
 	    try {
@@ -1961,7 +1904,6 @@ public final class DataFileUtils {
 	private static boolean writePeaksDIC(DataSerie ds, File outf, boolean overwrite){
 	    if (outf.exists()&&!overwrite)return false;
 	    if (outf.exists()&&overwrite)outf.delete();
-//	    DataSerie ds = patt1D.getSerie(serie); //Affected Serie
 	    
 	    //preguntem els parametres
 	    if (dvdiag==null){
@@ -2046,28 +1988,6 @@ public final class DataFileUtils {
 	    }
 	    return written;
 	}
-
-	public static double getScaleFactorToFit(Dimension original, Dimension toFit) {
-        double dScale = 1d;
-        if (original != null && toFit != null) {
-            double dScaleWidth = getScaleFactor(original.width, toFit.width);
-            double dScaleHeight = getScaleFactor(original.height, toFit.height);
-
-            dScale = Math.min(dScaleHeight, dScaleWidth);
-        }
-        return dScale;
-    }
-
-    private static double getScaleFactor(int iMasterSize, int iTargetSize) {
-        double dScale = 1;
-        if (iMasterSize > iTargetSize) {
-            dScale = (double) iTargetSize / (double) iMasterSize;
-        } else {
-            dScale = (double) iTargetSize / (double) iMasterSize;
-        }
-        return dScale;
-    }
-    
     
     private static double searchForWavel(String s){
         double wl = -1;
