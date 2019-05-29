@@ -10,8 +10,6 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
-import java.util.List;
-
 import javax.swing.table.DefaultTableModel;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
@@ -27,8 +25,6 @@ import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.Plottable_point;
 import com.vava33.d1dplot.data.SerieType;
-import com.vava33.d1dplot.index.IndexGrid;
-import com.vava33.d1dplot.index.IndexSolutionGrid;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -39,6 +35,9 @@ public final class PattOps {
     
     private static final String className = "PattOps";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+    
+    private final static float percent_auto_factor=0.999f;//this will be multiplied to the minimum factor to give some margin
+
     
     private static DataSerie bkg_Bruchner_firstPass(DataSerie ds,double t2ini){  //no depen de N
         DataSerie ds0 = new DataSerie(ds,SerieType.bkg,false);
@@ -162,6 +161,8 @@ public final class PattOps {
            double[] x = new double[puntsFons.getNpoints()];
            double[] y = new double[puntsFons.getNpoints()];
            
+           //TODO ordenar punts fons per ordre creixent
+           
            for (int i=0;i<puntsFons.getNpoints();i++){
                x[i]=puntsFons.getPointWithCorrections(i,false).getX();
                y[i]=puntsFons.getPointWithCorrections(i,false).getY();
@@ -217,8 +218,6 @@ public final class PattOps {
            }
            return fons;
        }
-    
-    private static float percent_auto_factor=0.999f;//this will be multiplied to the minimum factor to give some margin //TODO Passar a parametre global?
     
     //it returns the coincident zone only
     // double t2i,t2f for factor calculation in case factor < 1
@@ -430,60 +429,12 @@ public final class PattOps {
     public static double getDspFrom2ThetaRad(double wave,double tthRad) {
     	return (wave/(2*FastMath.sin(tthRad/2)));
     }
-    //TODO treure d'aqui i fer que s'utilitzi cell
-    public static float getDspacingFromHKL(int h, int k, int l, float a, float b, float c, float alfaDeg, float betaDeg, float gammaDeg){
-        
-        double cosal = FastMath.cos(FastMath.toRadians(alfaDeg));
-        double cosbe = FastMath.cos(FastMath.toRadians(betaDeg));
-        double cosga = FastMath.cos(FastMath.toRadians(gammaDeg));
-        double sinal = FastMath.sin(FastMath.toRadians(alfaDeg));
-        double sinbe = FastMath.sin(FastMath.toRadians(betaDeg));
-        double singa = FastMath.sin(FastMath.toRadians(gammaDeg));
-        
-        double s11 = b*b*c*c*sinal*sinal;
-        double s22 = a*a*c*c*sinbe*sinbe;
-        double s33 = a*a*b*b*sinbe*singa;
-        double s12 = a*b*c*c*(cosal*cosbe-cosga);
-        double s23 = a*a*b*c*(cosbe*cosga-cosal);
-        double s13 = a*b*b*c*(cosga*cosal-cosbe);
-        
-        double insqrt = 1 - cosal*cosal - cosbe*cosbe - cosga*cosga + 2*cosal*cosbe*cosga;
-        double vol = a*b*c*(FastMath.sqrt(insqrt)); //Ang3
-        
-        double fact = s11*h*h + s22*k*k + s33*l*l + 2*s12*h*k + 2*s23*k*l + 2*s13*h*l;
-        double invdsp2 = fact*(1/(vol*vol));
-        double dsp = FastMath.sqrt(1/invdsp2);
-        
-        return (float)dsp;
-    }
-    
     
     public static boolean askForWavelengthAndAddToDS(DataSerie ds) {
         double wave = FileUtils.DialogAskForPositiveDouble(D1Dplot_global.getD1DmainFrame(),"Wavelength (Ang) =","Wavelength required to perform current operation", ""); 
         if (wave<=0)return false;
         ds.setWavelength(wave);
         return true;
-    }
-    
-    
-    public static float dspFromHKL(float a, float b, float c, float al, float be, float ga, int h, int k, int l) {
-		float a2 = a*a;
-		float b2 = b*b;
-	    float c2 = c*c;
-	    float sbe = (float) FastMath.sin(be);
-	    float cbe = (float) FastMath.cos(be);
-	    //necessaris per tric;
-	    float sal = (float) FastMath.sin(al);
-	    float cal = (float) FastMath.cos(al);
-	    float sga = (float) FastMath.sin(ga);
-	    float cga = (float) FastMath.cos(ga);
-	    
-        float hsqcalc = b2*c2*sal*sal*h*h + a2*c2*sbe*sbe*k*k + a2*b2*sga*sga*l*l + 2*a*b*c2*(cal*cbe-cga)*h*k + 2*a2*b*c*(cbe*cga-cal)*k*l + 2*a*b2*c*(cga*cal-cbe)*h*l;
-        float v2 = (float) (a*b*c*FastMath.sqrt(1-cal*cal-cbe*cbe-cga*cga+2*cal*cbe*cga));
-        v2 = v2*v2;
-        hsqcalc = hsqcalc/v2;
-        float dcalc = (float) FastMath.sqrt(1/hsqcalc);
-        return dcalc;
     }
     
     public static DataSerie findPeaksGetBkgLlindar(DataSerie data) {
@@ -496,8 +447,6 @@ public final class PattOps {
         double desv = 1;
         
         if((minX>maxX)||(minX<0&&maxX<0)){
-//            minX=this.getT2i();
-//            maxX=this.getT2f();
             minX=data.getMinX();
             maxX=data.getMaxX();
         }

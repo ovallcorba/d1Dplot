@@ -135,7 +135,7 @@ public class Database  {
     private JButton btnAddAsNew;
     private JButton btnImportCif;
     private JButton btnImportHkl;
-    private PDCompound currCompound;
+//    private PDCompound currCompound;
     private JSplitPane splitPane_1;
     
     private PlotPanel plotpanel;
@@ -460,7 +460,6 @@ public class Database  {
                                 }
                             });
                             {
-//                                splitPane_1.setDividerLocation(375);
                                 splitPane_1.setDividerLocation(DBdialog.getWidth()/2);
                             }
                             btnAddCompound.addActionListener(new ActionListener() {
@@ -504,19 +503,11 @@ public class Database  {
     }
 
     public void inicia(){
-//        this.setPatt2d(this.getIpanel().getPatt2D());
         lm = new DefaultListModel<Object>();
         listCompounds.setModel(lm);
-//        tAOut.ln(" Reading default database: "+PDDatabase.getDefaultDBpath());//TODO no cal dir-ho ja que es diu al llegir-ho
         this.readDB(true);
     }
 
-	//es una manera de posar al log tot el que surt pel txtArea local
-//	public void printTaOut(String msg) {
-//        tAOut.stat(msg);
-//		log.debug(msg);
-//	}
-    
     private void readDB(boolean readDefault) {
         
         //primer creem el progress monitor, 
@@ -640,12 +631,12 @@ public class Database  {
         if (listCompounds.getSelectedIndex() >= 0) {
             if (listCompounds.getSelectedValue() instanceof PDCompound){
                 PDCompound comp = (PDCompound) listCompounds.getSelectedValue();
-                this.currCompound=comp;
+//                this.currCompound=comp;
                 return comp;
             }
             if (listCompounds.getSelectedValue() instanceof PDSearchResult){
                 PDSearchResult sr = (PDSearchResult) listCompounds.getSelectedValue();
-                this.currCompound=sr.getC();
+//                this.currCompound=sr.getC();
                 return sr.getC();
             }
         }
@@ -675,7 +666,7 @@ public class Database  {
         lblHeader.setText(" Name  [Formula]  (alt. names)");
         pBarDB.setValue(100);
         pBarDB.setStringPainted(false);
-        listCompounds.setSelectedIndex(0);//TODO: mirar que no s'hagi de cambiar a algun altre lloc
+        listCompounds.setSelectedIndex(0);
     }
 
     public boolean isShowPDDataPeaks() {
@@ -687,24 +678,9 @@ public class Database  {
     }
     protected void do_listCompounds_valueChanged(ListSelectionEvent arg0) {
         if (arg0.getValueIsAdjusting()) return;
-
-        //Test for changes in compound
-//        if (currCompound!=null) {
-//            PDCompound oldCompound = this.currCompound;
-//            PDCompound edited = new PDCompound("aa");
-//            this.updateCompoundFromFields(edited,false);
-//            if (edited.compareTo(oldCompound)!=0) {
-//                boolean update = FileUtils.YesNoDialog(DBdialog, "Previous compound had changed, update it?");
-//                if (update) {
-//                    this.updateCompoundFromFields(oldCompound,true);
-//                    PDDatabase.setDBmodified(true);
-//                }
-//            }
-//        }
         
         PDCompound comp = this.getCurrentCompound();
         if (comp!=null) {
-//          tAOut.ln(comp.printInfo2Line());
           //fill the fields of DB
           this.updateInfo(comp);
         }else {
@@ -713,14 +689,13 @@ public class Database  {
         //now to plot
         DataSerie ds = comp.getPDCompoundAsREFDataSerie();
         
-        //ara mirem si podem convertir a les unitats de la primera dataserie //TODO passar a Database, igual que he fet amb indexSolution, que aquí només hi hagi la DataSerie
+        //ara mirem si podem convertir a les unitats de la primera dataserie 
         DataSerie first = this.getPlotpanel().getFirstPlottedSerie();           
         if (first!=null) {
             if (first.getxUnits()==Xunits.tth) {
                 //necessitem la wavelength
                 double wave = first.getWavelength();
                 if (wave<=0) {
-//                  wave = FileUtils.DialogAskForPositiveDouble(getMainframe().getMainFrame(),"Wavelength (Ang) =","Wavelength required to add reference in 2Theta units", "");
                     wave = FileUtils.DialogAskForPositiveDouble(null,"Wavelength (Ang) =","Wavelength required to add reference in 2Theta units", "");
                 }
                 if (wave<=0) {
@@ -729,7 +704,6 @@ public class Database  {
                 }
                 ds.setWavelength(wave);
             }
-//          ds = ds.convertSeriePointsXunits(first.getxUnits());
             ds.convertDStoXunits(first.getxUnits());
         }
         
@@ -773,21 +747,13 @@ public class Database  {
         List<PDSearchResult> res = PDDatabase.getDBSearchresults();
         
         //mirem si hi ha criteris complementaris pel residual
-//        if (chckbxIntensityInfo.isSelected() || chckbxNpksInfo.isSelected()){
         Iterator<PDSearchResult> itrcomp = res.iterator();
         while (itrcomp.hasNext()){
             PDSearchResult c = itrcomp.next();
             float resid = c.getResidualPositions();
-            //                if (chckbxIntensityInfo.isSelected()){
-            //                    resid = resid + c.getResidual_intensities();
-            //                }
-            //                if (chckbxNpksInfo.isSelected()){
-            //                    resid = resid * ((Math.max((float)c.getC().getNrRefUpToDspacing(PDSearchResult.getMinDSPin())/(float)PDSearchResult.getnDSPin(),1))/2);
-            //                }
             resid = resid * ((Math.max((float)c.getC().getNrRefUpToDspacing(PDSearchResult.getMinDSPin())/(float)PDSearchResult.getnDSPin(),1))/2);
             c.setTotal_residual(resid);
         }            
-//        }
         Collections.sort(res);
         itrcomp = res.iterator();
         int nsol = 0;
@@ -811,7 +777,7 @@ public class Database  {
         pBarDB.setString("Searching DB");
         pBarDB.setStringPainted(true);
         
-        searchDBwk = new PDDatabase.searchDBWorker(this.getPlotpanel().getSelectedSeries().get(0),minDspacingToSearch); //TODO, podria ser que no hi hagues cap seleccionada
+        searchDBwk = new PDDatabase.searchDBWorker(this.getPlotpanel().getSelectedSeries().get(0),minDspacingToSearch);
         searchDBwk.addPropertyChangeListener(new PropertyChangeListener() {
 
             @Override
@@ -836,7 +802,6 @@ public class Database  {
                       pm.close();
                       pBarDB.setValue(100);
                       pBarDB.setStringPainted(false);
-                      //startButton.setEnabled(true);
                   }
               }
             }
@@ -1002,7 +967,6 @@ public class Database  {
     protected void do_btnAddCompound_actionPerformed(ActionEvent arg0) {
         //ADD COMPOUND:
         PDCompound co = new PDCompound("NEW COMPOUND");
-//        co.setDefParams();//TODO comprovar que no cal
         PDDatabase.addCompoundDB(co);
         //select the compound
         this.updateListAllCompounds();
@@ -1176,13 +1140,6 @@ public class Database  {
         D1Dplot_global.setWorkdir(ciffile);
         Cif_file cf = new Cif_file(ciffile,true);
         
-        //show a dialog with the important fields, to check and correct them if necessary  -- MOGUT a CIFFILE
-//        ImportCIFdialog cifdiag = new ImportCIFdialog(cf);
-//        cifdiag.setVisible(true);
-//        cifdiag.setAlwaysOnTop(true);
-//        double a = cifdiag.getA();
-//        log.writeNameNumPairs("config", true, "a", a);
-        
         //populate fields
         txtName.setText(cf.getNom());
         txtNamealt.setText("");
@@ -1196,7 +1153,6 @@ public class Database  {
         }
         txtReference.setText("");
         txtComment.setText("");
-//        if (cf.getSgNum()==0) return;
         //else calculem reflexions, utilitzem directament cf que ha estat corregit si era necessari
         Cell cel = new Cell(cf);
         cel.generateHKLsAsymetricUnitCrystalFamily(1/(minDspacingLatGen*minDspacingLatGen), true, true, true, true, true);
@@ -1234,7 +1190,6 @@ public class Database  {
     
     protected void do_this_windowClosing(WindowEvent e) {
         //SECOND SAVE DB FILE IF MODIFIED
-//        log.debug("window closing event entered");
         checkSaveAndDispose();
     }
     
@@ -1261,7 +1216,6 @@ public class Database  {
     }
     
 	private void do_btnAddAsSerie_actionPerformed(ActionEvent e) {
-		//TODO (una mica esta fet a la classe HKLreferenceDialog
 	    PDCompound pdc = this.getCurrentCompound();
 		if (pdc!=null) {
 		    DataSerie ref = pdc.getPDCompoundAsREFDataSerie();
@@ -1279,7 +1233,7 @@ public class Database  {
                 dc.addDataSerie(ref);
                 plotpanel.addPlottable(dc);
             }
-			D1Dplot_global.getD1Dmain().updateData(false,false); //TODO no m'agrada massa això...
+			D1Dplot_global.getD1Dmain().updateData(false,false); //no m'agrada massa això...
 		}
 	}
 	

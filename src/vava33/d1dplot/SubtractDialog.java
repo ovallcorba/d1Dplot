@@ -57,7 +57,6 @@ public class SubtractDialog {
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     private JPanel contentPanel;
-//    private D1Dplot_main main;
     private JTextField txtFactor;
     private JCheckBox chckbxAutoScale;
     private JTextField txtTini;
@@ -70,8 +69,6 @@ public class SubtractDialog {
      */
     public SubtractDialog(PlotPanel p) {
         this.subtractDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Subtract Patterns",false);
-//        this.main = m;
-//        this.plotpanel = m.getPanel_plot();
         this.plotpanel = p;
         this.contentPanel = new JPanel();
         subtractDialog.setIconImage(D1Dplot_global.getIcon());
@@ -100,7 +97,6 @@ public class SubtractDialog {
                     tableDS1.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
                     tableDS1.setColumnSelectionAllowed(false);
                     tableDS1.setCellSelectionEnabled(false);
-
                 }
             }
         }
@@ -140,13 +136,6 @@ public class SubtractDialog {
                     tableDS2.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
                     tableDS2.setColumnSelectionAllowed(false);
                     tableDS2.setCellSelectionEnabled(false);
-//                    tableDS2.setModel(new DefaultTableModel(
-//                            new Object[][] {
-//                            },
-//                            new String[] {
-//                                    "nP", "nS", "Name"
-//                            }
-//                            ));
                 }
             }
         }
@@ -233,12 +222,7 @@ public class SubtractDialog {
                         return columnTypes[columnIndex];
                     }
                 };
-//        DefaultTableModel model = (DefaultTableModel)tableDS1.getModel();
-//        DefaultTableModel model2 = (DefaultTableModel)tableDS2.getModel();
-//        model.setRowCount(0);
-//        model2.setRowCount(0);
         mod.setRowCount(0);
-//      int np=0;
         for (int i=0;i<plotpanel.getNplottables();i++) {
             Plottable p = plotpanel.getPlottable(i);
             int np=plotpanel.indexOfPlottableData(p);
@@ -247,8 +231,6 @@ public class SubtractDialog {
                 int nd = p.indexOfDS(d);
                 Object[] row = {np,nd,d.serieName};
                 mod.addRow(row);
-//                model.addRow(row);
-//                model2.addRow(row);
             }
         }
         tableDS1.setModel(mod);
@@ -315,9 +297,6 @@ public class SubtractDialog {
             if (!cont)return;
             DataSerie ds2reb = PattOps.rebinDS(ds1, ds2);
             log.info("Rebinning performed on serie "+ds2.serieName);
-            //debug
-//            ds2reb.setParent(ds2.getParent()); //el parent ja es copia al crear la serie amb una inicial original
-//            D1Dplot_global.getD1Dmain().updateData(false); //TODO no veig perque cal fer un update aqui (ho desactivo)
             ds2reb.serieName="rebinned serie";
             result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2reb, factor,fac_t2i,fac_t2f);
         }else{
@@ -344,15 +323,6 @@ public class SubtractDialog {
         dc.setWavelengthToAllSeries(ds1.getWavelength());
         plotpanel.addPlottable(dc);
         D1Dplot_global.getD1Dmain().updateData(false,false);
-        
-//        Pattern1D patt = new Pattern1D();
-//        patt.getCommentLines().addAll(ds1.getPatt1D().getCommentLines());
-//        String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.getSerieName(),factor,ds2.getSerieName());
-//        patt.getCommentLines().add(s);
-//        patt.setOriginal_wavelength(ds1.getPatt1D().getOriginal_wavelength());
-//        patt.addDataSerie(result);
-//        plotpanel.getPatterns().add(patt);
-//        main.updateData(false);
     }
     
     private void do_chckbxAutoScale_itemStateChanged(ItemEvent arg0) {

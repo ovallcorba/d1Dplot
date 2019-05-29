@@ -1,4 +1,5 @@
 package com.vava33.d1dplot;
+
 /**
  * D1Dplot
  * 
@@ -402,7 +403,7 @@ public class BackgroundDialog {
 	        }
 	        if (puntsFons!=null){
 	            if (puntsFons.getNpoints()!=0){
-	                plotpanel.bkgEstimP.copySeriePoints(puntsFons);
+	                plotpanel.bkgEstimP.setSeriePoints(puntsFons); //TODO amb copy petava
 	            }
 	        }
 	        main.updateData(false, true);
@@ -523,12 +524,14 @@ public class BackgroundDialog {
             txtNbkgpoints.setText(String.valueOf(npoints));
         }
 
-        DataSerie puntsFons = plotpanel.bkgEstimP;
+        DataSerie puntsFons = plotpanel.bkgEstimP; //TODO aqui es on falla... hauria de copiar no?
         if (puntsFons==null)puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent());
         if (puntsFons.getNpoints()==0){
             puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent());
             puntsFons = PattOps.findBkgPoints(dsactive, npoints);
         }
+        //ordenem puntsfonts
+        puntsFons.sortSeriePoints();
         DataSerie fonsCalc = PattOps.bkg_FitSpline(dsactive, puntsFons);
         updatePlotPanelMain(dsactive,fonsCalc,puntsFons);
         
@@ -557,7 +560,6 @@ public class BackgroundDialog {
     }
     
     private void do_btnRemoveAllBkg_actionPerformed(ActionEvent e) {
-//        plotpanel.getFirstSelectedPlottable().getDataSerieByType(SerieType.bkgEstimP).clearPoints(); //no caldria ja
         plotpanel.getFirstSelectedPlottable().removeDataSeries(plotpanel.getFirstSelectedPlottable().getDataSeriesByType(SerieType.bkg));
         plotpanel.bkgEstimP.clearPoints();
         main.updateData(false, true);
@@ -577,9 +579,6 @@ public class BackgroundDialog {
         }else{
             this.btnAddPoints.setText("Add Points");
             plotpanel.setSelectingBkgPoints(false);
-//            this.puntsFons=plotpanel.getBkgEstimPoints();
-//            this.puntsFons = plotpanel.getSelectedSeries().get(0).getPatt1D().getBkgEstimPSerie();
-//            updatePlotPanelMain(plotpanel.getSelectedSeries().get(0)); 
         }
     }
     private void do_btnRemovePoints_itemStateChanged(ItemEvent e) {
@@ -589,10 +588,7 @@ public class BackgroundDialog {
             plotpanel.setDeletingBkgPoints(true);
         }else{
             this.btnRemovePoints.setText("Remove Points");
-            plotpanel.setDeletingBkgPoints(false);
-//            this.puntsFons=plotpanel.getBkgEstimPoints();
-//            this.puntsFons = plotpanel.getSelectedSeries().get(0).getPatt1D().getBkgEstimPSerie();
-//            updatePlotPanelMain(plotpanel.getSelectedSeries().get(0));
+            plotpanel.setDeletingBkgPoints(false);;
         }
     }
     
@@ -601,7 +597,6 @@ public class BackgroundDialog {
 	}
 
 	public void tanca() {
-        // TODO Desactivar botons, i edicions mouse
         this.btnAddPoints.setText("Add Points");
         this.btnRemovePoints.setText("Remove Points");
         plotpanel.setDeletingBkgPoints(false);

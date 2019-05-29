@@ -79,9 +79,9 @@ public class DataPoint implements Plottable_point{ //plottable point ja inclou c
 	@Override
 	public int compareTo(Plottable_point otherDP) {
 		if (this.x>otherDP.getX()) {
-			return -1; //otherDP va primer
+			return 1; //otherDP va primer
 		}else {
-			return 1;
+			return -1;
 		}
 	}
 
@@ -89,5 +89,6 @@ public class DataPoint implements Plottable_point{ //plottable point ja inclou c
     public String getInfo() {
         return String.format("(%.4f, %.4f)", x,y);
     }
+
 
 }

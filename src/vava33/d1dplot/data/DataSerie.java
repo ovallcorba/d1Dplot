@@ -9,6 +9,7 @@ package com.vava33.d1dplot.data;
  * Licence: GPLv3
  * 
  */
+
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,8 +27,6 @@ public class DataSerie {
     public static int def_hklticksize=12;
     public static boolean prfFullprofColors=false;
     public static int def_hklYOff=-16; //ho està a les opcions
-
-    
     
     private static final String className = "DataSerie";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
@@ -43,8 +42,6 @@ public class DataSerie {
     private double zerrOff = 0.0f;
     private double YOff = 0.0f;    
     
-//    private Data_Xray expInfo;
-
     //visual options - les faig publiques per evitar getters/setters
     public float markerSize;
     public float lineWidth;
@@ -52,11 +49,8 @@ public class DataSerie {
     public Color color;
     public boolean plotThis;
     
-
-    
-    //empty dataserie... TODO potser hauriem d'obligar a tenir dades?
+    //empty dataserie...
     public DataSerie(SerieType tipusSerie, Xunits xunits, Plottable parent){
-//        this.tipusSerie=tipusSerie;
         this.setTipusSerie(tipusSerie);//AIXO JA HO POSA TOT, color marker, etc...
         this.seriePoints=new ArrayList<Plottable_point>();
         this.plotThis=true;
@@ -69,9 +63,6 @@ public class DataSerie {
         this.wavelength=-1;
         if (parent!=null) this.wavelength=this.parent.getOriginalWavelength();    
         this.xUnits=xunits;
-//        this.color=tipusSerie.ini_color;
-//        this.markerSize=tipusSerie.ini_markerSize;
-//        this.lineWidth=tipusSerie.ini_lineWidth;
         this.serieName="";
 
 
@@ -94,25 +85,26 @@ public class DataSerie {
     //copia tot menys les dades que s'afegeixen apart
     public DataSerie(DataSerie inds, SerieType tipusSerie, boolean copyIntensities){
         this(inds, new ArrayList<Plottable_point>(), inds.getxUnits());
-//        this.tipusSerie=tipusSerie;
         this.setTipusSerie(tipusSerie);//AIXO JA HO POSA TOT, color marker, etc...
         if(copyIntensities)this.copySeriePoints(inds);
     }
 
+    //COPIEM (duplica)
     public void copySeriePoints(DataSerie inDS) {
-    	this.seriePoints=inDS.seriePoints;
+//    	this.seriePoints=inDS.seriePoints;
+        for (Plottable_point pp:inDS.seriePoints) {
+            this.seriePoints.add(pp.getCorrectedDataPoint(0, 0, 1, false));
+        }
+    }
+    
+    public void setSeriePoints(DataSerie inDS) {
+        this.seriePoints=inDS.seriePoints;
     }
 
     
-    //TODO: revisar lo del fons, que era una variable global de patt1D pel prf, no hauria de variar la Y, això hauria de ser a nivell de plot
-    //      això ho hauré de fer a una dataserie que sigui PRF
     /**
      * get datapoint with scale and offsets (x and y) applied
      */
-//    public Plottable_point getPointWithCorrections(int arrayPosition){ //TODO ens el podem carregar?
-//        return getPointWithCorrections(arrayPosition,false);
-//    }
-    
     public Plottable_point getPointWithCorrections(int arrayPosition, boolean addYBkg){
         return this.seriePoints.get(arrayPosition).getCorrectedDataPoint(this.zerrOff, this.YOff, this.scale, addYBkg);
     }
@@ -147,8 +139,6 @@ public class DataSerie {
     //TODO:revisar si calen els metodes add/remove/set o ordenar a l'afegir pics
     public void addPoint(Plottable_point dp){
         this.seriePoints.add(dp);
-        //si afegim pics ordenem
-//        if (this.tipusSerie==SerieType.peaks)this.sortSeriePoints();
     }
 
     public void removePoint(Plottable_point dp){
@@ -167,18 +157,6 @@ public class DataSerie {
     public boolean isEmpty() {
         return seriePoints.isEmpty();
     }
-
-//    public Plottable_point getPoint(int i) {
-//        return seriePoints.get(i);
-//    }
-    
-//    public Iterator<DataPoint> getIteratorSeriePoints(){
-//        return seriePoints.iterator();
-//    }
-    
-//    protected ArrayList<DataPoint> getSeriePoints() {
-//        return seriePoints;
-//    }
     
     protected List<Plottable_point> getCorrectedSeriePoints(){
         List<Plottable_point> correctedSeriePoints = new ArrayList<Plottable_point>();
@@ -196,10 +174,6 @@ public class DataSerie {
         }
         return uncorrectedSeriePoints;
     }
-    
-    
-    //les subclasses poden tenir DataSeries addicionals... les podem retornar aquí
-//    public abstract ArrayList<DataSerie> getComplementarySeries();
     
     public double[] getPuntsMaxXMinXMaxYMinY(){
         if (seriePoints!=null){
@@ -230,8 +204,6 @@ public class DataSerie {
         }
     }
  
-
-    
     protected void convertSeriePointsWavelength(double newWL){
 //        List<Plottable_point> newSeriePoints = new ArrayList<Plottable_point>();
         for (Plottable_point dp:seriePoints) {
@@ -298,7 +270,7 @@ public class DataSerie {
         return mindsp;
     }
     
-    //TODO ATENCIO EL PUNT QUE ENTREM HAURIA D'ESTAR JA CORREGIT!!
+    //ATENCIO EL PUNT QUE ENTREM HAURIA D'ESTAR JA CORREGIT!!
     public double getDataPointX_as(Xunits destXunits, Plottable_point dp) {
         double q = 0;
         double tth = 0;
@@ -357,18 +329,13 @@ public class DataSerie {
     }
     
     protected void convertSeriePointsXunits(Xunits destXunits){
-//        List<Plottable_point> newSeriePoints = new ArrayList<Plottable_point>();
         
         if (this.getxUnits()==destXunits) {
             log.info("conversion to the same units?");
             return;
         }
         
-        for (Plottable_point dp:seriePoints) {
-//            double t2 = this.getDataPointX_as_tthDeg(dp);
-//            double dsp = this.getDataPointX_as_dsp(dp);
-//            double q = this.getDataPointX_as_Q(dp);
-            
+        for (Plottable_point dp:seriePoints) {        
             double t2 = this.getDataPointX_as(Xunits.tth,dp); //directly in degrees
             double dsp = this.getDataPointX_as(Xunits.dsp,dp);
             double q = this.getDataPointX_as(Xunits.Q,dp);
@@ -391,12 +358,10 @@ public class DataSerie {
                 break;
             }
         }
-//        return newSeriePoints;
     }
     
-    
     public boolean convertDStoXunits(Xunits destXunits){
-        //TODO Mirar requeriments
+        // Mirar requeriments
         if(!this.isPossibleToConvertToXunits(destXunits)) {
             return false;
         }
@@ -410,7 +375,6 @@ public class DataSerie {
             return false;
         }
         
-//        this.seriePoints=newPoints;
         this.xUnits=destXunits;
         //escala i yoff es mantenen
         //zero cal convertir-lo
@@ -445,7 +409,6 @@ public class DataSerie {
             this.seriePoints=bakPoints;
             return;
         }
-//        this.seriePoints=newPoints;
         this.wavelength=newWL;
         //escala, yoff, zero... no ho canvio
     }
@@ -458,8 +421,6 @@ public class DataSerie {
         }
         return xvals;
     }
-    
-
 
     protected void clearDataPoints(){
         seriePoints.clear();
@@ -590,18 +551,6 @@ public class DataSerie {
         return pen*xval + ord;
     }
     
-
-
-
-//    private void logdebug(String s){
-//        if(D1Dplot_global.isDebug())log.debug(s);
-//    }
- 
-    
-    
-    
-    
-    
     //SETTERS/GETTERS PER ELIMINAR?? en deixo alguns malgrat son publics
     public Xunits getxUnits() {
         return xUnits;
@@ -609,15 +558,10 @@ public class DataSerie {
     public SerieType getTipusSerie() {
         return tipusSerie;
     }
-//    public boolean isPlotThis() {
-//        return plotThis;
-//    }
-    
-    //
+
     public void setxUnits(Xunits xUnits) {
         this.xUnits = xUnits;
     }
-
 
     public void setTipusSerie(SerieType tipusSerie) {
         this.tipusSerie = tipusSerie;
@@ -626,35 +570,27 @@ public class DataSerie {
         this.lineWidth=SerieType.getDefLineWidth(tipusSerie);
         if (tipusSerie==SerieType.hkl)this.setScale(DataSerie.def_hklticksize);
     }
-    
+
     public float getScale() {
         return scale;
     }
-//
+
     public void setScale(float scale) {
         this.scale = scale;
     }
-//
+
     public double getZerrOff() {
         return zerrOff;
     }
-//
+
     public void setZerrOff(double zerrOff) {
         this.zerrOff = zerrOff;
     }
-//
-//    public Color getColor() {
-//        return color;
-//    }
-//
-//    protected void setColor(Color color) {
-//        this.color = color;
-//    }
-//    
+
     public double getYOff() {
         return YOff;
     }
-//
+
     public void setYOff(double yOff) {
         YOff = yOff;
     }
@@ -674,7 +610,6 @@ public class DataSerie {
     protected void setParent(Plottable p) {
         this.parent=p;
     }
-
 
     //TODO: MIN i MAX podrien no estar ordenats!!
     public double getMinX() {

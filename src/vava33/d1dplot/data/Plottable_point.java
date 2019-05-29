@@ -12,7 +12,6 @@ package com.vava33.d1dplot.data;
  */
 
 public interface Plottable_point extends Comparable<Plottable_point>{
-//    public enum pptype{def,hkl};
     public double getX();
     public double getY();
     public double getYbkg();

@@ -4,11 +4,12 @@ package com.vava33.d1dplot;
  * D1Dplot
  * 
  * Global parameters
- *  
+ * 
  * @author Oriol Vallcorba
  * Licence: GPLv3
- * 
+ *
  */
+
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.io.BufferedWriter;
@@ -30,7 +31,7 @@ import com.vava33.jutils.VavaLogger;
 public final class D1Dplot_global {
 
     public static final int version = 1901; //nomes canviare la versio global quan faci un per distribuir
-    public static final int build_date = 190306; //nomes canviare la versio global quan faci un per distribuir
+    public static final int build_date = 190529; //nomes canviare la versio global quan faci un per distribuir
     public static final String welcomeMSG = "d1Dplot v"+version+" ("+build_date+") by O.Vallcorba\n\n"
     		+ " This is a DEVELOPMENT version and contains errors. Please USE WITH CAUTION.\n"
     		+ " Report of errors or comments about the program are appreciated.\n";
@@ -56,7 +57,7 @@ public final class D1Dplot_global {
     
     private static D1Dplot_main d1DMainFrame;
     
-    private static final boolean overrideLogLevelConfigFile = true;
+    private static final boolean overrideLogLevelConfigFile = false;
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     
@@ -64,7 +65,7 @@ public final class D1Dplot_global {
     private static boolean loggingConsole = false; //console
     private static boolean loggingFile = false; //file
     private static boolean loggingTA = true; //textArea -- NO ESCRIT AL FITXER DE CONFIGURACIO JA QUE VOLEM SEMPRE ACTIVAT
-    private static String loglevel = "config"; //info, config, etc...
+    private static String loglevel = "info"; //info, config, etc...
     private static String workdir = System.getProperty("user.dir");
     private static boolean keepMainWinSize = false;
     
@@ -148,10 +149,10 @@ public final class D1Dplot_global {
 	        loggingConsole = readedOpt.getValAsBoolean("loggingConsole", loggingConsole);
 	        loggingFile = readedOpt.getValAsBoolean("loggingFile", loggingFile);
 	        loggingTA = readedOpt.getValAsBoolean("loggingTextArea", loggingTA);
-	        loglevel = readedOpt.getValAsString("loglevel", loglevel); //TODO mirar si he de posar debug també
+	        loglevel = readedOpt.getValAsString("loglevel", loglevel);
 	    }
         keepMainWinSize = readedOpt.getValAsBoolean("rememberDimensions", keepMainWinSize);
-        workdir = readedOpt.getValAsString("workdir", workdir); //TODO check if exists?
+        workdir = readedOpt.getValAsString("workdir", workdir);
 
         //ara llegim els parametres i els col·loquem on toca, tenint en compte el valor per defecte
         D1Dplot_main.setDef_Width(readedOpt.getValAsInteger("iniWidth", D1Dplot_main.getDef_Width()));
@@ -289,5 +290,4 @@ public final class D1Dplot_global {
         SimpleDateFormat fHora = new SimpleDateFormat(simpleDateFormatStr);
         return fHora.format(new Date());
     }
-    
 }

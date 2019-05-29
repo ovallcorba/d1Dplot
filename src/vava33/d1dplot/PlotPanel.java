@@ -45,14 +45,12 @@ import java.util.Iterator;
 import java.util.List;
 import javax.swing.JPanel;
 
-import com.vava33.d1dplot.auxi.PDCompound;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.Plottable;
 import com.vava33.d1dplot.data.Plottable_point;
 import com.vava33.d1dplot.data.SerieType;
 import com.vava33.d1dplot.data.Xunits;
-import com.vava33.d1dplot.index.IndexSolution;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.Options;
 import com.vava33.jutils.VavaLogger;
@@ -88,7 +86,7 @@ public class PlotPanel {
     private static final Color Dark_Legend_bkg = Color.DARK_GRAY.darker();
     private static final Color Dark_Legend_line = Color.WHITE;
     
-    //PARAMETRES VISUALS amb els valors per defecte TODO: a la llarga no harien de ser estatics, he de canviar el sistema d'opcions
+    //PARAMETRES VISUALS amb els valors per defecte 
     private boolean lightTheme = true;
     private int gapAxisTop = 12;
     private int gapAxisBottom = 35;
@@ -222,7 +220,6 @@ public class PlotPanel {
      * Create the panel.
      */
     public PlotPanel(Options opt) {
-//        this.mainframe=m;
         this.readOptions(opt);
         this.plotPanel = new JPanel();
         this.plotPanel.setBackground(Color.WHITE);
@@ -425,8 +422,8 @@ public class PlotPanel {
         this.dataToPlot = new ArrayList<Plottable>();
         this.selectedSeries = new ArrayList<DataSerie>();
         
-        bkgseriePeakSearch=new DataSerie(SerieType.bkg,Xunits.tth,null); //TODO millorable
-        bkgEstimP=new DataSerie(SerieType.bkgEstimP,Xunits.tth,null);//TODO millorable
+        bkgseriePeakSearch=new DataSerie(SerieType.bkg,Xunits.tth,null); // millorable
+        bkgEstimP=new DataSerie(SerieType.bkgEstimP,Xunits.tth,null);// millorable
         
         div_incXPrim = 0;
         div_incXSec = 0;
@@ -497,14 +494,13 @@ public class PlotPanel {
 	}
 	
 	public void addPlottable(Plottable p) {
-//	    this.setColor(p);
 	  //nomes pintarem les series DAT
 	    this.assignColorDataSeriesIfNecessary(p);
 	    this.dataToPlot.add(p);
 	    this.actualitzaPlot(); //TODO: sempre es voldrà? ho posem com a opcio millor? posar-ho com a opcio? ja que això fa que es repeteixi molts cops per duplicat
 	}
 	
-	   public void reassignColorPatterns(){ //TODO revisar perque nomes es per tipusserieDAT
+	   public void reassignColorPatterns(){ //nomes es per tipusserieDAT
 	       nTotalOpenedDatSeries=0;
 	        for (Plottable p:this.dataToPlot) {
 	            this.assignColorDataSeriesIfNecessary(p);
@@ -543,9 +539,6 @@ public class PlotPanel {
 	public Plottable getPlottable(int index) {
 	    return this.dataToPlot.get(index);
 	}
-//	public int indexOf(Plottable p) {
-//        return this.dataToPlot.indexOf(p);
-//    }
 	public int getNplottables() {
 	    return this.dataToPlot.size();
 	}
@@ -553,7 +546,6 @@ public class PlotPanel {
 	public void swapPlottables(int orig, int dest) {
 	    Collections.swap(dataToPlot, orig, dest);
 	}
-	
 	
 	public DataSerie getFirstPlottedSerie() {
 		try {
@@ -593,15 +585,10 @@ public class PlotPanel {
 	    return dataToPlot.indexOf(p);
 	}
 
-//	public Set<Plottable> getSelectedPlottables(){
-//	    Set<Plottable> selectedPlottables = new HashSet();
-//	    for (DataSerie ds:selectedSeries) {
-//	        selectedPlottables.add(ds.getParent());
-//	    }
-//	    return selectedPlottables;
-//	}
-	
-	public void replacePlottable(int index, Plottable newPlottable) {
+    public void replacePlottable(int index, Plottable newPlottable) {
+        if(this.dataToPlot.get(index).getNSeries()==1) {
+            newPlottable.getDataSerie(0).color=this.dataToPlot.get(index).getDataSerie(0).color;
+        }
 	    this.dataToPlot.set(index, newPlottable);
 	    this.actualitzaPlot();
 	}
@@ -631,12 +618,12 @@ public class PlotPanel {
     public void actualitzaPlot() {
 		this.graphPanel.repaint();
 	}
-
+	    
 	    // ajusta la imatge al panell, mostrant-la tota sencera (calcula l'scalefit inicial)
 	public void fitGraph() {
 	    this.resetView(false);
 	}
-
+	
 		private void resetView(boolean resetAxes) {
 	        this.calcMaxMinXY();
 	        this.xrangeMax=this.xMax;
@@ -650,6 +637,7 @@ public class PlotPanel {
 	        if (!checkIfDiv() || resetAxes){
 	            this.autoDivLines();
 	        }
+	        
 	        this.actualitzaPlot();
 	    }
 
@@ -750,7 +738,6 @@ public class PlotPanel {
         return yval;
     }
     
-    
     //NOMES S'HAURIA DE CRIDAR QUAN OBRIM UN PATTERN (per aixo private)
     private void autoDivLines(){
         this.div_startValX=this.xrangeMin;
@@ -759,9 +746,7 @@ public class PlotPanel {
         //ara cal veure a quan es correspon en les unitats de cada eix
         double xppix = this.getXunitsPerPixel();
         double yppix = this.getYunitsPerPixel();
-        
-//        if(isDebug())log.writeNameNumPairs("fine", true, "xppix,yppix",xppix,yppix);
-        
+                
         txtNdivx.setText(String.valueOf(incXPrimPIXELS/incXSecPIXELS));
         txtNdivy.setText(String.valueOf(incYPrimPIXELS/incYSecPIXELS));
         
@@ -772,12 +757,6 @@ public class PlotPanel {
         
         this.txtXdiv.setText(FileUtils.dfX_3.format(this.div_incXPrim));
         this.txtYdiv.setText(FileUtils.dfX_3.format(this.div_incYPrim));
-
-//        this.txtXdiv.setText(String.valueOf(this.getDiv_incXPrim()));
-//        this.txtYdiv.setText(String.valueOf(this.getDiv_incYPrim()));
-        
-//        if(isDebug())log.writeNameNumPairs("fine", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
-
     }
     
     //valor inicial, valor d'increment per les separacions principals (tindran número), n divisions secundaries entre principals
@@ -785,10 +764,7 @@ public class PlotPanel {
     private void customDivLinesX(double incrPrincipals, double nDivisionsSecund){
         
         double currentXIni = this.xrangeMin;
-        
-//        this.setXrangeMin((int)this.getxMin());
 
-//        this.setDiv_startValX(this.getXrangeMin());
         this.div_startValX=currentXIni;
         this.xrangeMin=currentXIni;
         
@@ -796,23 +772,18 @@ public class PlotPanel {
         this.div_incXSec=incrPrincipals/nDivisionsSecund;
         
         this.txtXdiv.setText(FileUtils.dfX_3.format(this.div_incXPrim));
-//        this.txtXdiv.setText(String.valueOf(this.getDiv_incXPrim()));
         
    }
     
     private void customDivLinesY(double incrPrincipals, double nDivisionsSecund){
         double currentYIni = this.yrangeMin;
-        
-//        this.setYrangeMin(0); //TODO REVISAR SI ES EL COMPORTAMENT QUE VOLEM
-        
-//        this.setDiv_startValY(this.getYrangeMin());
+
         this.div_startValY=currentYIni;
         this.yrangeMin=currentYIni;
         
         this.div_incYPrim=incrPrincipals;
         this.div_incYSec=incrPrincipals/nDivisionsSecund;
                 
-//        this.txtYdiv.setText(String.valueOf(this.getDiv_incYPrim()));
         this.txtYdiv.setText(FileUtils.dfX_3.format(this.div_incYPrim));
         
         if(isDebug())log.writeNameNumPairs("config", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
@@ -835,7 +806,6 @@ public class PlotPanel {
         double minY = Double.MAX_VALUE;
         boolean thereIsHKL =false;
         int hklsize = DataSerie.def_hklticksize;
-        int hkloff = DataSerie.def_hklYOff;
         for(Plottable p:dataToPlot) {
             //            DataSerie ds = p.getMainSerie();
             for (DataSerie ds:p.getDataSeries()) {
@@ -849,7 +819,6 @@ public class PlotPanel {
                 
                 if (ds.getTipusSerie()==SerieType.hkl) {
                     hklsize=(int) ds.getScale();
-                    hkloff=(int)ds.getYOff();
                     thereIsHKL=true;
                 }
             }
@@ -858,12 +827,10 @@ public class PlotPanel {
                     thereIsHKL=true;       
                 }
             }
-
         }
         
         if (thereIsHKL) {
-            
-            double newYframe = this.getFrameYFromDataPointY(0)+hklsize-hkloff;
+            double newYframe = this.getFrameYFromDataPointY(minY)-hklsize;
             double newYdata = this.getDataPointFromFramePointIgnoreIfInside(new Point2D.Double(0, newYframe)).getY();
             minY = FastMath.min(minY, newYdata);
             
@@ -873,8 +840,6 @@ public class PlotPanel {
         this.xMin=minX;
         this.yMax=maxY;
         this.yMin=minY;
-        
-
     }
     
     //height in pixels of the plot area
@@ -900,7 +865,6 @@ public class PlotPanel {
         if (dpcentre == null)return;
         if (zoomIn) {
             this.yrangeMax=this.yrangeMax*(1/facZoom);
-            // TODO: posem maxim?
         } else {
             this.yrangeMax=this.yrangeMax*(facZoom);
         }
@@ -912,7 +876,6 @@ public class PlotPanel {
         if (zoomIn) {
             this.xrangeMin=this.xrangeMin+(inc/scalefitX);
             this.xrangeMax=this.xrangeMax-(inc/scalefitX);
-            // TODO: posem maxim?
         } else {
             this.xrangeMin=this.xrangeMin-(inc/scalefitX);
             this.xrangeMax=this.xrangeMax+(inc/scalefitX);
@@ -923,8 +886,7 @@ public class PlotPanel {
     private void scrollX(double inc) {
         this.xrangeMin=this.xrangeMin+(inc/scalefitX);
         this.xrangeMax=this.xrangeMax+(inc/scalefitX);
-          // TODO: posem maxim?
-      calcScaleFitX();
+        calcScaleFitX();
     }
     
     //es mouen en consonancia els limits de rang x i y
@@ -936,7 +898,6 @@ public class PlotPanel {
 	    this.calcScaleFitX();
 	    this.calcScaleFitY();
 	    
-//	    if(isDebug())log.writeNameNums("fine", true, "ranges x y min max", getXrangeMin(),getXrangeMax(),getYrangeMin(),getYrangeMax());
 	}
 
 	private Point2D.Double getIntersectionPoint(Line2D.Double line1, Line2D.Double line2) {
@@ -1037,9 +998,6 @@ public class PlotPanel {
         return D1Dplot_global.isDebug();
     }
     private void do_graphPanel_mouseDragged(MouseEvent e) {
-//    	log.fine("mouseDragged!!");
-//    	log.fine(Boolean.toString(this.mouseDrag));
-//    	log.fine(Boolean.toString(e.getButton() == MOURE));
 	
 	    Point2D.Double currentPoint = new Point2D.Double(e.getPoint().x, e.getPoint().y);
 	
@@ -1103,7 +1061,6 @@ public class PlotPanel {
 	}
 
 	private void do_graphPanel_mouseMoved(MouseEvent e) {
-//	        log.fine("mouseMoved!!");
 	        if (arePlottables()){
 	            Point2D.Double dp = getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
 	            if (dp!=null){
@@ -1208,13 +1165,6 @@ public class PlotPanel {
 	            if(this.selectingBkgPoints){
 	                Plottable_point dp = this.getDataPointDPFromFramePoint(this.dragPoint);
 	                this.bkgEstimP.addPoint(dp);
-//	                for (DataSerie ds:selectedSeries) {
-//	                    if (ds.getTipusSerie()==SerieType.bkgEstimP) {
-//	                        ds.addPoint(dp);}
-//	                }
-//	                DataSerie bkgEstimPoints = this.selectedSeries.get(0).getPatt1D().getBkgEstimPSerie(); //AQUESTA LINIA ES NOVA!!
-//	                if (bkgEstimPoints==null)return;
-//	                bkgEstimPoints.addPoint(dp);
 	            }else if(this.deletingBkgPoints){
 	                Plottable_point dp = this.getDataPointDPFromFramePoint(this.dragPoint);
 	                Plottable_point toDelete = this.bkgEstimP.getClosestDP(dp,-1,-1,plotwithbkg);
@@ -1226,7 +1176,6 @@ public class PlotPanel {
                     }else{
                         logdebug("toDelete is null");
                     }   
-
 	                
 	            }else if(this.selectingPeaks){
 	                if(isOneSerieSelected()){
@@ -1430,12 +1379,8 @@ public class PlotPanel {
         String incY = FileUtils.dfX_4.format(this.incY);
         String scaleX = FileUtils.dfX_4.format(this.scalefitX);
         String scaleY = FileUtils.dfX_4.format(this.scalefitY);
-//        String xMax = Double.toString(this.xMax);
-//        String xMin = Double.toString(this.xMin);
         String xRangeMax = FileUtils.dfX_4.format(this.xrangeMax);
         String xRangeMin = FileUtils.dfX_4.format(this.xrangeMin);
-//        String yMax = Double.toString(this.yMax);
-//        String yMin = Double.toString(this.yMin);
         String yRangeMax = FileUtils.dfX_4.format(this.yrangeMax);
         String yRangeMin = FileUtils.dfX_4.format(this.yrangeMin);
         
@@ -1444,7 +1389,6 @@ public class PlotPanel {
         
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("%s %s %s %s %s %s %s %s %s %s %s %s %s\n", theme,bkg,hkl,gridX,gridY,legend,autoLeg,legX,legY,yVert,yVertLabel,yVertNeg,fixAxes));
-//        sb.append(String.format("%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",incXprim,incXsec,incYprim,incYsec,startValX,startValY,incX,incY,scaleX,scaleY,xMax,xMin,xRangeMax,xRangeMin,yMax,yMin));
         sb.append(String.format("%s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",incXprim,incXsec,incYprim,incYsec,startValX,startValY,incX,incY,scaleX,scaleY,xRangeMax,xRangeMin,yRangeMax,yRangeMin));
         sb.append(xLabel);
         sb.append("\n");
@@ -1482,12 +1426,8 @@ public class PlotPanel {
             this.incY=Double.parseDouble(vals2[7]);
             this.scalefitX=Double.parseDouble(vals2[8]);
             this.scalefitY=Double.parseDouble(vals2[9]);
-//            this.xMax=Double.parseDouble(vals2[10]);
-//            this.xMin=Double.parseDouble(vals2[11]);
             this.xrangeMax=Double.parseDouble(vals2[10]);
-            this.xrangeMin=Double.parseDouble(vals2[11]);
-//            this.yMax=Double.parseDouble(vals2[12]);
-//            this.yMin=Double.parseDouble(vals2[13]);
+            this.xrangeMin=Double.parseDouble(vals2[11]);;
             this.yrangeMax=Double.parseDouble(vals2[12]);
             this.yrangeMin=Double.parseDouble(vals2[13]);
 
@@ -1805,10 +1745,7 @@ public class PlotPanel {
 
 	//per tal de saber tot el que es pot personalitzar
 	public Options createOptionsObject() {
-	    /*
-	     * Podria posar totes les opcions a un Map<String,Object> de forma que fos automatic. TODO future
-	     */
-	    
+    
 	    Options opt = new Options();
 	    
 	    String but = "Left";
@@ -1859,10 +1796,8 @@ public class PlotPanel {
         private static final long serialVersionUID = 1L;
 
         private int panelW, panelH;
-        private Graphics2D g2;
+//        private Graphics2D g2;
         private boolean saveTransp = false;
-//        private int svgFontSize= 30;
-        private boolean saveSVG = false;
         
         private DecimalFormat def_xaxis_format = FileUtils.dfX_3;
         private DecimalFormat def_yaxis_format = FileUtils.dfX_1;
@@ -1879,13 +1814,6 @@ public class PlotPanel {
             this.saveTransp=transp;
         }
         
-        public boolean isSaveSVG() {
-            return saveSVG;
-        }
-        public void setSaveSVG(boolean saveSVG) {
-            this.saveSVG = saveSVG;
-        }
-
         public DecimalFormat getDef_xaxis_format() {
             return def_xaxis_format;
         }
@@ -1952,148 +1880,142 @@ public class PlotPanel {
             }
         }
 
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-//            logdebug("paintComponent PlotPanel");
-
+        
+        protected void pinta(Graphics2D g2, double scale) {
             if (!this.saveTransp){
                 if (lightTheme){
-                    this.setBackground(Light_bkg);
+                    g2.setBackground(Light_bkg);
                 }else{
-                    this.setBackground(Dark_bkg);
+                    g2.setBackground(Dark_bkg);
+                }
+                g2.clearRect(0, 0, (int)(panelW*scale), (int)(panelH*scale));
+            }
+            
+            //TODO es pot posar una opcio quality
+            g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+            g2.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+            g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+            g2.setTransform(AffineTransform.getScaleInstance(scale, scale));
+
+            if (scalefitY<0){
+                calcScaleFitY();    
+            }
+            if (scalefitX<0){
+                calcScaleFitX();    
+            }
+
+            //1st draw axes (and optionally grid)
+            this.drawAxes(g2,showGridY,showGridX);
+
+            for (Plottable p:dataToPlot) {
+                for (DataSerie ds:p.getDataSeries()) {
+                    if (!ds.plotThis)continue;
+                    if (ds.isEmpty())continue; //new Març 2019
+                    switch (ds.getTipusSerie()){ // aqui es poden implementar peculiaritats: dat, obs, cal, hkl, diff, bkg, bkgEstimP, gr, ref, peaks;
+                    case hkl:
+                        drawHKL(g2,ds,ds.color);
+                        break; 
+                    case ref:
+                        drawREF(g2,ds,ds.color);
+                        break; 
+                    case peaks:
+                        //nomes els mostrem si el plottable està seleccionat? o sempre?
+                        drawPeaks(g2,ds,ds.color);
+                        break;
+                    default: //dibuix linea normal, (dat, dif, gr, ...)
+                        drawPattern(g2,ds,ds.color);
+                        break;
+                    }
                 }
             }
             
-            if (arePlottables()) {
-
-                panelW = this.getWidth();
-                panelH = this.getHeight();
-                
-                BufferedImage off_Image = null;
-
-                if (isSaveSVG()) {
-                    g2 = (Graphics2D) g;
-                    g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
-                            RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
-                  }else {
-                      off_Image =
-                              new BufferedImage(panelW, panelH,
-                                                BufferedImage.TYPE_INT_ARGB);
-                      g2 = off_Image.createGraphics();
-                      
-                      g2.addRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING,
-                        RenderingHints.VALUE_ANTIALIAS_ON)); // perque es vegin mes suaus...
-                  }
-                
-                if (scalefitY<0){
-                    calcScaleFitY();    
-                }
-                if (scalefitX<0){
-                    calcScaleFitX();    
-                }
-
-                //1st draw axes (and optionally grid)
-                this.drawAxes(g2,showGridY,showGridX);
-
-//                int nplottable = 0; //TODO start at 1 or zero, is it necessary?
-//                int nds = 0;
-                for (Plottable p:dataToPlot) {
-                    for (DataSerie ds:p.getDataSeries()) {
-                        if (!ds.plotThis)continue;
-                        if (ds.isEmpty())continue; //new Març 2019
-                        switch (ds.getTipusSerie()){ //TODO aqui es poden implementar peculiaritats: dat, obs, cal, hkl, diff, bkg, bkgEstimP, gr, ref, peaks;
-                        case hkl:
-                            drawHKL(g2,ds,ds.color);
-                            break; 
-                        case ref:
-                            drawREF(g2,ds,ds.color);
-                            break; 
-                        case peaks:
-                            //nomes els mostrem si el plottable està seleccionat? o sempre?
-                            drawPeaks(g2,ds,ds.color);
-                            break;
-                        default: //dibuix linea normal, (dat, dif, gr, ...)
-//                            if(ds.lineWidth>0)drawPatternLine(g2,ds,ds.color); 
-//                            if(ds.markerSize>0)drawPatternPoints(g2,ds,ds.color);
-//                            if(ds.showErrBars)drawErrorBars(g2,ds,ds.color);
-                            drawPattern(g2,ds,ds.color);
-                            break;
-                        }
-//                        nds++;
-                    }
-//                    nplottable++;
-                }
-                
-                if(applyScaleFactorT2) {
-                    BasicStroke stroke = new BasicStroke(1.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{2,4}, 0);
-                    drawVerticalLine(g2, getFrameXFromDataPointX(scaleFactorT2ang), 100, "x"+FileUtils.dfX_1.format(scaleFactorT2fact), Color.GRAY, stroke);
-                }
-                
-                if (showPeakThreshold){
-//                    drawPeaks(g2);
-                    //mostrar el fons pel pksearch
-                    if (bkgseriePeakSearch==null)return;
+            if(applyScaleFactorT2) {
+                BasicStroke stroke = new BasicStroke(1.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{2,4}, 0);
+                drawVerticalLine(g2, getFrameXFromDataPointX(scaleFactorT2ang), 100, "x"+FileUtils.dfX_1.format(scaleFactorT2fact), Color.GRAY, stroke);
+            }
+            
+            if (showPeakThreshold){
+                //mostrar el fons pel pksearch
+                if (bkgseriePeakSearch!=null) {
                     if (bkgseriePeakSearch.getNpoints()>0) {
                         bkgseriePeakSearch.setTipusSerie(SerieType.bkg); //obliguem tipus serie bkg per pintar linia rosa
-//                        drawPatternLine(g2,bkgseriePeakSearch,bkgseriePeakSearch.color);
                         drawPattern(g2,bkgseriePeakSearch,bkgseriePeakSearch.color);
-                    }
+                    }    
                 }
-                
-                if (showEstimPointsBackground) {
-                    //mostrem dataserie dels punts fons
-                    if (bkgEstimP==null)return;
+            }
+            
+            if (showEstimPointsBackground) {
+                //mostrem dataserie dels punts fons
+                if (bkgEstimP!=null) {
                     if (bkgEstimP.getNpoints()>0) {
                         bkgseriePeakSearch.setTipusSerie(SerieType.bkgEstimP); //obliguem tipus serie per markers size i color
-//                        drawPatternPoints(g2,bkgEstimP,bkgEstimP.color);
                         drawPattern(g2,bkgEstimP,bkgEstimP.color);
                     }
                 }
-                
-                if (showDBCompound){
-                    if (dbCompound != null)drawREF(g2,dbCompound,colorDBcomp);
-                }
+            }
+            
+            if (showDBCompound){
+                if (dbCompound != null)drawREF(g2,dbCompound,colorDBcomp);
+            }
 
-                if (showIndexSolution){
-                    if (indexSolution != null) {
-                        drawHKL(g2,indexSolution,indexSolution.color);
-                    }
+            if (showIndexSolution){
+                if (indexSolution != null) {
+                    drawHKL(g2,indexSolution,indexSolution.color);
                 }
-                
-                
-                if(showLegend){ //a sobre de tot
-                    drawLegend(g2);
-                }
-                
-                fillWindowValues();
-                
-                if (mouseBox == true && zoomRect != null) {
-                    //dibuixem el rectangle
-                    g2.setColor(Color.darkGray);
-                    BasicStroke stroke = new BasicStroke(3f);
-                    g2.setStroke(stroke);
-                    g2.draw(zoomRect);
-                    Color gristransp = new Color(Color.LIGHT_GRAY.getRed(), Color.LIGHT_GRAY.getGreen(),Color.LIGHT_GRAY.getBlue(), 128 );
-                    g2.setColor(gristransp);
-                    g2.fill(zoomRect);
-                }
-                
-                if (!isSaveSVG()) {
-                    g.drawImage(off_Image, 0, 0, null);
-                  }else {
-                      //TODO:aixo estava buit...
-                  }
-                
+            }
+            
+            
+            if(showLegend){ //a sobre de tot
+                drawLegend(g2);
+            }
+            
+            fillWindowValues();
+            
+            if (mouseBox == true && zoomRect != null) {
+                //dibuixem el rectangle
+                g2.setColor(Color.darkGray);
+                BasicStroke stroke = new BasicStroke(3f);
+                g2.setStroke(stroke);
+                g2.draw(zoomRect);
+                Color gristransp = new Color(Color.LIGHT_GRAY.getRed(), Color.LIGHT_GRAY.getGreen(),Color.LIGHT_GRAY.getBlue(), 128 );
+                g2.setColor(gristransp);
+                g2.fill(zoomRect);
+            }
+            g2.dispose();
+        }
+        
+        //pinta al panelW i panelH, podriem fer-ho més general posant com a arguments width i height
+        protected BufferedImage pintaPatterns(double scale) {
+            
+            BufferedImage off_Image = new BufferedImage((int)(panelW*scale), (int)(panelH*scale), BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = off_Image.createGraphics();
+            this.pinta(g2,scale); //He creat el metode pinta apart pel savesvg que peta si escribim imatge
+            return off_Image;
+//            g.drawImage(off_Image, 0, 0, null);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g); //or could do...  g.clearRect(0, 0, this.getWidth(), this.getHeight());
+
+            panelW = this.getWidth();
+            panelH = this.getHeight();
+            
+            if (arePlottables()) {
+                g.drawImage(pintaPatterns(1.0),0,0,null); //scale 1, pintem en pantalla
+                g.dispose();
             }else {
                 //no patterns, podem aprofitar per reiniciar algunes coes
                 nTotalOpenedDatSeries=0;
             }
         }
-
+        
         private void drawAxes(Graphics2D g1, boolean gridY, boolean gridX){
-//            logdebug("drawAxes entered");
 
             //provem de fer linia a 60 pixels de l'esquerra i a 60 pixels de baix (40 i 40 de dalt i a la dreta com a marges)
 
@@ -2104,8 +2026,6 @@ public class PlotPanel {
             Point2D.Double vybot = new Point2D.Double(coordXeixY,coordYeixX);
             Point2D.Double vxleft = vybot;
             Point2D.Double vxright = new Point2D.Double(panelW-gapAxisRight-padding,coordYeixX);
-
-//            if(isDebug())log.writeNameNums("fine", true, "(axes) vy vx", vytop.x,vytop.y,vybot.x,vybot.y,vxleft.x,vxleft.y,vxright.x,vxright.y);
 
             if(lightTheme){
                 g1.setColor(Light_frg);
@@ -2124,15 +2044,12 @@ public class PlotPanel {
             //PINTEM ELS TITOLS DELS EIXOS
             Font font = g1.getFont();
             FontRenderContext frc = g1.getFontRenderContext();
-//            if(isDebug())log.fine("default font size="+font.getSize());
-
             // X-axis (abcissa) label.
             String s = getXlabel();
             double sy = panelH - AxisLabelsPadding;
             g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
             double sw = g1.getFont().getStringBounds(s, frc).getWidth();
             double sx = (panelW - sw)/2;
-//            log.fine("Xaxis label font size="+g1.getFont().getSize());
             g1.drawString(s, (float)sx,(float)sy);
             g1.setFont(font); //recuperem font defecte
 
@@ -2156,10 +2073,8 @@ public class PlotPanel {
                 Line2D.Double l = new Line2D.Double(xvalPix,yiniPrim,xvalPix,yfinPrim);
                 g1.draw(l);
                 //ara el label sota la linia 
-                //                    s = String.format("%.3f", xval);
                 s = this.def_xaxis_format.format(xval);
                 g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
-//                log.fine("Xaxis font size="+g1.getFont().getSize());
                 sw = g1.getFont().getStringBounds(s, frc).getWidth();
                 double sh = g1.getFont().getStringBounds(s, frc).getHeight();
                 double xLabel = xvalPix - sw/2f; //el posem centrat a la linia
@@ -2207,9 +2122,9 @@ public class PlotPanel {
                 sx = AxisLabelsPadding;
                 sy = sh + AxisLabelsPadding;
                 g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
-//                log.fine("Yaxis label font size="+g1.getFont().getSize());
                 if (verticalYlabel){
-                    sy = (panelH - sw)/2;
+//                    sy = (panelH - sw)/2; //may2019 fix
+                    sy = panelH/2. + sw/2.;
                     sx = (ylabelheight/2)+padding;
                     AffineTransform orig = g1.getTransform();
                     g1.rotate(-Math.PI/2,sx,sy);
@@ -2240,10 +2155,8 @@ public class PlotPanel {
                     Line2D.Double l = new Line2D.Double(xiniPrim, yvalPix, xfinPrim, yvalPix);
                     g1.draw(l);
                     //ara el label a l'esquerra de la linia (atencio a negatius, depen si hi ha l'opcio)
-                    //                s = String.format("%.1f", yval);
                     s = this.def_yaxis_format.format(yval);
                     g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
-//                    log.fine("Yaxis font size="+g1.getFont().getSize());
                     sw = g1.getFont().getStringBounds(s, frc).getWidth();
                     sh = g1.getFont().getStringBounds(s, frc).getHeight();
                     double xLabel = xiniPrim - AxisLabelsPadding - sw; 
@@ -2293,7 +2206,6 @@ public class PlotPanel {
 
                 }
             }
-//            log.debug("drawAxes exit");
         }
 
         //dibuixa linia, punts i errorbars
@@ -2387,19 +2299,17 @@ public class PlotPanel {
               
           }
         }
-        
+
         //dibuixa un sol SENSE COMPROVACIONS
         private void drawPatternPoint(Graphics2D g1, Point2D.Double framePoint, double radiPunt, Color col) {
-//            if (isFramePointInsideGraphArea(framePoint)){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(0.0f);
                 g1.setStroke(stroke);
                 int dia=(int) FastMath.round(radiPunt*2);
                 g1.fillOval((int)FastMath.round(framePoint.x-radiPunt), (int)FastMath.round(framePoint.y-radiPunt), dia,dia);
                 g1.drawOval((int)FastMath.round(framePoint.x-radiPunt), (int)FastMath.round(framePoint.y-radiPunt), dia,dia);
-//            }
         }
-        
+
         //dibuixa una barra d'error
         private void drawErrorBar(Graphics2D g1, Plottable_point pp, Color col) {
             g1.setColor(col);
@@ -2441,14 +2351,12 @@ public class PlotPanel {
         }
 
         private void drawHKL(Graphics2D g1, DataSerie serie, Color col){
-//            log.fine("drawHKL entered");
             for (int i = 0; i < serie.getNpoints(); i++){
                 g1.setColor(col);
                 BasicStroke stroke = new BasicStroke(serie.lineWidth);
                 g1.setStroke(stroke);
 
                 //despres del canvi a private de seriePoints
-//                double tth = serie.getHKLPoint(i).get2th();
                 double tth = serie.getPointWithCorrections(i,plotwithbkg).getX();
 
                 //la X es la 2THETA pero la Y hauria de ser el punt de menor intensitat de OBS més un hkloffset (en pixels, definit a patt1d)
@@ -2457,12 +2365,6 @@ public class PlotPanel {
                 Point2D.Double ptop = new Point2D.Double(fx, fy);
                 Point2D.Double pbot = new Point2D.Double(fx, fy+serie.getScale());
                 
-                
-//                fy = fy - hkloff +hklticksize/2f;  //pensem que la Y es cap avall!
-//
-//                Point2D.Double ptop = new Point2D.Double(fx, fy-hklticksize/2);
-//                Point2D.Double pbot = new Point2D.Double(fx, fy+hklticksize/2);
-
                 //comprovem que tot estigui dins
                 if (!isFramePointInsideGraphArea(ptop) || !isFramePointInsideGraphArea(pbot)){
                     continue;
@@ -2472,13 +2374,11 @@ public class PlotPanel {
                 g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
 
             }
-//            log.debug("drawHKL exit");
         }
         
-        
+       
         //draw vertical lines
         private void drawREF(Graphics2D g1, DataSerie serie, Color col){
-//            log.fine("drawREF entered");
             for (int i = 0; i < serie.getNpoints(); i++){
 
                 serie.lineWidth=1.2f;
@@ -2498,10 +2398,7 @@ public class PlotPanel {
                         break;
                     
                 }
-//                BasicStroke stroke = new BasicStroke(serie.getLineWidth());
-//                g1.setStroke(stroke);
-//                BasicStroke dashed = new BasicStroke(serie.getLineWidth(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{1,2}, 0);
-                
+
                 //despres del canvi a private de seriePoints
                 Plottable_point pp = serie.getPointWithCorrections(i,plotwithbkg);
                 double tth = pp.getX();
@@ -2513,7 +2410,6 @@ public class PlotPanel {
                 drawVerticalLine(g1,fx,inten,"",col,stroke);
                 
             }
-//            log.debug("drawREF exit");
         }
         
         //label to put next to line at the top,
@@ -2536,7 +2432,6 @@ public class PlotPanel {
                 //escribim al costat de la linia
                 Font font = g1.getFont();
                 g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
-                //TODO aqui podem canviar la font
                 double[] swh = getWidthHeighString(g1,label);
                 double sy = gapAxisTop+padding + swh[1];
                 double sx = frameX + padding;
@@ -2544,15 +2439,7 @@ public class PlotPanel {
                 g1.setFont(font); //recuperem font defecte
             }
             
-//            if ((isFramePointInsideGraphArea(ptop))&&isFramePointInsideGraphArea(pbot)){
-//            
-//            if (isFramePointInsideGraphArea(new Point2D.Double(ptop.x,ptop.y+1))){//TODO perquè!?=?!
-//                //ara dibuixem la linia
-//                g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
-//                
-//            }
         }
-
         
         private void drawLegend(Graphics2D g1){
 
@@ -2567,13 +2454,11 @@ public class PlotPanel {
             if (autoPosLegend){
                 legendX = panelW-padding-rectMaxWidth;
                 legendY = padding;
-//                mainframe.setTxtLegendFromPanel();
             }else{
                 if (legendX>panelW-padding-2*margin) legendX=panelW-padding-2*margin;
                 if (legendX<padding) legendX=padding;
                 if (legendY<padding) legendY=padding;
                 if (legendY>panelH-padding-2*margin) legendY=panelH-padding-2*margin;
-//                mainframe.setTxtLegendFromPanel();
             }
 
             
@@ -2599,9 +2484,9 @@ public class PlotPanel {
                         g1.draw(l);
 
                         //ara el text
-                        int t_X = l_finX+margin; //TODO: revisar si queda millor x2
+                        int t_X = l_finX+margin; 
                         int maxlength = panelW-padding-margin-t_X;
-                        String s = ds.serieName; //TODO: POSAR CORRECTAMENT EL NOM
+                        String s = ds.serieName; 
                         g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
                         double[] swh = getWidthHeighString(g1,s);
                         int count=0;
@@ -2658,7 +2543,6 @@ public class PlotPanel {
                         if (ds.lineWidth>0){
 
                             if (ds.getTipusSerie()==SerieType.hkl){
-//                                int gap = (int) ((entryHeight - ds.getScale())/2.); //TODO no se perquè tenia getScale/2
                                 int gap = 20;
                                 //LINIA VERTICAL
                                 int centreX = (int) ((l_iniX+l_finX)/2.f);
@@ -2690,9 +2574,9 @@ public class PlotPanel {
                         g1.setStroke(stroke);
 
                         //ara el text
-                        int t_X = l_finX+margin; //TODO: revisar si queda millor x2
+                        int t_X = l_finX+margin; 
                         int maxlength = panelW-padding-margin-t_X;
-                        String s =  ds.serieName; //TODO: POSAR CORRECTAMENT EL NOM
+                        String s =  ds.serieName;
                         g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
                         double[] swh = getWidthHeighString(g1,s);
                         int count=0;
@@ -2725,7 +2609,6 @@ public class PlotPanel {
             int gapPixels = 5; //gap between top of peak and line
             int sizePix = 20;
 
-//            DataSerie ds = getFirstSelectedPlottable().getDataSerieByType(SerieType.peaks);
             if (ds!=null){ //there is a peaks serie
                 if (ds.isEmpty())return; //no peaks
                 for (int i=0;i<ds.getNpoints();i++) {
@@ -2752,7 +2635,17 @@ public class PlotPanel {
             w_h[1] =  font.getStringBounds(s, frc).getHeight();
             return w_h;
         }
-
     }
 
+
+
+
+    
+    
+ 
+    
+    
+    
+    
+    
 }

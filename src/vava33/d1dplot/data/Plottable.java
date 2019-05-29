@@ -31,4 +31,6 @@ public interface Plottable {
     public List<DataSerie> getDataSeriesByType(SerieType tipus);
     public DataSerie getFirstDataSerieByType(SerieType tipus);
     public void replaceDataSerie(DataSerie ds, SerieType stype, boolean addIfNotFound); //first occurrence
+    public void addCommentLines(List<String> commentLines);
+    public void addCommentLine(String string);
 }

@@ -13,10 +13,10 @@ package com.vava33.d1dplot;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
-import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.font.FontRenderContext;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
@@ -27,7 +27,6 @@ import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 
-import com.vava33.d1dplot.auxi.DataFileUtils;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
@@ -468,7 +467,6 @@ public class Plot2DPanel {
         int dimY = maxVal - minVal;
         //        int dimX = 1;
         int type = BufferedImage.TYPE_INT_ARGB;
-
         llegenda = new BufferedImage(1, dimY, type);
         float height = (float)panel_llegenda.getHeight();
         logdebug("panel llegenda height="+height);
@@ -664,7 +662,6 @@ public class Plot2DPanel {
                 pfin = this.getPixel(new Point2D.Float(vertexFin.x,vertexIni.y));//x final y primer
             }else{
                 //hem pintat cap avall (CAS NORMAL!!)
-//                if(isDebug())log.writeNameNumPairs("config", true, "scalefitX,scalefitY,originX,originY", scalefitX,scalefitY,originX,originY);
                 pini = this.getPixel(vertexIni);
                 pfin = this.getPixel(vertexFin);
             }
@@ -711,6 +708,16 @@ public class Plot2DPanel {
 	    //create a new buffer and draw two image into the new image
 	    BufferedImage newImage = new BufferedImage(wid,height, BufferedImage.TYPE_INT_ARGB);
 	    Graphics2D g2 = newImage.createGraphics();
+	    
+        g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+	    
 	    Color oldColor = g2.getColor();
 	    //fill background
 	    g2.setPaint(Color.WHITE);
@@ -727,7 +734,6 @@ public class Plot2DPanel {
 	private void moveOrigin(float incX, float incY, boolean repaint) {
 	    // assignem un nou origen de la imatge amb un increment a les coordenades anteriors
 	    //  (util per moure'l fen drag del mouse)
-//	    if(isDebug())log.writeNameNums("fine", true, "incX,incY", incX,incY);
 	    originX = originX + FastMath.round(incX);
 	    originY = originY + FastMath.round(incY);
 	    if (repaint) {
@@ -767,42 +773,47 @@ public class Plot2DPanel {
 
 	private void savePNG(File fpng, float factor){
 
-      double pageWidth = panelImatge.getSize().width*factor;
-      double pageHeight = panelImatge.getSize().height*factor;
-      double imageWidth = panelImatge.getSize().width;
-      double imageHeight = panelImatge.getSize().height;
-
-      double scaleFactor = DataFileUtils.getScaleFactorToFit(
-              new Dimension((int) Math.round(imageWidth), (int) Math.round(imageHeight)),
-              new Dimension((int) Math.round(pageWidth), (int) Math.round(pageHeight)));
-
-      double legendPageWidth = panel_1.getSize().width*factor;
-      double legendPageHeight = panel_1.getSize().height*factor;
-      
-      int widthIMG = (int) Math.round(pageWidth);
-      int heightIMG = (int) Math.round(pageHeight);
-      int widthLEG = (int) Math.round(legendPageWidth);
-      int heightLEG = (int) Math.round(legendPageHeight);
-
       //creem les dues imatges
-      BufferedImage img = new BufferedImage(
-              widthIMG,
-              heightIMG,
-              BufferedImage.TYPE_INT_ARGB);
+	    BufferedImage img = new BufferedImage(
+	            (int)(panelImatge.getSize().width*factor),
+	            (int)(panelImatge.getSize().height*factor),
+	            BufferedImage.TYPE_INT_ARGB);
 
-      BufferedImage imgL = new BufferedImage(
-              widthLEG,
-              heightLEG,
-              BufferedImage.TYPE_INT_ARGB);
+	    BufferedImage imgL = new BufferedImage(
+	            (int)(panel_1.getSize().width*factor),
+	            (int)(panel_1.getSize().height*factor),
+	            BufferedImage.TYPE_INT_ARGB);
       Graphics2D g2d = img.createGraphics();
       Graphics2D g2dL = imgL.createGraphics();
-      g2d.scale(scaleFactor, scaleFactor);
-      g2dL.scale(scaleFactor, scaleFactor);
+      
+      g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+      g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+      g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+      g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+      g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+      g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+      g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+      g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+      g2d.setTransform(AffineTransform.getScaleInstance(factor, factor));
+      g2dL.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+      g2dL.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+      g2dL.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+      g2dL.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+      g2dL.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+      g2dL.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+      g2dL.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+      g2dL.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+      g2dL.setTransform(AffineTransform.getScaleInstance(factor, factor));
+      
+      
+//      g2d.scale(scaleFactor, scaleFactor);
+//      g2dL.scale(scaleFactor, scaleFactor);
       panelImatge.paintComponent(g2d);
       panel_1.paintComponents(g2dL);
       
       BufferedImage imgTOT = joinBufferedImage(img,imgL,0);
       g2d.dispose();
+      g2dL.dispose();
 
       try {
           ImageIO.write(imgTOT, "png", fpng);
@@ -858,7 +869,6 @@ public class Plot2DPanel {
 	        incY = (p.y - dragPoint.y);
 	        this.dragPoint = p;
 	        this.moveOrigin(incX, incY, true);    
-//	        if(isDebug())log.writeNameNumPairs("fine", true, "fX,fY,imX,imY,scfitX,scfitY,orX,orY,panw,panh", e.getPoint().x,e.getPoint().y,p.x,p.y,scalefitX,scalefitY,originX,originY,getPanelImatge().getWidth(),getPanelImatge().getHeight());
 	    }
 	    if (this.mouseZoom == true) {
 	        Point2D.Float p = new Point2D.Float(e.getPoint().x, e.getPoint().y);
@@ -939,12 +949,6 @@ public class Plot2DPanel {
 	private void do_btnSaveAsPng_actionPerformed(ActionEvent e) {
 	        File fpng = FileUtils.fchooserSaveNoAsk(plot2Ddialog, new File(D1Dplot_global.getWorkdir()), null,"png"); //ja preguntem despres
 	        if (fpng!=null){
-	//            fpng = FileUtils.canviExtensio(fpng, "png");
-	//            if (fpng.exists()){
-	//                int actionDialog = JOptionPane.showConfirmDialog(this,
-	//                        "Replace existing file?");
-	//                if (actionDialog == JOptionPane.NO_OPTION)return;
-	//            }
 	            int w = panelImatge.getSize().width+panel_llegenda.getSize().width;
 	            int h = panelImatge.getSize().height;
 	            String s = (String)JOptionPane.showInputDialog(
@@ -1124,16 +1128,22 @@ public class Plot2DPanel {
 	    
 	    public dades2d(){
 	        super();
-//	        logdebug("constructor dades2d called");
 	    }
 	    
 	    @Override
 	    protected void paintComponent(Graphics g) {
 	        super.paintComponent(g);
 	        
-//	        logdebug("paint Component dades2d called");
-	        
 	        Graphics2D g2 = (Graphics2D) g;
+	        
+            g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+            g2.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+            g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 	        
 	        if (getImage() != null) {
 	
@@ -1151,7 +1161,6 @@ public class Plot2DPanel {
 	            }
 	            try {
 	                subimage = getImage().getSubimage(rect.x, rect.y, rect.width, rect.height);
-	                //log.writeNameNumPairs("fine", true, "rect.x, rect.y,", rect.x, rect.y);
 	            } catch (Exception e) {
 	                if (D1Dplot_global.isDebug())e.printStackTrace();
 	                log.warning("Error getting the subImage");
@@ -1164,23 +1173,23 @@ public class Plot2DPanel {
 	            t.translate(offsetX, offsetY);
 	            t.scale(scalefitX, scalefitY);
 	            g2.drawImage(getSubimage(), t, null);
-	            final Graphics2D g1 = (Graphics2D) g2.create();
+//	            final Graphics2D g1 = (Graphics2D) g2.create();
 	            
 	            if (mouseBox) {
 	                if(isSquareSection()){
 	                    //un quadrat
-	                    dibuixarQuadrat(g1);
+	                    dibuixarQuadrat(g2);
 	                }else{
 	                    //dibueixem amb fitY
-	                    dibuixarSemiQuadrat(g1);
+	                    dibuixarSemiQuadrat(g2);
 	                }
 	            }
 	            
 	            if (isPosaTitols()){
-	                writeTitles(g1);
+	                writeTitles(g2);
 	            }
 	            
-	            g1.dispose();
+//	            g1.dispose();
 	            g2.dispose();
 	            
 	        }
@@ -1310,16 +1319,22 @@ public class Plot2DPanel {
 	            
 	            Graphics2D g2 = (Graphics2D) g;
 	            
+	            g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+	            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+	            g2.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+	            g2.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+	            g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+	            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+	            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+	            g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+	            
 	            if (getLlegenda() != null) {
 	                
 	                AffineTransform t = new AffineTransform();
 	                
-//	                if(isDebug())log.writeNameNumPairs("config", true, "widthPanelLLeg,scalefitYllegenda", panel_llegenda.getWidth(),scalefitYllegenda);
-	                
 	                t.scale(panel_llegenda.getWidth(), scalefitYllegenda);
 	                g2.drawImage(getLlegenda(), t, null);
 	                
-	//                g2.drawImage(getLlegenda(), 0, 0, null);
 	                g2.dispose();
 	                
 	            }

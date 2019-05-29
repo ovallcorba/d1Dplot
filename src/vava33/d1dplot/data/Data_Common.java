@@ -17,7 +17,7 @@ import java.util.List;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.jutils.VavaLogger;
 
-public class Data_Common implements Plottable{ //TODO no fa falta implementar el plottable des d'aqui
+public class Data_Common implements Plottable{
     
     private static final String className = "Data_Common";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
@@ -93,10 +93,6 @@ public class Data_Common implements Plottable{ //TODO no fa falta implementar el
         return series.size();
     }
     
-//    public void swapSeries(int orig, int dest) {
-//        Collections.swap(series, orig, dest);
-//    }
-    
     /**
      * replaces first occurence of the stype, otherwise adds the dataserie
      */
@@ -148,7 +144,6 @@ public class Data_Common implements Plottable{ //TODO no fa falta implementar el
         return null;
     }
     
-    
     public void setWavelengthToAllSeries(double wave) {
         for (DataSerie ds:this.getDataSeries()) {
             ds.setWavelength(wave);
@@ -166,6 +161,4 @@ public class Data_Common implements Plottable{ //TODO no fa falta implementar el
         if (series.size()>0)return series.get(0);
         return null;
     }
-    
 }
-

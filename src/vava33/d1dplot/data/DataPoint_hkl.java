@@ -38,7 +38,7 @@ public class DataPoint_hkl extends DataPoint implements Plottable_point{
             return new DataPoint_hkl(this.getX()+incX,this.getY()*factorY+incY,this.getSdy()*factorY,hkl);    
         }
     }
-    
+
     public String toString(){
         return hkl.toString();
     }

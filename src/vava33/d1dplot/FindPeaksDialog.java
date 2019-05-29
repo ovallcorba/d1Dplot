@@ -13,7 +13,6 @@ package com.vava33.d1dplot;
 import java.awt.BorderLayout;
 import javax.swing.JButton;
 import javax.swing.JDialog;
-import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -170,8 +169,6 @@ public class FindPeaksDialog {
                     }
                 });
                 slider.setOrientation(SwingConstants.VERTICAL);
-//                slider.setMaximum(400);
-//                slider.setValue(105);
                 slider.setPaintTicks(true);
                 slider.setPaintLabels(true);
                 panel.add(slider, "cell 0 1 2 4,grow");
@@ -241,8 +238,6 @@ public class FindPeaksDialog {
             boolean usebkg = chckbxUseBkgEstimation.isSelected();
             double tthmin = ds.getMinX();
             double tthmax = ds.getMaxX();            
-//            double tthmin = plotpanel.getSelectedSeries().get(0).getT2i();
-//            double tthmax = plotpanel.getSelectedSeries().get(0).getT2f();
             try{
                 tthmin=Double.parseDouble(txtTthmin.getText());
                 tthmax=Double.parseDouble(txtTthmax.getText());
@@ -266,7 +261,6 @@ public class FindPeaksDialog {
             ex.printStackTrace();
         }
         d1dmain.updateData(false,true); //ja conte actualitzarPlot
-//        plotpanel.actualitzaPlot();
     }
     
     
@@ -291,7 +285,6 @@ public class FindPeaksDialog {
 	}
 
 	private void do_slider_stateChanged(ChangeEvent arg0) {
-//        lblFact.setText(Float.toString((float)slider.getValue()/sliderFactDiv));
 	    lblFact.setText(String.format("%.2f", slider.getScaledValue()));
         this.autoPeakSearch();
     }
@@ -373,7 +366,6 @@ public class FindPeaksDialog {
     public void tanca() {
 	    plotpanel.setSelectingPeaks(false);
 	    plotpanel.setShowPeakThreshold(false);
-//	    plotpanel.getBkgseriePeakSearch().clearDataPoints();
 	    plotpanel.actualitzaPlot();
 	    findPeaksDialog.dispose();
 	}

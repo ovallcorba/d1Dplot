@@ -18,7 +18,7 @@ public class PatternsTableModel extends DefaultTableModel {
 
     private static final long serialVersionUID = -7255602787469780000L;
     public enum columns {
-        nP, nS, Filename, Color, Scale, ZerOff, Wavel, XUnits, YOffset, Marker, Line, ErrBars, Show,
+        nP, nS, Filename, Color, Scale, ZerOff, Wavel, XUnits, YOffset, Marker, Line, ErrBars, Show, Type
     }
     
     @SuppressWarnings("rawtypes")
@@ -129,7 +129,14 @@ public class PatternsTableModel extends DefaultTableModel {
                 case Show:
                     columnTypes[i]=Boolean.class;
                     columnEditables[i]=true;
-                    columnMinSize[i]=30;
+                    columnMinSize[i]=25;
+                    columnMaxSize[i]=80;
+                    columnPrefSize[i]=40;
+                    break;
+                case Type:
+                    columnTypes[i]=String.class;
+                    columnEditables[i]=true;
+                    columnMinSize[i]=25;
                     columnMaxSize[i]=80;
                     columnPrefSize[i]=40;
                     break;

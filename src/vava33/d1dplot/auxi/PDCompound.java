@@ -27,16 +27,12 @@ import com.vava33.d1dplot.data.Xunits;
 
 public class PDCompound implements Comparable<PDCompound>{
     
-//    private int cnumber; //compound number in the DB
     private List<String> compName;
     private Cell cella;
     private String formula;
     private String reference;
     private List<String> comment;
     private List<HKLrefl> peaks;
-    
-//    private static final String className = "PDcompound";
-//    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     public PDCompound(String name){
         this.compName = new ArrayList<String>();
@@ -46,7 +42,6 @@ public class PDCompound implements Comparable<PDCompound>{
         this.cella = new Cell(1,1,1,90,90,90,true); //ja posa -1
         formula="";
         reference="";
-
     }
     
     public PDCompound(String name, float a, float b, float c, float al, float be, float ga, String sg, String elem, List<HKLrefl> pks){
@@ -59,7 +54,6 @@ public class PDCompound implements Comparable<PDCompound>{
         this.cella = new Cell(a,b,c,al,be,ga,true,CellSymm_global.getSpaceGroupByName(sg, false));
         this.formula = elem;
     }
-    
     
     public String toString(){
         String altnames = this.getAltNames();
@@ -125,10 +119,8 @@ public class PDCompound implements Comparable<PDCompound>{
     }
     
     public String getCellParameters(){
-//        return String.format("%.4f %.4f %.4f %.3f %.3f %.3f", this.getA(),this.getB(),this.getC(), this.getAlfa(),this.getBeta(),this.getGamma());
         return this.cella.toStringCellParamOnly();
     }
-
     
     public Cell getCella() {
         return this.cella;
@@ -304,7 +296,6 @@ public class PDCompound implements Comparable<PDCompound>{
             return index;
         }
     }
-    
 
     @Override
     public int compareTo(PDCompound o) {

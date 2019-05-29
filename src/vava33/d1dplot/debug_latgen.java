@@ -32,8 +32,6 @@ import com.vava33.d1dplot.data.DataPoint_hkl;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.SerieType;
 import com.vava33.d1dplot.data.Xunits;
-import com.vava33.d1dplot.index.IndexSolution;
-
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
 import java.awt.event.KeyAdapter;
@@ -215,11 +213,6 @@ public class debug_latgen {
         panel.add(lblCrystf, "cell 0 0,alignx trailing");
         
         comboBoxCrystFam = new JComboBox<CrystalFamily>();
-//        comboBoxCrystFam.addItemListener(new ItemListener() {
-//            public void itemStateChanged(ItemEvent e) {
-//                do_comboBoxCrystFam_itemStateChanged(e);
-//            }
-//        });
         comboBoxCrystFam.setModel(new DefaultComboBoxModel<CrystalFamily>(CrystalFamily.values()));
         panel.add(comboBoxCrystFam, "cell 1 0,growx");
         
@@ -227,11 +220,6 @@ public class debug_latgen {
         panel.add(lblCentering, "cell 0 1,alignx trailing");
         
         comboBox = new JComboBox<CrystalCentering>();
-//        comboBox.addItemListener(new ItemListener() {
-//            public void itemStateChanged(ItemEvent e) {
-//                do_comboBox_itemStateChanged(e);
-//            }
-//        });
         comboBox.setModel(new DefaultComboBoxModel<CrystalCentering>(CrystalCentering.values()));
         panel.add(comboBox, "cell 1 1,growx");
         
@@ -281,12 +269,6 @@ public class debug_latgen {
     }
 
     private void init() {
-//        sliderA = new DoubleJSlider(0,30,5,10000);
-//        sliderB = new DoubleJSlider(0,30,5,10000);
-//        sliderC = new DoubleJSlider(0,30,5,10000);
-//        sliderAl = new DoubleJSlider(60,120,90,10000);
-//        sliderBe = new DoubleJSlider(60,120,90,10000);
-//        sliderGa = new DoubleJSlider(60,120,90,10000);
         
         txtA.setText(FileUtils.dfX_4.format(sliderA.getScaledValue()));
         txtB.setText(FileUtils.dfX_4.format(sliderB.getScaledValue()));
@@ -419,8 +401,7 @@ public class debug_latgen {
         Iterator<HKLrefl> itrh = refs.iterator();
         while (itrh.hasNext()) {
             HKLrefl hkl = itrh.next();
-            dsLatGen.addPoint(new DataPoint_hkl(hkl));    //(float) hkl.calct2((float) dsLatGen.getWavelength(),true)
-//            log.config(hkl.toString_HKL_tth_mult_Fc2((float) dsLatGen.getWavelength()));
+            dsLatGen.addPoint(new DataPoint_hkl(hkl));    
         }
         
         //ara ho posem a les unitats de la primera serie
@@ -433,15 +414,12 @@ public class debug_latgen {
         log.debug("tipus serie latgen="+dsLatGen.getTipusSerie()+" wave="+dsLatGen.getWavelength()+" scale="+dsLatGen.getScale());
         
         this.plotpanel.setIndexSolution(dsLatGen);
-//        this.main.updateData(false,true); //TODO:revisar el TRUE
     }
 
     protected void do_sliderA_stateChanged(ChangeEvent e) {
 
         txtA.setText(FileUtils.dfX_4.format(sliderA.getScaledValue()));
         updateDS();
-//        DoubleJSlider ds = (DoubleJSlider)e.getSource();
-//        if(ds.getValueIsAdjusting()) return;
         switch ((CrystalFamily) comboBoxCrystFam.getSelectedItem()) {
         case CUBIC:
             sliderB.setScaledValue(sliderA.getScaledValue());
