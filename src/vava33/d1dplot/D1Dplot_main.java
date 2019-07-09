@@ -119,6 +119,7 @@ public class D1Dplot_main {
     private Database DBDiag;
     private Plot2DPanel p2;
     private AboutDialog aboutDiag;
+    private FitPeakDialog fitPksDiag;
     private boolean customXtitle = false;
     private boolean firstTime = true;
 
@@ -193,6 +194,7 @@ public class D1Dplot_main {
     private JTextField txtFactor;
     private JSeparator separator_5;
     private JMenuItem mntmSaveProfile;
+    private JMenuItem mntmFitPeaks;
 
     /**
      * Launch the application.
@@ -838,6 +840,14 @@ public class D1Dplot_main {
                 do_mntmCalcBackground_actionPerformed(e);
             }
         });
+        
+        mntmFitPeaks = new JMenuItem("Fit Peaks");
+        mntmFitPeaks.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_mntmFitPeaks_actionPerformed(e);
+            }
+        });
+        mnOps.add(mntmFitPeaks);
         mnOps.add(mntmCalcBackground);
 
         mntmSubtractPatterns = new JMenuItem("Subtract patterns");
@@ -1433,7 +1443,7 @@ public class D1Dplot_main {
         patt.setOriginalWavelength(dss[0].getOriginalWavelength());
         patt.addDataSerie(suma);
         panel_plot.addPlottable(patt);
-        this.updateData(false,false);
+        this.updateData(false,true);
 
     }
 
@@ -2048,6 +2058,14 @@ public class D1Dplot_main {
         }
         FindPksDiag.visible(true);
     }
+    
+    private void do_mntmFitPeaks_actionPerformed(ActionEvent e) {
+        if (fitPksDiag == null) {
+            fitPksDiag = new FitPeakDialog(this.panel_plot);
+        }
+        fitPksDiag.visible(true);
+    }
+    
     private void do_mntmCalcBackground_actionPerformed(ActionEvent e) {
         if (bkgDiag == null) {
             bkgDiag = new BackgroundDialog(this.panel_plot,this);
@@ -2287,7 +2305,7 @@ public class D1Dplot_main {
             t2 = t2+step;
         }
         DataSerie dummy = new DataSerie(panel_plot.getPlottable(pattern).getDataSerie(serie),puntsdummy,panel_plot.getPlottable(pattern).getDataSerie(serie).getxUnits());
-
+        
         for (int i=0; i<=selRows.length-1;i++){
             int selRow = selRows[i];
             pattern = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
@@ -2401,5 +2419,6 @@ public class D1Dplot_main {
             log.debug(s);
         }
     }
+
 
 }
