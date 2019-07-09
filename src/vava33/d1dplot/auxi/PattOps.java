@@ -229,7 +229,6 @@ public final class PattOps {
         double t2i = FastMath.max(ds1.getPointWithCorrections(0,false).getX(), ds2.getPointWithCorrections(0,false).getX());
         double t2f = FastMath.min(ds1.getPointWithCorrections(ds1.getNpoints()-1,false).getX(), ds2.getPointWithCorrections(ds2.getNpoints()-1,false).getX());    
         
-        
         Plottable_point dp1ini = ds1.getClosestDP_xonly(t2i, tol);
         Plottable_point dp1fin = ds1.getClosestDP_xonly(t2f, tol);
         
@@ -339,24 +338,21 @@ public final class PattOps {
     public static DataSerie rebinDS(DataSerie DSorigin, DataSerie DStoConvert){
         
         DataSerie out = new DataSerie(DSorigin,DSorigin.getTipusSerie(),false); //ja l'afegirem al pattern despres si cal
-        
-        Plottable_point ini = DSorigin.getClosestDP_xonly(DStoConvert.getPointWithCorrections(1,false).getX(), 50.0);
-        Plottable_point fin = DSorigin.getClosestDP_xonly(DStoConvert.getPointWithCorrections(DStoConvert.getNpoints()-2,false).getX(), 50.0);
-        int iini = DSorigin.getIndexOfDP(ini);
-        int ifin = DSorigin.getIndexOfDP(fin);
-        
-        log.writeNameNumPairs("config", true, "iini,ifin", iini,ifin);
-        
-        for (int i=iini; i<=ifin; i++){
+      
+        for (int i=0; i<DSorigin.getNpoints(); i++){
+//            Plottable_point dp = DStoConvert.getClosestDP_xonly(DSorigin.getPointWithCorrections(i, false).getX(),-1.0);
             Plottable_point dp = DSorigin.getPointWithCorrections(i,false);
             Plottable_point[] surr = DStoConvert.getSurroundingDPs(dp.getX());
-            if (surr==null)continue;
-            //interpolem
+            if (surr==null) {
+                out.addPoint(new DataPoint(dp.getX(),0,0));
+                continue;
+            }
+            //not null --> interpolem
             double yinter = DStoConvert.interpolateY(dp.getX(), surr[0], surr[1]);
             double sdyinter = DStoConvert.interpolateSDY(dp.getX(), surr[0], surr[1]);
             out.addPoint(new DataPoint(dp.getX(),yinter,sdyinter));
         }
-        
+       
         return out;
     }
     

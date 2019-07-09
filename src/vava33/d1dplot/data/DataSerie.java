@@ -17,6 +17,7 @@ import java.util.List;
 
 import org.apache.commons.math3.util.FastMath;
 import com.vava33.d1dplot.D1Dplot_global;
+import com.vava33.d1dplot.PlotPanel;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.jutils.VavaLogger;
 
@@ -196,8 +197,8 @@ public class DataSerie {
                     maxY = punt.getY();
                 }
             }
-            if (FastMath.abs(minY-maxY)<1)maxY=minY+100;
-            if (FastMath.abs(minX-maxX)<1)maxX=minX+1;
+//            if (FastMath.abs(minY-maxY)<1)maxY=minY+100;
+//            if (FastMath.abs(minX-maxX)<1)maxX=minX+1;
             return new double[]{maxX,minX,maxY,minY};
         }else{
             return null;
@@ -596,7 +597,7 @@ public class DataSerie {
     }
 
     public double calcStep(){
-        return (this.getMaxX() - this.getMinX())/this.getNpoints();
+        return (this.getMaxX() - this.getMinX())/(this.getNpoints()-1);
     }
     
     private void logdebug(String s){
@@ -663,6 +664,22 @@ public class DataSerie {
             }
         }
         return found;
+    }
+    
+    public double[] getXasDoubleArray() {
+        double[] d = new double[this.getNpoints()];
+        for (int i=0;i<this.getNpoints();i++) {
+            d[i]=this.getPointWithCorrections(i, false).getX();
+        }
+        return d;
+    }
+    
+    public double[] getYasDoubleArray() {
+        double[] d = new double[this.getNpoints()];
+        for (int i=0;i<this.getNpoints();i++) {
+            d[i]=this.getPointWithCorrections(i, false).getY();
+        }
+        return d;
     }
     
     

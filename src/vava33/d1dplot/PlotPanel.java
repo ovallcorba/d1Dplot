@@ -4,14 +4,7 @@ package com.vava33.d1dplot;
  * D1Dplot
  * 
  * Plotting panel
- * 
- * Plotpanel pot tenir unes series propies que no s'han de mostrar a cap taula. Per exemple
- * el threshold del fons quan fem un peak search. Aquestes s'han de plotejar després de les
- * dataseries de les dades.
- * 
- * TODO: També s'hi podria afegir el estimBkg points de dataserie_pattern. De moment no ho faig però
- * si que tan bon punt tingui versio funcional ho he de fer. 
- * 
+ *
  * @author Oriol Vallcorba
  * Licence: GPLv3
  * 
@@ -706,6 +699,10 @@ public class PlotPanel {
         double x_high = x_low + this.calcPlotSpaceX();
         if ((px>x_low)&&(px<x_high))return true;
         return false;
+    }
+    
+    public boolean isXValueInsideGraphArea(double xvalue) {
+        return isFramePointInsideXGraphArea(this.getFrameXFromDataPointX(xvalue));
     }
     
     private Rectangle2D.Double getRectangleGraphArea(){
@@ -1515,6 +1512,10 @@ public class PlotPanel {
 	public String getXlabel() {
 	    return xlabel;
 	}
+	
+	public double[] getXrangesMinMax() {
+	    return new double[]{this.xrangeMin,this.xrangeMax};
+	}
 
 	public void setXlabel(String xlabel) {
 	    this.xlabel = xlabel;
@@ -2063,8 +2064,8 @@ public class PlotPanel {
             double yfinPrim = coordYeixX + (div_PrimPixSize/2.f);
 
             //ara dibuixem les Primaries i posem els labels
-            double xval = div_startValX;
-            while (xval <= xrangeMax){
+            double xval = div_startValX;//TODO en el cas !fixAxes hauriem de fer xval=xRangeMin i fer que fos "multiple" del valor entrat com a div_startvalX
+            while (xval <= xrangeMax){ //TODO: revisar si es vol fer aquest comportament... sino hauria de canviar per xMax i xMin si volem ajustar a on hi ha pattern
                 if (xval < xrangeMin){
                     xval = xval + div_incXPrim;
                     continue;
@@ -2083,7 +2084,8 @@ public class PlotPanel {
                 xval = xval + div_incXPrim;
                 g1.setFont(font);
 
-                if(xval> (int)(1+xMax))break; //provem de posar-ho aqui perque no dibuixi mes enllà
+                //calia aquesta linia?
+//                if(xval> (int)(1+xMax))break; //provem de posar-ho aqui perque no dibuixi mes enllà
             }
 
             //ara les secundaries
@@ -2110,7 +2112,7 @@ public class PlotPanel {
                     g1.setStroke(stroke); //recuperem l'anterior
                 }
 
-                if(xval> (int)(1+xMax))break; //provem de posar-ho aqui perque no dibuixi mes enllà
+//                if(xval> (int)(1+xMax))break; //provem de posar-ho aqui perque no dibuixi mes enllà
             }
 
             if (verticalYAxe) {

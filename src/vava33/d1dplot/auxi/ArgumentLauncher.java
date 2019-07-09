@@ -373,7 +373,7 @@ public final class ArgumentLauncher {
                     continue;
                 }
                 patts.add(p);
-                ConsoleWritter.statf("== File %s readed!"+f.getAbsolutePath());
+                ConsoleWritter.statf("== File %s readed!",f.getAbsolutePath());
             }
             
             String outfname = FileUtils.getFNameNoExt(patts.get(0).getFile())+suffix;
@@ -391,7 +391,7 @@ public final class ArgumentLauncher {
             for (int i=1; i<dss.length; i++){
                 boolean coin = PattOps.haveCoincidentPointsDS(dss[0], dss[i]);
                 if (!coin){
-                    ConsoleWritter.statf("Rebinning required for %s"+dss[i].getParent().getFile().getParent());
+                    ConsoleWritter.statf("Rebinning required for %s",dss[i].getParent().getFile().getParent());
                     dss[i] = PattOps.rebinDS(dss[0], dss[i]);
                 }
             }
@@ -409,7 +409,7 @@ public final class ArgumentLauncher {
             if (changeWave) patt = changeWavelength(patt,inWave,outWave); 
             if (changeXunits) patt = changeXunits(patt,inWave,outXunits);
             
-            writePlottableMainSerie(outf,patt,guessOutFormat(outFormat,inFormat,patt.getFile()));
+            writePlottableMainSerie(outf,patt,guessOutFormat(outFormat,inFormat,dss[0].getParent().getFile()));
         }
 
         if (dodiff) {
@@ -419,7 +419,7 @@ public final class ArgumentLauncher {
                 ConsoleWritter.stat("Error reading background file. Aborting...");
                 return;
             }
-            ConsoleWritter.statf("== Background file %s"+fitxers.get(0).getAbsolutePath());
+            ConsoleWritter.statf("== Background file %s",fitxers.get(0).getAbsolutePath());
             fitxers.remove(0); //treiem el fons, ja esta llegit
             
             for (File f:fitxers) {
@@ -428,7 +428,7 @@ public final class ArgumentLauncher {
                     ConsoleWritter.statf("Error reading %s, skipping...",f.getAbsolutePath());
                     continue;
                 }
-                ConsoleWritter.statf("== Subtracting background to %s"+f.getAbsolutePath());
+                ConsoleWritter.statf("== Subtracting background to %s",f.getAbsolutePath());
                 String outfname = FileUtils.getFNameNoExt(p.getFile().getName())+suffix;
                 File outf = FileUtils.canviNomFitxer(p.getFile(), outfname);
                 
@@ -468,7 +468,7 @@ public final class ArgumentLauncher {
                 if (changeWave) patt = changeWavelength(patt,inWave,outWave); 
                 if (changeXunits) patt = changeXunits(patt,inWave,outXunits);
                 
-                writePlottableMainSerie(outf,patt,guessOutFormat(outFormat,inFormat,patt.getFile()));
+                writePlottableMainSerie(outf,patt,guessOutFormat(outFormat,inFormat,f));
             }
         }
 
@@ -480,7 +480,7 @@ public final class ArgumentLauncher {
                     ConsoleWritter.statf("Error reading %s, skipping...",f.getAbsolutePath());
                     continue;
                 }
-                ConsoleWritter.statf("== Rebinning %s"+f.getAbsolutePath());
+                ConsoleWritter.statf("== Rebinning %s",f.getAbsolutePath());
                 String outfname = FileUtils.getFNameNoExt(p.getFile().getName())+suffix;
                 File outf = FileUtils.canviNomFitxer(p.getFile(), outfname);
                 
@@ -503,7 +503,7 @@ public final class ArgumentLauncher {
                 if (changeWave) patt = changeWavelength(patt,inWave,outWave); 
                 if (changeXunits) patt = changeXunits(patt,inWave,outXunits);
 
-                writePlottableMainSerie(outf,patt,guessOutFormat(outFormat,inFormat,patt.getFile()));
+                writePlottableMainSerie(outf,patt,guessOutFormat(outFormat,inFormat,f));
                 
             }
         }
@@ -552,7 +552,8 @@ public final class ArgumentLauncher {
     //-- 3) escriure DAT alba
     public static SupportedWriteExtensions guessOutFormat(SupportedWriteExtensions outfmt, SupportedReadExtensions infmt, File infile) {
         if (outfmt!=null)return outfmt;
-        SupportedWriteExtensions ext = DataFileUtils.getWriteExtEnum(infmt.name());
+        SupportedWriteExtensions ext = null;
+        if (infmt!=null) ext = DataFileUtils.getWriteExtEnum(infmt.name());
         if (ext!=null)return ext;
         ext = DataFileUtils.getWriteExtEnum(FileUtils.getExtension(infile));
         if (ext!=null)return ext;
