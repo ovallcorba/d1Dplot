@@ -21,6 +21,8 @@ import javax.swing.border.EmptyBorder;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
 import com.vava33.d1dplot.auxi.PseudoVoigt;
+import com.vava33.d1dplot.auxi.PseudoVoigt.Gaussian;
+import com.vava33.d1dplot.auxi.PseudoVoigt.Lorentzian;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.Data_Common;
@@ -85,6 +87,7 @@ public class FitPeakDialog {
     private JTextField txtYmax;
     private JTextField txtBkgi;
     private JTextField txtBkgp;
+    private JTable tablePV;
     
     /**
      * Create the dialog.
@@ -94,7 +97,7 @@ public class FitPeakDialog {
         this.plotpanel = p;
         this.contentPanel = new JPanel();
         fitPkDialog.setIconImage(D1Dplot_global.getIcon());
-        fitPkDialog.setBounds(100, 100, 814, 183);
+        fitPkDialog.setBounds(100, 100, 814, 227);
         fitPkDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         fitPkDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);
@@ -103,7 +106,7 @@ public class FitPeakDialog {
             JPanel panel = new JPanel();
             panel.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
             contentPanel.add(panel, "cell 0 0 2 1,grow");
-            panel.setLayout(new MigLayout("", "[grow][grow][][grow][][grow][][grow][][grow][][grow]", "[][]"));
+            panel.setLayout(new MigLayout("", "[grow][grow][][grow][][grow][][grow][][grow][][grow][]", "[][][grow]"));
             {
                 JRadioButton rdbtnPseudovoigt = new JRadioButton("PseudoVoigt");
                 rdbtnPseudovoigt.setSelected(true);
@@ -162,6 +165,47 @@ public class FitPeakDialog {
                 txtBkgp = new JTextField();
                 panel.add(txtBkgp, "cell 11 1,growx");
                 txtBkgp.setColumns(10);
+            }
+            {
+                JButton btnAdd = new JButton("add");
+                btnAdd.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        do_btnAdd_actionPerformed(e);
+                    }
+                });
+                panel.add(btnAdd, "cell 12 1");
+            }
+            {
+                JScrollPane scrollPane = new JScrollPane();
+                panel.add(scrollPane, "cell 0 2 12 1,grow");
+                {
+                    tablePV = new JTable();
+                    tablePV.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+                    tablePV.setModel(new DefaultTableModel(
+                        new Object[][] {
+                        },
+                        new String[] {
+                            "Mean", "FWHM", "eta", "Ymax", "Y_bkg", "m_bkg"
+                        }
+                    ) {
+                        Class[] columnTypes = new Class[] {
+                            Double.class, Double.class, Double.class, Double.class, Double.class, Double.class
+                        };
+                        public Class getColumnClass(int columnIndex) {
+                            return columnTypes[columnIndex];
+                        }
+                    });
+                    scrollPane.setViewportView(tablePV);
+                }
+            }
+            {
+                JButton btnDel = new JButton("del");
+                btnDel.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        do_btnDel_actionPerformed(e);
+                    }
+                });
+                panel.add(btnDel, "cell 12 2");
             }
         }
         {
@@ -232,13 +276,30 @@ public class FitPeakDialog {
     }
     
     protected void do_btnPlot_actionPerformed(ActionEvent e) {
-        PseudoVoigt pv = this.getPVfromFields();
+        if (tablePV.getRowCount()<=0)return;
+        DefaultTableModel dm = (DefaultTableModel) tablePV.getModel();
+        List<PseudoVoigt> pvs = new ArrayList<PseudoVoigt>();
+        for (int i=0;i<tablePV.getRowCount();i++) {
+            double mean = (Double)dm.getValueAt(i, 0);
+            double fwhm = (Double)dm.getValueAt(i, 1);
+            double eta = (Double)dm.getValueAt(i, 2);
+            double ymax = (Double)dm.getValueAt(i, 3);
+            double ibkg = (Double)dm.getValueAt(i, 4);
+            double mbkg = (Double)dm.getValueAt(i, 5);
+            pvs.add(new PseudoVoigt(mean,fwhm,eta,ymax,ibkg,mbkg));
+        }
+        
         double[] xminmax = plotpanel.getXrangesMinMax();
         double step = plotpanel.getFirstSelectedPlottable().getMainSerie().calcStep();
         double xval = xminmax[0];
         List<Plottable_point> calc = new ArrayList<Plottable_point>();
         while (xval<xminmax[1]) {
-            calc.add(new DataPoint(xval,pv.eval(xval),0));
+            DataPoint dp = new DataPoint(xval,0,0);
+            for(PseudoVoigt pv:pvs) {
+                dp.setY(dp.getY()+pv.eval(xval,false)); //TODO el fons nomes s'hauria d'afegir un cpo
+            }
+            dp.setY(dp.getY()+pvs.get(0).getBkgValue(xval));
+            calc.add(dp);
             xval = xval + step;
         }
         DataSerie dscalc = new DataSerie(plotpanel.getFirstSelectedPlottable().getMainSerie(),calc,plotpanel.getFirstSelectedPlottable().getMainSerie().getxUnits());
@@ -247,7 +308,16 @@ public class FitPeakDialog {
         D1Dplot_global.getD1Dmain().updateData(false, true);
     }
     
+    private void clearTable() {
+        if (tablePV.getRowCount()<=0)return;
+        DefaultTableModel dm = (DefaultTableModel) tablePV.getModel();
+        dm.setRowCount(0);
+    }
+    
     private void do_btnFit_actionPerformed(ActionEvent e) {
+        //borrem taula primer
+        this.clearTable();
+        
         
         /*
          * Take the selected pattern region shown in the window and try to fit one or more peaks there. Ideally one should select the peaks before (findpeaks).
@@ -291,31 +361,43 @@ public class FitPeakDialog {
         case 0: //PV
             //estimates TODO intentar agafar els que hi ha als textbox si es que hi ha
             
-            double bkgI = punts.getPointWithCorrections(0, false).getY(); //primer punt
-            double eta = 0.2;
-            double ymax = peaks.getPointWithCorrections(0, false).getY()-bkgI;
-            double fwhm = 0.02;
+//            double bkgI = punts.getPointWithCorrections(0, false).getY(); //primer punt
+            double bkgI = punts.getPuntsMaxXMinXMaxYMinY()[3];
+            double eta = 0.5;
+//            double ymax = peaks.getPointWithCorrections(0, false).getY()-bkgI;
+            double fwhm = 0.05;
             double bkgP = 0;
-            double xpos = peaks.getPointWithCorrections(0, false).getX(); //TODO: POSO NOMES UN PER PROVAR
-            PseudoVoigt pv = new PseudoVoigt(xpos,fwhm,eta,ymax,bkgI,bkgP);
+//            double xpos = peaks.getPointWithCorrections(0, false).getX(); //TODO: POSO NOMES UN PER PROVAR
+//            PseudoVoigt pv = new PseudoVoigt(xpos,fwhm,eta,ymax,bkgI,bkgP);
+            
+            double[] xpos = peaks.getXasDoubleArray();
+            double[] ymax = peaks.getYasDoubleArray();
+            for (int i=0;i<ymax.length;i++) {
+                ymax[i] = ymax[i] - bkgI;
+            }
+            
+            PseudoVoigt pv = new PseudoVoigt(xpos[0],fwhm,eta,ymax[0],bkgI,bkgP); //primer punt
             
             log.debug("(guess)"+pv.toString());
             
-            pv.fit(punts);
+//            pv.fit(punts);
+            
+            double[] opt_xpos = pv.fitMultipleMeans(punts, xpos, ymax);
+            
+            pv.updateFunctions(opt_xpos[0], opt_xpos[xpos.length]); //actualitzo la primera
             this.setFieldFromPV(pv);
-            
-            //afegim dataserie
-            List<Plottable_point> calc = new ArrayList<Plottable_point>();
-            for (int i=0; i<punts.getNpoints();i++) {
-                double x = punts.getPointWithCorrections(i, false).getX();
-                calc.add(new DataPoint(x,pv.eval(x),0));
+            this.addToTable(pv);
+            //ara la resta
+            log.writeNameNumPairs("info", true, "xpos,ymax,opt", xpos.length,ymax.length,opt_xpos.length);
+            for (int i=1;i<xpos.length;i++) {
+                log.info(Integer.toString(i));
+                PseudoVoigt npv = new PseudoVoigt(pv);
+                npv.updateFunctions(opt_xpos[i], opt_xpos[i+xpos.length]);
+                this.addToTable(npv);
             }
-            
-            DataSerie dscalc = new DataSerie(plotpanel.getFirstSelectedPlottable().getMainSerie(),calc,plotpanel.getFirstSelectedPlottable().getMainSerie().getxUnits());
-            dscalc.setTipusSerie(SerieType.cal);
-            plotpanel.getFirstSelectedPlottable().addDataSerie(dscalc);
-            D1Dplot_global.getD1Dmain().updateData(false, true);
-            
+
+            this.do_btnPlot_actionPerformed(null);
+
             break;
         case 1:
             break;
@@ -327,6 +409,22 @@ public class FitPeakDialog {
         }
     }
 
-    
+    private void addToTable(PseudoVoigt pv) {
+        DefaultTableModel dm = (DefaultTableModel) tablePV.getModel();
+        double[] row = pv.getPars();
+        Object[] orow = new Object[] {row[0],row[1],row[2],row[3],row[4],row[5]};
+        dm.addRow(orow);
+    }
 
+    protected void do_btnAdd_actionPerformed(ActionEvent e) {
+        this.addToTable(this.getPVfromFields());
+    }
+    protected void do_btnDel_actionPerformed(ActionEvent e) {
+        int[] is = tablePV.getSelectedRows();
+        DefaultTableModel dm = (DefaultTableModel) tablePV.getModel();
+        for (int i=0;i<is.length;i++) {
+            dm.removeRow(is[i]); //TODO peta perque al treure un row el num disminueix i hi ha un arrayoutofbounds
+        }
+        
+    }
 }

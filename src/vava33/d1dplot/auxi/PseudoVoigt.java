@@ -51,9 +51,30 @@ public class PseudoVoigt {
         this.ymax=ymax;
     }
     
-    public double eval(double x) {
+    //actualitza els parametres a partir d'una altra PV
+    public PseudoVoigt(PseudoVoigt pvToCopyParametersFrom) {
+        this.mean=pvToCopyParametersFrom.mean;
+        this.fwhm=pvToCopyParametersFrom.fwhm;
+        this.eta=pvToCopyParametersFrom.eta;
+        this.ymax=pvToCopyParametersFrom.ymax;
+        this.bkgI=pvToCopyParametersFrom.bkgI;
+        this.bkgP=pvToCopyParametersFrom.bkgP;
+        this.gaus=new Gaussian(this.mean,this.fwhm);
+        this.lor=new Lorentzian(this.mean,this.fwhm);
+    }
+    
+    public double eval(double x, boolean addbkg) {
          double pv = eta*this.lor.eval(x)+(1-eta)*this.gaus.eval(x);
-         return this.ymax*pv + this.bkgP*(x-this.mean)+this.bkgI;
+         if(addbkg) {
+             return this.ymax*pv + this.bkgP*(x-this.mean)+this.bkgI;    
+         }else {
+             return this.ymax*pv;
+         }
+         
+    }
+    
+    public double getBkgValue(double x) {
+        return this.bkgP*(x-this.mean)+this.bkgI;
     }
     
     public double[] getPars() {
@@ -68,7 +89,7 @@ public class PseudoVoigt {
                 double res = 0;
                 for (int i=0; i<obsdata.getNpoints();i++) {
                     PseudoVoigt pv = new PseudoVoigt(pars[0],pars[1],pars[2],pars[3],pars[4],pars[5]);
-                    double ycal = pv.eval(obsdata.getPointWithCorrections(i, false).getX());
+                    double ycal = pv.eval(obsdata.getPointWithCorrections(i, false).getX(),true);
                     res = res + FastMath.abs(ycal-obsdata.getPointWithCorrections(i,false).getY());
                 }
                 return res;
@@ -98,6 +119,104 @@ public class PseudoVoigt {
         
     }
 
+    
+    //agafa els parametres d'aquesta pseudovoigt pero ajusta a varis valors de mean i ymax
+    //retorna els valors mean i ymax actualitzats (i s'actualitza la pseudovoigt amb els nous parametres) --> array continu
+    public double[] fitMultipleMeans(final DataSerie obsdata, final double[] means, final double[] ymaxs) {
+        
+        MultivariateFunction function = new MultivariateFunction() {
+            @Override
+            public double value(double[] pars) {
+                double res = 0;
+                for (int i=0; i<obsdata.getNpoints();i++) {
+                    
+                    //calculem la contribució al punt de totes les PVs
+                    double ycal = 0;
+                    for (int j=0;j<means.length;j++) {
+                        PseudoVoigt pv = new PseudoVoigt(pars[j+4],pars[0],pars[1],pars[j+4+means.length],pars[2],pars[3]);
+                        ycal = ycal + pv.eval(obsdata.getPointWithCorrections(i, false).getX(),true);   //REALMENT PODRIA FER EVAL SENSE FONS I FER EL FONS GLOBAL AL FINAL --> SERIA MOLT MILLOR
+                    }
+                    
+                    res = res + FastMath.abs(ycal-obsdata.getPointWithCorrections(i,false).getY());
+                }
+                return res;
+            }
+        };
+        double[] pars = new double[means.length+ymaxs.length+4];
+        double[] inc = new double[means.length+ymaxs.length+4];
+        
+        pars[0]=this.fwhm;
+        pars[1]=this.eta;
+//        pars[2]=this.ymax;
+        pars[2]=this.bkgI;
+        pars[3]=this.bkgP;
+        inc[0]=0.001;
+        inc[1]=0.01;
+//        inc[2]=10;
+        inc[2]=1;
+        inc[3]=0.1;
+        for (int i=0;i<(means.length);i++) {
+            pars[i+4]=means[i];
+            inc[i+4]=0.00005;
+        }
+        for (int i=0;i<(ymaxs.length);i++) {
+            pars[i+4+means.length]=ymaxs[i];
+            inc[i+4+means.length]=1;
+        }
+        
+        SimplexOptimizer optimizer = new SimplexOptimizer(1e-5, 1e-10);
+        PointValuePair optimum = optimizer.optimize(
+                new MaxEval(10000), 
+                new ObjectiveFunction(function), 
+                GoalType.MINIMIZE, 
+                new InitialGuess(pars), 
+                new NelderMeadSimplex(inc));//,1,2,0.5,0.5
+//                new MultiDirectionalSimplex(inc));
+
+        log.debug("opt sol="+Arrays.toString(optimum.getPoint()) + " : " + optimum.getSecond());
+        
+        this.fwhm=optimum.getPoint()[0];
+        this.eta=optimum.getPoint()[1];
+//        this.ymax=optimum.getPoint()[2];
+        this.bkgI=optimum.getPoint()[2];
+        this.bkgP=optimum.getPoint()[3];
+//        this.mean=optimum.getPoint()[5]; //TODO no se si posar-ho aqui
+//        this.gaus=new Gaussian(this.mean,this.fwhm);
+//        this.lor=new Lorentzian(this.mean,this.fwhm);
+        
+        //ara preparem retornar els altres means
+        double[] optmeans = new double[means.length+ymaxs.length];
+        for (int i=0;i<means.length;i++) { //ATENCIO l'actual també es posa!
+            optmeans[i]=optimum.getPoint()[i+4];
+        }
+        for (int i=0;i<ymaxs.length;i++) { //ATENCIO l'actual també es posa!
+            optmeans[i+means.length]=optimum.getPoint()[i+means.length+4];
+        }
+        return optmeans;
+    }
+    
+//    public void updateFunctions(double mean, double fwhm) {
+//        this.mean=mean;
+//        this.fwhm=fwhm;
+//        this.gaus=new Gaussian(mean,fwhm);
+//        this.lor=new Lorentzian(mean,fwhm);
+//    }
+    
+    public void updateFunctions(double mean, double ymax) {
+        this.mean=mean;
+        this.ymax=ymax;
+        this.gaus=new Gaussian(mean,this.fwhm);
+        this.lor=new Lorentzian(mean,this.fwhm);
+    }
+    
+    //actualitza els parametres a partir d'una altra PV
+    public void set_fwhm_eta_bkg_from_other_PV(PseudoVoigt pvToCopyParametersFrom) {
+        this.fwhm=pvToCopyParametersFrom.fwhm;
+        this.eta=pvToCopyParametersFrom.eta;
+        this.bkgI=pvToCopyParametersFrom.bkgI;
+        this.bkgP=pvToCopyParametersFrom.bkgP;
+    }
+    
     public class Gaussian{
         double mean, fwhm;
         
