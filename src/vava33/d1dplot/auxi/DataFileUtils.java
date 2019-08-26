@@ -1127,6 +1127,13 @@ public final class DataFileUtils {
             return null;
         }
     }
+    
+    //refem el prf considerant que hkl pot haver-hi en qualsevol línia!! (no només després del bloc de dades)
+    //      1.5603    21115.          0.     -79575.          0.         12.8399      -39786    (  1  0  0)   0  1
+    //podem veure quin format es segons el header (que es diferent segons el cas):
+    // 2Theta   Yobs    Ycal    Yobs-Ycal   Backg   Posr    (hkl)   K
+    // 2Theta   Yobs    Ycal    Yobs-Ycal   Backg   Bragg   Posr    (hkl)   K
+    // o be fer-ho a saco mirant la longitud de cada linia
 
     private static Data_Common readPRF(File f){
         boolean readed = true;
@@ -1307,14 +1314,22 @@ public final class DataFileUtils {
     //DONE seria millor que plotpanel tingues un "toString" que t'ho passes tot ja directament
     //TODO lo seu seria guardar TOTES les dades i no dependre de fitxers... seria portable pero podria ocupar bastant...
     // s'hauria de preguntar al guardar (relative paths to files or all packed)
-    public static boolean writeProject(File stateFile, PlotPanel p) {
+    public static boolean writeProject(File stateFile, boolean overwrite, PlotPanel p, boolean fullData) {
     	
+        if (stateFile.exists()&&!overwrite)return false;
+        if (stateFile.exists()&&overwrite)stateFile.delete();
+        
         boolean written = true;
         PrintWriter out = null;
         try {
             out = new PrintWriter(new BufferedWriter(new FileWriter(stateFile,true)));//        	//guardar axis info, zoom, bounds, etc...
+            
+            out.println(FileUtils.getCharLine('=', 80));
+            out.println(FileUtils.getCenteredString("d1Dplot project File", 80));
+            out.println(FileUtils.getCharLine('=', 80));
+            out.println(String.format("w=%d h=%d %s", D1Dplot_global.getD1DmainFrame().getWidth(),D1Dplot_global.getD1DmainFrame().getHeight(),fullData));
             out.println(p.getVisualParametersToSave());
-            out.println("-----------");
+            out.println(FileUtils.getCharLine('-', 80));
             
         	//guardar patterns/series amb tots els seus paràmetres de visualització
             int np = 0;
@@ -1322,7 +1337,9 @@ public final class DataFileUtils {
             for (int i=0;i<p.getNplottables();i++) {
                 Plottable plt = p.getPlottable(i);
                 String filePath = plt.getFile().getAbsolutePath();
+                out.println("PL");
                 out.println(String.format("%d %s", np, filePath));
+                
                 int nd = 0;
         	    for(DataSerie d:plt.getDataSeries()) { //TODO cal refer. posar el tipus. etc.. o llegir de nou al carregar
                     String nam = d.serieName;
@@ -1345,14 +1362,18 @@ public final class DataFileUtils {
                         //TODO: cal guardarla tota
                         
                     }
-                    
+
+                    out.println("DS");
                     out.println(String.format("%d %s %s", nd, typ, nam)); //el nom podria tenir espais!! per aixo el deixo com a ultim
                     out.println(String.format("%s %s %s %s %s %s %s %s %s %s", col,sca,zof,wav,xun,yof,mar,lin,err,plo));
-                    
-        	        nd++;
+                    if (fullData) {
+                        out.println(getDAT_ALBA(d,false));    
+                    }
+
+                    nd++;
         	    }
         	    np++;
-                out.println("-----------");
+                out.println(FileUtils.getCharLine('-', 80));
         	}
                         
         }catch(Exception ex) {
@@ -1370,78 +1391,117 @@ public final class DataFileUtils {
         try {
             sf = new Scanner(stateFile);
 
-            //4 primere linies fixes
+            // primeres linies fixes
             String line = sf.nextLine();
+            line = sf.nextLine();
+            line = sf.nextLine();
+            
+            line = sf.nextLine();
+            String[] vals0 = line.trim().split("\\s+");
+            int width = Integer.parseInt(vals0[0].trim().split("=")[1]);
+            int height = Integer.parseInt(vals0[1].trim().split("=")[1]);
+            boolean fulldata = Boolean.parseBoolean(vals0[2].trim());
+
+            m.getMainFrame().setBounds(m.getMainFrame().getX(), m.getMainFrame().getY(), width, height); //TODO:test a veure si funciona que no crec...
+//            D1Dplot_global.getD1DmainFrame().repaint(); //mirar si cal o no aixo
+            
+            line = sf.nextLine();
             String[] vals1 = line.trim().split("\\s+");
 
             line = sf.nextLine();
             String[] vals2 = line.trim().split("\\s+");
 
+            line = sf.nextLine();
+            String[] vals3 = line.trim().split("\\s+");
+            
             String xlabel = sf.nextLine();
             String ylabel = sf.nextLine();
-
+            
             //ara els patterns series
             Plottable currentPlottable=null;
+            boolean readNext=true;
+//            int nplottable=0;
             while (sf.hasNextLine()){
-                line = sf.nextLine();
-                log.debug(line);
-                if (line.startsWith("---")) {
-                    //new pattern if nextline
-                    if (sf.hasNextLine()) {
-                        line = sf.nextLine();	
-                        log.debug(line);
-                        if (line.trim().isEmpty())break;
-                        //                		vals = line.trim().split("\\s+");
-                        //                		int npat = Integer.parseInt(vals[0]);
-                        String fname = line.substring(line.indexOf(" "));
-                        log.debug(fname);
-                        currentPlottable=DataFileUtils.readPatternFile(new File(fname.trim()));
-                        p.addPlottable(currentPlottable);
-                        continue; //seguim llegint les dataseries
-                    }else {
-                        break;
-                    }
+                if(readNext) {
+                    line = sf.nextLine();
+                }else {
+                    readNext=true;
                 }
                 if (line.trim().isEmpty())continue;
-
-                //aqui estem dins un pattern
-                if (currentPlottable!=null) {
+                log.debug(line);
+                if (line.trim().startsWith("PL")) { //new plottable
+                    line = sf.nextLine();
+                    log.debug(line);
                     String[] vals = line.trim().split("\\s+");
+//                    nplottable = Integer.parseInt(vals[0]);
+                    String fname = String.join(" ", Arrays.asList(vals).subList(1, vals.length));
+                    log.debug(fname);
+                    if (!fulldata) {
+                        currentPlottable=DataFileUtils.readPatternFile(new File(fname.trim()));
+                    }else {
+                        //hi ha les dades, creem un plottable buit
+                        currentPlottable=new Data_Common();
+                    }
+                    p.addPlottable(currentPlottable);
+                    continue; //seguim llegint les dataseries
+                }
+
+                if (line.trim().startsWith("DS")) { //new dataserie al currentPlottable
+                    //llegim primer els "parametres"
+                    line = sf.nextLine();
+                    log.debug(line);
+                    String[] vals = line.trim().split("\\s+");
+                    int nDS = Integer.parseInt(vals[0]);
                     SerieType styp = SerieType.getEnum(vals[1]);
                     if (styp==null)styp=SerieType.dat;
                     String dsname = String.join(" ", Arrays.asList(vals).subList(2, vals.length));
-
-                    //get the serie type of the currentPlottable
-                    for (DataSerie ds:currentPlottable.getDataSeries()) {
-                        if (ds.getTipusSerie()==styp) {
-                            //es aquesta
-                            ds.serieName=dsname.trim();
-                            //seguent linia
+                    //seguent linia (parametres)
+                    line = sf.nextLine();
+                    log.debug(line);
+                    vals = line.trim().split("\\s+");
+                    
+                    //ara..
+                    //    ..o be apliquem directament els "parametres" a la serie ja llegida (cas no fullData) 
+                    //    ..o llegim les dades i apliquem parametres (cas fullData)
+                    
+                    if (fulldata) {
+                        //cal llegir i afegir primer la serie abans d'aplicar els parametres
+                        StringBuilder sb = new StringBuilder();
+                        while(sf.hasNextLine()) {
                             line = sf.nextLine();
                             log.debug(line);
-                            vals = line.trim().split("\\s+");
-                            
-                            ds.color=FileUtils.getColor(Integer.parseInt(vals[0]));
-                            ds.setScale(Float.parseFloat(vals[1]));
-                            ds.setZerrOff(Double.parseDouble(vals[2]));
-                            ds.setWavelength(Double.parseDouble(vals[3]));
-                            ds.setYOff(Double.parseDouble(vals[5]));
-                            ds.markerSize=Float.parseFloat(vals[6]);
-                            ds.lineWidth=Float.parseFloat(vals[7]);
-                            ds.showErrBars=Boolean.parseBoolean(vals[8]);
-                            ds.plotThis=Boolean.parseBoolean(vals[9]);
-                            
+                            if (line.trim().startsWith("PL")||line.trim().startsWith("DS")||line.trim().startsWith("----")) {
+                                readNext=false; //solucio una mica cutre...
+                                break;
+                            }
+                            //la linea es part de les dades
+                            sb.append(line);
+                            sb.append(D1Dplot_global.lineSeparator);
                         }
+                        currentPlottable.addDataSerie(readDAT(sb.toString(),dsname).getDataSerie(0)); //TODO hem fet la prova amb read DAT pero hauria de fer-ho segons el tipus
+                        
                     }
+                    //ara tant sigui a partir del fitxer com a partir de llegir-lo apart tindrem la dataserie al numero que toca
+                    DataSerie ds = currentPlottable.getDataSerie(nDS);
+                    ds.serieName=dsname.trim();
+                    ds.color=FileUtils.getColor(Integer.parseInt(vals[0]));
+                    ds.setScale(Float.parseFloat(vals[1]));
+                    ds.setZerrOff(Double.parseDouble(vals[2]));
+                    ds.setWavelength(Double.parseDouble(vals[3]));
+                    ds.setYOff(Double.parseDouble(vals[5]));
+                    ds.markerSize=Float.parseFloat(vals[6]);
+                    ds.lineWidth=Float.parseFloat(vals[7]);
+                    ds.showErrBars=Boolean.parseBoolean(vals[8]);
+                    ds.plotThis=Boolean.parseBoolean(vals[9]);
+                    
                 }
-            }
 
+            }
             
             m.updateData(true,true);
             m.showTableTab();
-
-            p.setVisualParametersFromSaved(vals1, vals2, xlabel, ylabel);
-
+            p.setVisualParametersFromSaved(vals1, vals2, vals3, xlabel, ylabel);
+                        
         }catch(Exception ex) {
             if (D1Dplot_global.isDebug())ex.printStackTrace();
             readed = false;
@@ -1609,6 +1669,112 @@ public final class DataFileUtils {
         }
         return written;
     }
+    
+    private static String getDAT_ALBA(DataSerie ds, boolean addYbkg){
+
+        StringBuilder sb = new StringBuilder();
+
+        Iterator<String> itrComm = ds.getCommentLines().iterator();
+        while (itrComm.hasNext()){
+            String cline = itrComm.next();
+            sb.append(cline);
+            sb.append(D1Dplot_global.lineSeparator);
+        }
+        //ara posem una linia comentari amb les wavelengths
+        if (FastMath.abs(ds.getWavelength()-ds.getOriginalWavelength())>0.01){
+            sb.append("# wavelength="+FileUtils.dfX_4.format(ds.getWavelength())+" (originalWL="+FileUtils.dfX_4.format(ds.getOriginalWavelength())+")");   
+            sb.append(D1Dplot_global.lineSeparator);
+        }
+
+        if (FastMath.abs(ds.getZerrOff())>0.01f){
+            sb.append("# zeroOffsetApplied="+FileUtils.dfX_3.format(ds.getZerrOff()));
+            sb.append(D1Dplot_global.lineSeparator);
+        }
+        if (ds.getScale()>1.05 || ds.getScale()<0.95){
+            sb.append("# scaleFactorApplied="+FileUtils.dfX_2.format(ds.getScale()));
+            sb.append(D1Dplot_global.lineSeparator);
+        }
+
+        for (int i=0; i<ds.getNpoints();i++){
+            Plottable_point pp = ds.getPointWithCorrections(i,addYbkg);
+            String towrite = String.format(" %10.7e  %10.7e  %10.7e",pp.getX(),pp.getY(),pp.getSdy());
+            towrite = towrite.replace(",", ".");
+            sb.append(towrite);
+            if (i<(ds.getNpoints())-1)sb.append(D1Dplot_global.lineSeparator);
+        }
+        return sb.toString();
+    }
+    
+    private static Data_Common readDAT(String datString, String serieName) { 
+        boolean firstLine = true;
+        boolean readed = true;
+        
+        //creem un DataSerie_Pattern
+        Data_Common dsP = new Data_Common();
+        DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
+        
+        Scanner sf = null;
+        try {
+            sf = new Scanner(datString);
+            while (sf.hasNextLine()){
+                String line = sf.nextLine();
+                if (isComment(line)){
+                    dsP.addCommentLine(line);
+                    double wl = searchForWavel(line);
+                    if (wl>0){
+                        dsP.setOriginalWavelength(wl);
+                        ds.setWavelength(wl);
+                    }
+                    continue;
+                }
+                if (line.trim().isEmpty()){
+                    continue;
+                }
+
+                String values[] = line.trim().split("\\s+");
+
+                //afegim comprovacio de que la primera linea pot ser no comentada (cas xye), TODO:revisar
+                double t2 = 0.0;
+                double inten = 0.0;
+                try {
+                    t2 = Double.parseDouble(values[0]);
+                    inten = Double.parseDouble(values[1]);
+                }catch(Exception ex) {
+                    log.warning(String.format("Error reading (t2 Intensity) in line: %s",line));
+                    continue;
+                }
+                double sdev = 0.0;
+                try{
+                    sdev = Double.parseDouble(values[2]);
+                }catch(Exception ex){
+                    log.fine("error parsing sdev");
+                }
+
+                ds.addPoint(new DataPoint(t2,inten,sdev));
+                if (firstLine){
+                    firstLine = false;
+                }
+
+                if (!sf.hasNextLine()){
+                }
+            }
+            if (ds.getNpoints()<=0)return null;
+            ds.serieName=serieName;
+            dsP.addDataSerie(ds);
+
+        }catch(Exception e){
+            if (D1Dplot_global.isDebug())e.printStackTrace();
+            readed = false;
+        }finally {
+            if(sf!=null)sf.close();
+        }
+        if (readed){
+            return dsP;
+        }else{
+            return null;
+        }
+    }
+    
     
     private static boolean writeGR(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
