@@ -42,6 +42,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import javax.imageio.ImageIO;
+import javax.swing.Box;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
@@ -102,6 +103,7 @@ import com.vava33.jutils.VavaLogger;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.KeyAdapter;
+import javax.swing.JCheckBoxMenuItem;
 
 public class D1Dplot_main {
 
@@ -195,6 +197,7 @@ public class D1Dplot_main {
     private JSeparator separator_5;
     private JMenuItem mntmSaveProfile;
     private JMenuItem mntmFitPeaks;
+    private JPanel panel_1;
 
     /**
      * Launch the application.
@@ -281,7 +284,7 @@ public class D1Dplot_main {
         mainFrame.getContentPane().setLayout(new MigLayout("insets 3", "[grow]", "[grow]"));
 
         splitPane = new JSplitPane();
-        splitPane.setResizeWeight(0.82);
+        splitPane.setResizeWeight(1.0);
         splitPane.setOrientation(JSplitPane.VERTICAL_SPLIT);
         mainFrame.getContentPane().add(splitPane, "cell 0 0,grow");
 
@@ -391,61 +394,65 @@ public class D1Dplot_main {
 
         panel_DS = new JPanel();
         tabbedPanel_bottom.addTab("Data Series", null, panel_DS, null);
-        panel_DS.setLayout(new MigLayout("insets 0", "[grow][][]", "[grow][][]"));
+        panel_DS.setLayout(new MigLayout("insets 0", "[grow][]", "[grow]"));
 
         new JLabel("New label");
-        panel_DS.add(scrollPane, "cell 0 0 1 3,grow");
-
-        btnReload = new JButton("R");
-        btnReload.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_btnReload_actionPerformed(e);
-            }
-        });
-
-        buttonRemove = new JButton("-");
-        buttonRemove.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_buttonRemove_actionPerformed(e);
-            }
-        });
-
-        buttonDown = new JButton("v");
-        buttonDown.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_buttonDown_actionPerformed(e);
-            }
-        });
-        panel_DS.add(buttonDown, "cell 1 1,growx,aligny top");
-        buttonRemove.setPreferredSize(new Dimension(23, 28));
-        panel_DS.add(buttonRemove, "cell 2 1,growx,aligny top");
-        btnReload.setToolTipText("Reload selected pattern");
-        panel_DS.add(btnReload, "cell 1 2,growx");
-
-        buttonAdd = new JButton("+");
-        buttonAdd.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_buttonAdd_actionPerformed(e);
-            }
-        });
-        panel_DS.add(buttonAdd, "cell 2 0,growx,aligny bottom");
-
-        buttonUp = new JButton("^");
-        buttonUp.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_buttonUp_actionPerformed(e);
-            }
-        });
-        panel_DS.add(buttonUp, "cell 1 0,growx,aligny bottom");
-
-        btnDupli = new JButton("D");
-        btnDupli.setToolTipText("Duplicate selected pattern");
-        btnDupli.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_buttonDupli_actionPerformed(e);
-            }
-        });
-        panel_DS.add(btnDupli, "cell 2 2");
+        panel_DS.add(scrollPane, "cell 0 0,grow");
+        
+        panel_1 = new JPanel();
+        panel_DS.add(panel_1, "cell 1 0,grow");
+        panel_1.setLayout(new MigLayout("", "[][]", "[][][]"));
+                        
+                                buttonUp = new JButton("^");
+                                panel_1.add(buttonUp, "cell 0 0,growx,aligny top");
+                                buttonUp.addActionListener(new ActionListener() {
+                                    public void actionPerformed(ActionEvent e) {
+                                        do_buttonUp_actionPerformed(e);
+                                    }
+                                });
+                
+                        buttonAdd = new JButton("+");
+                        panel_1.add(buttonAdd, "cell 1 0,growx,aligny top");
+                        buttonAdd.addActionListener(new ActionListener() {
+                            public void actionPerformed(ActionEvent e) {
+                                do_buttonAdd_actionPerformed(e);
+                            }
+                        });
+        
+                buttonDown = new JButton("v");
+                panel_1.add(buttonDown, "cell 0 1,growx,aligny top");
+                
+                        buttonRemove = new JButton("-");
+                        panel_1.add(buttonRemove, "cell 1 1,growx,aligny top");
+                        buttonRemove.addActionListener(new ActionListener() {
+                            public void actionPerformed(ActionEvent e) {
+                                do_buttonRemove_actionPerformed(e);
+                            }
+                        });
+                        buttonRemove.setPreferredSize(new Dimension(23, 28));
+                        
+                                btnReload = new JButton("R");
+                                panel_1.add(btnReload, "cell 0 2,growx");
+                                btnReload.addActionListener(new ActionListener() {
+                                    public void actionPerformed(ActionEvent e) {
+                                        do_btnReload_actionPerformed(e);
+                                    }
+                                });
+                                btnReload.setToolTipText("Reload selected pattern");
+                                
+                                        btnDupli = new JButton("D");
+                                        panel_1.add(btnDupli, "cell 1 2");
+                                        btnDupli.setToolTipText("Duplicate selected pattern");
+                                        btnDupli.addActionListener(new ActionListener() {
+                                            public void actionPerformed(ActionEvent e) {
+                                                do_buttonDupli_actionPerformed(e);
+                                            }
+                                        });
+                buttonDown.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        do_buttonDown_actionPerformed(e);
+                    }
+                });
 
 
         scrollPane_1 = new JScrollPane();
@@ -511,7 +518,7 @@ public class D1Dplot_main {
             }
         });
 
-        chckbxPartialYScale = new JCheckBox("Partial Y Scale");
+        chckbxPartialYScale = new JCheckBox("Zone Scale");
         chckbxPartialYScale.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 do_chckbxPartialYScale_itemStateChanged(e);
@@ -918,7 +925,7 @@ public class D1Dplot_main {
         mnHelp.add(mntmCheckForUpdates);
 
         mntmDebug = new JMenuItem("debug");
-        mntmDebug.setVisible(false);
+        mntmDebug.setVisible(true); //TODO: put false for release
         mntmDebug.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntmDebug_actionPerformed(e);
@@ -947,8 +954,8 @@ public class D1Dplot_main {
 
         //split and divider loc
         Dimension minimumSize = new Dimension(0, 0);
-        tabbedPanel_bottom.setMinimumSize(minimumSize);
-        tabbedPanel_bottom.setPreferredSize(new Dimension(900,20));
+        tabbedPanel_bottom.setMinimumSize(new Dimension(0, 5));
+        tabbedPanel_bottom.setPreferredSize(new Dimension(900, 120));
         splitPane.resetToPreferredSizes();
 
         this.tAOut.setMidaLletra(tAoutFsize);
@@ -1443,7 +1450,7 @@ public class D1Dplot_main {
         patt.setOriginalWavelength(dss[0].getOriginalWavelength());
         patt.addDataSerie(suma);
         panel_plot.addPlottable(patt);
-        this.updateData(false,true);
+        this.updateData(false,false); //TODO he posat el segon false perque addplottable ja ho crida... pero`comprovar si va bé
 
     }
 
@@ -2029,6 +2036,7 @@ public class D1Dplot_main {
                 }catch(Exception ex){
                     log.warning("Error reading png scale factor");
                 }
+                panel_plot.getGraphPanel().setTransp(chckbxPngTransp.isSelected());
                 log.writeNameNumPairs("config", true, "factor", factor);
                 this.savePNG(fpng,factor);
             }
@@ -2333,7 +2341,9 @@ public class D1Dplot_main {
         filt[0] = new FileNameExtensionFilter("d1Dplot project","d1d");
         File f = FileUtils.fchooserSaveAsk(this.mainFrame, D1Dplot_global.getWorkdirFile(), filt, "d1d", "Save d1Dplot project");
         if (f!=null) {
-            DataFileUtils.writeProject(f, this.getPanel_plot());
+            //ask if write full data or relative paths only
+            boolean fulldata = FileUtils.YesNoDialog(this.getMainFrame(), "Include data in the file?");
+            DataFileUtils.writeProject(f, true, this.getPanel_plot(),fulldata);
         }
     }
     private void do_mntmOpenProject_actionPerformed(ActionEvent e) {
@@ -2344,11 +2354,13 @@ public class D1Dplot_main {
             DataFileUtils.readProject(f, this.getPanel_plot(),this);
         }
         this.updateData(false,true);
-
+        
     }
+    
     private void do_mntmDebug_actionPerformed(ActionEvent e) {
         //        debug_latgen dl = new debug_latgen(this);
         //        dl.visible(true);
+        panel_plot.showHideButtonsPanel();
     }
 
     private void do_mntmCheckForUpdates_actionPerformed(ActionEvent e) {
