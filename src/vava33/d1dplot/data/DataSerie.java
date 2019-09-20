@@ -17,7 +17,6 @@ import java.util.List;
 
 import org.apache.commons.math3.util.FastMath;
 import com.vava33.d1dplot.D1Dplot_global;
-import com.vava33.d1dplot.PlotPanel;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.jutils.VavaLogger;
 
@@ -26,7 +25,6 @@ public class DataSerie {
     public static float def_markerSize=0;
     public static float def_lineWidth=1;
     public static int def_hklticksize=12;
-    public static boolean prfFullprofColors=false;
     public static int def_hklYOff=-16; //ho està a les opcions
     
     private static final String className = "DataSerie";

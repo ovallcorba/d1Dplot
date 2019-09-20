@@ -434,7 +434,7 @@ public final class PattOps {
     }
     
     public static DataSerie findPeaksGetBkgLlindar(DataSerie data) {
-        return PattOps.bkg_Bruchner(data, 20, 50, true, data.getMinX()-1, false, null);
+        return PattOps.bkg_Bruchner(data, 5, 60, true, data.getMinX()-1, false, null); //tenia 20 50, baixo a 5 60 perque anava lent...
     }
     
     //RETORNA DATASERIE PEAKS
@@ -494,5 +494,10 @@ public final class PattOps {
         return peaks;
     }
 
-    
+    public static void addConstantYPointsToDataserie(DataSerie ds, int nPoints, double xmin, double xmax, double intensity) {
+        int sep = (int) FastMath.round(FastMath.abs(xmax-xmin)/(float)nPoints);
+        for (int i=0;i<nPoints;i++) {
+            ds.addPoint(new DataPoint(xmin+i*sep,intensity,0));
+        }
+    }
 }

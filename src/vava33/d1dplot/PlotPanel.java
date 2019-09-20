@@ -16,6 +16,8 @@ import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Insets;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
@@ -26,6 +28,7 @@ import java.awt.event.MouseMotionAdapter;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.font.FontRenderContext;
+import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -50,11 +53,14 @@ import com.vava33.jutils.VavaLogger;
 
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JTextField;
 
 import java.awt.event.ItemListener;
+import java.awt.event.KeyAdapter;
 import java.awt.event.ItemEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -68,6 +74,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.border.LineBorder;
 import java.awt.Dimension;
+import javax.swing.JComboBox;
 
 public class PlotPanel {
 
@@ -78,36 +85,37 @@ public class PlotPanel {
     private static final Color Dark_frg = Color.WHITE;
     private static final Color Light_bkg = Color.WHITE;
     private static final Color Light_frg = Color.BLACK;
-    private static final Color Light_Legend_bkg = Color.LIGHT_GRAY.brighter();
+//    private static final Color Light_Legend_bkg = Color.LIGHT_GRAY.brighter();
     private static final Color Light_Legend_line = Color.BLACK;
-    private static final Color Dark_Legend_bkg = Color.DARK_GRAY.darker();
+//    private static final Color Dark_Legend_bkg = Color.DARK_GRAY.darker();
     private static final Color Dark_Legend_line = Color.WHITE;
     
     //PARAMETRES VISUALS amb els valors per defecte 
     private boolean lightTheme = true;
-    private int gapAxisTop = 12;
-    private int gapAxisBottom = 35;
-    private int gapAxisRight = 12;
-    private int gapAxisLeft = 80;
-    private int padding = 10;
-    private int AxisLabelsPadding = 2;
+    private int gapAxisTop = 0; //12
+    private int gapAxisBottom = 0; //35
+    private int gapAxisRight = 0; //12
+    private int gapAxisLeft = 0; //80
+//    private int padding2px = 2; //was general padding 10...
+    private int padding5px = 5;
     private String xlabel = "2"+D1Dplot_global.theta+" (º)";
     private String ylabel = "Intensity";
     private int def_nDecimalsX = 3;
     private int def_nDecimalsY = 1;
     //sizes relative to default one (12?)
-    private float def_axis_fsize = 0.f;
-    private float def_axisL_fsize = 0.f;
+    float def_axis_fsize = 0.f;
+    float def_axisL_fsize = 0.f;
+    private float def_legend_fsize = 0.f;
     private boolean plotwithbkg=false; //pel PRF!!
     private Color colorDBcomp = Color.blue;
     private double splitPanePosition = -1;
-    
+    private boolean customXtitle = false;
     
     //CONVENI DEFECTE:
     //cada 100 pixels una linia principal i cada 25 una secundaria
     //mirem l'amplada/alçada del graph area i dividim per tenir-ho en pixels        
-    private double incXPrimPIXELS = 100;
-    private double incXSecPIXELS = 25;
+    double incXPrimPIXELS = 100;
+    double incXSecPIXELS = 25;
     private double incYPrimPIXELS = 100;
     private double incYSecPIXELS = 25;
     private static final int minZoomPixels = 5; //el faig final i general perque no el modifiquem
@@ -118,7 +126,7 @@ public class PlotPanel {
     private int CLICAR = MouseEvent.BUTTON1;
     private int ZOOM_BORRAR = MouseEvent.BUTTON3;
 
-    private int div_PrimPixSize = 8;
+    private int div_PrimPixSize = 8; //originalment eren 8 i 4, ho faig imparell perquè hi hagi pixel "central"
     private int div_SecPixSize = 4;
     private boolean verticalYlabel = false;
     private boolean verticalYAxe = true;
@@ -156,7 +164,7 @@ public class PlotPanel {
     double div_startValX, div_startValY;
     boolean fixAxes = false;
     boolean autoDiv = true;
-    boolean negativeYAxisLabels = false;
+    boolean negativeYAxisLabels = true;
     
     //Parametres de visualitzacio llegenda
     boolean showLegend = true;
@@ -176,7 +184,7 @@ public class PlotPanel {
     boolean showDBCompoundIntensity = false;
     boolean showIndexSolution = false;
     boolean applyScaleFactorT2 = false;
-    float scaleFactorT2ang = 100;
+    float scaleFactorT2ang = 30;
     float scaleFactorT2fact = 1;
     
     //series "propies" i arraylist de les seleccionades -- AUXILIARY DATASERIES
@@ -193,14 +201,9 @@ public class PlotPanel {
     private JTextField txtXmin;
     private JTextField txtYmin;
     private JTextField txtNdivx;
-    private JLabel lblXdiv;
-    private JLabel lblNdivx;
     private JTextField txtNdivy;
-    private JLabel lblWindow;
-    private JLabel lblYmin;
     private JPanel statusPanel;
     private JLabel lblTth;
-    private JButton btnResetView;
     private JLabel lblDsp;
     private JLabel lblHkl;
 
@@ -208,6 +211,7 @@ public class PlotPanel {
     private JPanel panel;
     private JPanel panel_1;
     private JPanel plotPanel;
+    private JPanel plotPanelContainer;
     private JTextField txtXminwin;
     private JTextField txtXmaxwin;
     private JTextField txtYminwin;
@@ -215,8 +219,44 @@ public class PlotPanel {
     private JLabel lblInten;
     private JScrollPane scrollPane;
     private JSplitPane splitPane;
-    private JLabel lblXAxis;
     private JPanel buttons_panel;
+    private JPanel panelStatusCursorInfo;
+    private JButton btnFitWindowStatus;
+    private JButton btnShowhideOpts;
+    private JLabel lblXmin;
+    private JLabel lblYmin_1;
+    private JLabel lblInix;
+    private JLabel lblIncx;
+    private JLabel lblSubx;
+    private JLabel lblIniy;
+    private JLabel lblIncy;
+    private JLabel lblSuby;
+    private JLabel lblXTitle;
+    private JLabel lblYTitle;
+    private JLabel lblTheme;
+    private JPanel panel_2;
+    private JCheckBox chckbxShow;
+    private JCheckBox chckbxAutopos;
+    private JTextField txtXlegend;
+    private JTextField txtYlegend;
+    private JPanel panel_3;
+    private JTextField txtXtitle;
+    private JTextField txtYtitle;
+    private JComboBox<String> comboTheme;
+    private JCheckBox chckbxApply;
+    private JLabel lblTIni;
+    private JLabel lblFactor;
+    private JTextField txtZonescalexini;
+    private JTextField txtZonescalefactor;
+    private JLabel lblGrid;
+    private JCheckBox chckbxX;
+    private JCheckBox chckbxY;
+    private JCheckBox chckbxVerticalYAxis;
+    private JCheckBox chckbxVerticalYLabel;
+    private JCheckBox chckbxNegativeYLabels;
+    private JCheckBox chckbxBkgIntensityprf;
+    private JCheckBox chckbxHklLabels;
+    private JButton btnReassigncolors;
     
 	/**
      * Create the panel.
@@ -263,27 +303,190 @@ public class PlotPanel {
         splitPane = new JSplitPane();
         splitPane.setResizeWeight(1.0);
         plotPanel.add(splitPane, "cell 0 0,grow");
-        splitPane.setLeftComponent(graphPanel);
+//        splitPane.setLeftComponent(graphPanel);
+        plotPanelContainer = new JPanel();
+        splitPane.setLeftComponent(plotPanelContainer); //for design
+        plotPanelContainer.setLayout(new MigLayout("insets 0, gap 1px", "[grow]", "[grow][]"));
+        plotPanelContainer.add(graphPanel, "cell 0 0,grow");
+        
+        panelStatusCursorInfo = new JPanel();
+        plotPanelContainer.add(panelStatusCursorInfo, "cell 0 1,grow");
+        panelStatusCursorInfo.setLayout(new MigLayout("insets 1 n 1 n", "[][][left][grow][][][]", "[]"));
+        
+        lblTth = new JLabel("X");
+        panelStatusCursorInfo.add(lblTth, "cell 0 0");
+        lblTth.setFont(new Font("Dialog", Font.BOLD | Font.ITALIC, 12));
+        
+        lblInten = new JLabel("Y");
+        panelStatusCursorInfo.add(lblInten, "cell 1 0");
+        
+        lblDsp = new JLabel("dsp");
+        panelStatusCursorInfo.add(lblDsp, "cell 2 0");
+        
+        btnFitWindowStatus = new JButton("FitV");
+        btnFitWindowStatus.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_btnFitWindowStatus_actionPerformed(e);
+            }
+        });
+        
+        lblHkl = new JLabel("hkl");
+        panelStatusCursorInfo.add(lblHkl, "cell 3 0,alignx left");
+        btnFitWindowStatus.setToolTipText("Reset View");
+        panelStatusCursorInfo.add(btnFitWindowStatus, "cell 4 0");
+        
+        btnShowhideOpts = new JButton("LateralOpts");
+        btnShowhideOpts.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_btnShowhideOpts_actionPerformed(e);
+            }
+        });
+        
+        btnReassigncolors = new JButton("reassignColors");
+        btnReassigncolors.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_btnReassigncolors_actionPerformed(e);
+            }
+        });
+        panelStatusCursorInfo.add(btnReassigncolors, "cell 5 0");
+        panelStatusCursorInfo.add(btnShowhideOpts, "cell 6 0");
         
         buttons_panel = new JPanel();
-        buttons_panel.setPreferredSize(new Dimension(120, 300));
+        buttons_panel.setPreferredSize(new Dimension(250, 300));
         buttons_panel.setMinimumSize(new Dimension(5, 100));
         splitPane.setRightComponent(buttons_panel);
         buttons_panel.setBorder(null);
-        buttons_panel.setLayout(new MigLayout("insets 2", "[grow]", "[][][][grow]"));
+        buttons_panel.setLayout(new MigLayout("insets 2", "[grow]", "[grow]"));
         
-        btnResetView = new JButton("Reset View");
-        btnResetView.addActionListener(new ActionListener() {
+        scrollPane = new JScrollPane();
+        buttons_panel.add(scrollPane, "cell 0 0,grow");
+        
+        statusPanel = new JPanel();
+        scrollPane.setViewportView(statusPanel);
+        statusPanel.setLayout(new MigLayout("insets 2", "[][grow]", "[][][][][][][]"));
+        
+        lblXTitle = new JLabel("X title");
+        statusPanel.add(lblXTitle, "cell 0 0,alignx trailing");
+        
+        txtXtitle = new JTextField();
+        txtXtitle.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                do_btnResetView_actionPerformed(e);
+                do_txtXtitle_actionPerformed(e);
             }
         });
-        buttons_panel.add(btnResetView, "cell 0 0,growx");
+        txtXtitle.setText("xtitle");
+        statusPanel.add(txtXtitle, "cell 1 0,growx");
+        txtXtitle.setColumns(5);
+        
+        lblYTitle = new JLabel("Y title");
+        statusPanel.add(lblYTitle, "cell 0 1,alignx trailing");
+        
+        txtYtitle = new JTextField();
+        txtYtitle.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_txtYtitle_actionPerformed(e);
+            }
+        });
+        txtYtitle.setText("ytitle");
+        statusPanel.add(txtYtitle, "cell 1 1,growx");
+        txtYtitle.setColumns(5);
+        
+        lblTheme = new JLabel("Theme");
+        statusPanel.add(lblTheme, "cell 0 2,alignx trailing");
+        
+        comboTheme = new JComboBox<String>();
+        comboTheme.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_comboTheme_itemStateChanged(e);
+            }
+        });
+        comboTheme.setModel(new DefaultComboBoxModel<String>(new String[] {"Light", "Dark"}));
+        statusPanel.add(comboTheme, "cell 1 2,growx");
+        
+        panel_2 = new JPanel();
+        panel_2.setBorder(new TitledBorder(null, "Legend", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        statusPanel.add(panel_2, "cell 0 3 2 1,grow");
+        panel_2.setLayout(new MigLayout("insets 1", "[grow][grow]", "[][]"));
+        
+        chckbxShow = new JCheckBox("Show");
+        chckbxShow.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxShow_itemStateChanged(e);
+            }
+        });
+        panel_2.add(chckbxShow, "cell 0 0,alignx left");
+        
+        chckbxAutopos = new JCheckBox("AutoPos");
+        chckbxAutopos.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxAutopos_itemStateChanged(e);
+            }
+        });
+        panel_2.add(chckbxAutopos, "cell 1 0,alignx left");
+        
+        txtXlegend = new JTextField();
+        txtXlegend.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_txtXlegend_actionPerformed(e);
+            }
+        });
+        txtXlegend.setText("Xlegend");
+        panel_2.add(txtXlegend, "cell 0 1,growx");
+        txtXlegend.setColumns(3);
+        
+        txtYlegend = new JTextField();
+        txtYlegend.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_txtYlegend_actionPerformed(e);
+            }
+        });
+        txtYlegend.setText("Ylegend");
+        panel_2.add(txtYlegend, "cell 1 1,growx");
+        txtYlegend.setColumns(3);
+        
+        panel_3 = new JPanel();
+        panel_3.setBorder(new TitledBorder(null, "Zone scale", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        statusPanel.add(panel_3, "cell 0 4 2 1,grow");
+        panel_3.setLayout(new MigLayout("insets 1", "[][][grow][][grow]", "[]"));
+        
+        chckbxApply = new JCheckBox("");
+        chckbxApply.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxApply_itemStateChanged(e);
+            }
+        });
+        panel_3.add(chckbxApply, "cell 0 0,alignx left");
+        
+        lblTIni = new JLabel("Xini");
+        panel_3.add(lblTIni, "cell 1 0,alignx trailing");
+        
+        txtZonescalexini = new JTextField();
+        txtZonescalexini.addKeyListener(new KeyAdapter() {
+            public void keyReleased(KeyEvent e) {
+                do_txtZonescalexini_keyReleased(e);
+            }
+        });
+        txtZonescalexini.setText("zoneScaleXini");
+        panel_3.add(txtZonescalexini, "cell 2 0,growx");
+        txtZonescalexini.setColumns(5);
+        
+        lblFactor = new JLabel("Fac");
+        panel_3.add(lblFactor, "cell 3 0,alignx trailing");
+        
+        txtZonescalefactor = new JTextField();
+        txtZonescalefactor.addKeyListener(new KeyAdapter() {
+            public void keyReleased(KeyEvent e) {
+                do_txtZonescalefactor_keyReleased(e);
+            }
+        });
+        txtZonescalefactor.setText("zoneScaleFactor");
+        panel_3.add(txtZonescalefactor, "cell 4 0,growx");
+        txtZonescalefactor.setColumns(5);
         
         panel_1 = new JPanel();
+        statusPanel.add(panel_1, "cell 0 5 2 1,growx");
         panel_1.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "X,Y window", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
-        buttons_panel.add(panel_1, "cell 0 1,grow");
-        panel_1.setLayout(new MigLayout("insets 1", "[grow][grow][grow][grow]", "[][][]"));
+        panel_1.setLayout(new MigLayout("insets 1", "[][grow][grow][grow]", "[][][][][]"));
         
         txtXminwin = new JTextField();
         txtXminwin.addActionListener(new ActionListener() {
@@ -292,23 +495,10 @@ public class PlotPanel {
             }
         });
         
-        txtYmaxwin = new JTextField();
-        txtYmaxwin.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_txtYmaxwin_actionPerformed(e);
-            }
-        });
-        panel_1.add(txtYmaxwin, "cell 1 0 2 1,growx");
-        txtYmaxwin.setColumns(5);
-        panel_1.add(txtXminwin, "cell 0 1 2 1,growx");
+        lblXmin = new JLabel("Xmin max");
+        panel_1.add(lblXmin, "cell 0 0,alignx trailing");
+        panel_1.add(txtXminwin, "cell 1 0 2 1,growx");
         txtXminwin.setColumns(5);
-        
-        txtYminwin = new JTextField();
-        txtYminwin.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_txtYminwin_actionPerformed(e);
-            }
-        });
         
         txtXmaxwin = new JTextField();
         txtXmaxwin.addActionListener(new ActionListener() {
@@ -316,49 +506,117 @@ public class PlotPanel {
                 do_txtXmaxwin_actionPerformed(e);
             }
         });
-        panel_1.add(txtXmaxwin, "cell 2 1 2 1,growx");
+        panel_1.add(txtXmaxwin, "cell 3 0,growx");
         txtXmaxwin.setColumns(5);
-        panel_1.add(txtYminwin, "cell 1 2 2 1,growx");
+        
+        lblYmin_1 = new JLabel("Ymin max");
+        panel_1.add(lblYmin_1, "cell 0 1,alignx trailing");
+        
+        txtYminwin = new JTextField();
+        txtYminwin.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_txtYminwin_actionPerformed(e);
+            }
+        });
+        panel_1.add(txtYminwin, "cell 1 1 2 1,growx");
         txtYminwin.setColumns(5);
         
+        txtYmaxwin = new JTextField();
+        txtYmaxwin.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                do_txtYmaxwin_actionPerformed(e);
+            }
+        });
+        panel_1.add(txtYmaxwin, "cell 3 1,growx");
+        txtYmaxwin.setColumns(5);
+        
+        lblGrid = new JLabel("Grid");
+        panel_1.add(lblGrid, "cell 0 2,alignx trailing");
+        
+        chckbxX = new JCheckBox("X");
+        chckbxX.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxX_itemStateChanged(e);
+            }
+        });
+        panel_1.add(chckbxX, "cell 1 2,alignx center");
+        
+        chckbxVerticalYAxis = new JCheckBox("Show Y axis");
+        chckbxVerticalYAxis.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxVerticalYAxis_itemStateChanged(e);
+            }
+        });
+        
+        chckbxY = new JCheckBox("Y");
+        chckbxY.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxY_itemStateChanged(e);
+            }
+        });
+        panel_1.add(chckbxY, "cell 2 2 2 1,alignx left");
+        panel_1.add(chckbxVerticalYAxis, "cell 0 3 2 1,alignx left");
+        
+        chckbxBkgIntensityprf = new JCheckBox("Add bkg (PRF)");
+        chckbxBkgIntensityprf.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxBkgIntensityprf_itemStateChanged(e);
+            }
+        });
+        
+        chckbxVerticalYLabel = new JCheckBox("Vert. label");
+        chckbxVerticalYLabel.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxVerticalYLabel_itemStateChanged(e);
+            }
+        });
+        panel_1.add(chckbxVerticalYLabel, "cell 2 3 2 1,alignx left");
+        panel_1.add(chckbxBkgIntensityprf, "cell 0 4 2 1");
+        
+        chckbxHklLabels = new JCheckBox("HKL labels");
+        chckbxHklLabels.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxHklLabels_itemStateChanged(e);
+            }
+        });
+        panel_1.add(chckbxHklLabels, "cell 2 4 2 1");
+        
         panel = new JPanel();
+        statusPanel.add(panel, "cell 0 6 2 1,growx");
         panel.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Axes divisions", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
-        buttons_panel.add(panel, "cell 0 2,grow");
-        panel.setLayout(new MigLayout("insets 1", "[grow][grow]", "[][][][][][][][]"));
+        panel.setLayout(new MigLayout("insets 1", "[][grow][][grow]", "[][][][]"));
         
-        lblXAxis = new JLabel("X");
-        panel.add(lblXAxis, "cell 0 0,alignx center");
-        
-        lblYmin = new JLabel("Y");
-        panel.add(lblYmin, "cell 1 0,alignx center");
-        
-        lblWindow = new JLabel("initial value");
-        panel.add(lblWindow, "cell 0 1 2 1,alignx center");
-        lblWindow.setToolTipText("");
+        lblInix = new JLabel("iniX");
+        lblInix.setToolTipText("initial value X axis");
+        panel.add(lblInix, "cell 0 0,alignx trailing");
         
         txtXmin = new JTextField();
-        panel.add(txtXmin, "cell 0 2,growx");
+        panel.add(txtXmin, "cell 1 0,growx");
         txtXmin.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_txtXmin_actionPerformed(e);
             }
         });
         txtXmin.setText("Xmin");
-        txtXmin.setColumns(5);
+        txtXmin.setColumns(3);
+        
+        lblIniy = new JLabel("iniY");
+        lblIniy.setToolTipText("initial value Y axis");
+        panel.add(lblIniy, "cell 2 0,alignx trailing");
         
         txtYmin = new JTextField();
-        panel.add(txtYmin, "cell 1 2,growx");
+        panel.add(txtYmin, "cell 3 0,growx");
         txtYmin.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_txtYmin_actionPerformed(e);
             }
         });
         txtYmin.setText("ymin");
-        txtYmin.setColumns(5);
+        txtYmin.setColumns(3);
         
-        lblXdiv = new JLabel("increment");
-        lblXdiv.setToolTipText("x major division increment (with values shown, in x units)");
-        panel.add(lblXdiv, "cell 0 3 2 1,alignx center");
+        lblIncx = new JLabel("incX");
+        lblIncx.setToolTipText("increment X major ticks");
+        panel.add(lblIncx, "cell 0 1,alignx trailing");
         
         txtXdiv = new JTextField();
         txtXdiv.addActionListener(new ActionListener() {
@@ -366,9 +624,13 @@ public class PlotPanel {
                 do_txtXdiv_actionPerformed(e);
             }
         });
-        panel.add(txtXdiv, "cell 0 4,growx");
+        panel.add(txtXdiv, "cell 1 1,growx");
         txtXdiv.setText("xdiv");
-        txtXdiv.setColumns(5);
+        txtXdiv.setColumns(3);
+        
+        lblIncy = new JLabel("incY");
+        lblIncy.setToolTipText("increment Y major ticks");
+        panel.add(lblIncy, "cell 2 1,alignx trailing");
         
         txtYdiv = new JTextField();
         txtYdiv.addActionListener(new ActionListener() {
@@ -376,13 +638,13 @@ public class PlotPanel {
                 do_txtYdiv_actionPerformed(e);
             }
         });
-        panel.add(txtYdiv, "cell 1 4,growx");
+        panel.add(txtYdiv, "cell 3 1,growx");
         txtYdiv.setText("ydiv");
-        txtYdiv.setColumns(5);
+        txtYdiv.setColumns(3);
         
-        lblNdivx = new JLabel("subdivisions");
-        lblNdivx.setToolTipText("number of X subdivisions");
-        panel.add(lblNdivx, "cell 0 5 2 1,alignx center");
+        lblSubx = new JLabel("divX");
+        lblSubx.setToolTipText("subdivisions in X axis");
+        panel.add(lblSubx, "cell 0 2,alignx trailing");
         
         txtNdivx = new JTextField();
         txtNdivx.addActionListener(new ActionListener() {
@@ -390,9 +652,13 @@ public class PlotPanel {
                 do_txtNdivx_actionPerformed(e);
             }
         });
-        panel.add(txtNdivx, "cell 0 6,growx");
+        panel.add(txtNdivx, "cell 1 2,growx");
         txtNdivx.setText("NdivX");
-        txtNdivx.setColumns(5);
+        txtNdivx.setColumns(3);
+        
+        lblSuby = new JLabel("divY");
+        lblSuby.setToolTipText("subdivisions in Y axis");
+        panel.add(lblSuby, "cell 2 2,alignx trailing");
         
         txtNdivy = new JTextField();
         txtNdivy.addActionListener(new ActionListener() {
@@ -400,58 +666,59 @@ public class PlotPanel {
                 do_txtNdivy_actionPerformed(e);
             }
         });
-        panel.add(txtNdivy, "cell 1 6,growx");
+        panel.add(txtNdivy, "cell 3 2,growx");
         txtNdivy.setText("NdivY");
-        txtNdivy.setColumns(5);
+        txtNdivy.setColumns(3);
         
         chckbxFixedAxis = new JCheckBox("Fix Axes");
-        panel.add(chckbxFixedAxis, "cell 0 7 2 1,alignx center");
+        panel.add(chckbxFixedAxis, "cell 0 3 2 1,alignx left");
         chckbxFixedAxis.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 do_chckbxFixedAxis_itemStateChanged(e);
             }
         });
         
-        scrollPane = new JScrollPane();
-        buttons_panel.add(scrollPane, "cell 0 3,grow");
-        
-        statusPanel = new JPanel();
-        scrollPane.setViewportView(statusPanel);
-        statusPanel.setLayout(new MigLayout("insets 2", "[grow]", "[][][][]"));
-        
-        lblTth = new JLabel("X");
-        lblTth.setFont(new Font("Dialog", Font.BOLD | Font.ITALIC, 12));
-        statusPanel.add(lblTth, "cell 0 0,alignx center,aligny center");
-        
-        lblInten = new JLabel("Y");
-        statusPanel.add(lblInten, "cell 0 1,alignx center,aligny center");
-        
-        lblDsp = new JLabel("dsp");
-        statusPanel.add(lblDsp, "cell 0 2,alignx center,aligny center");
-        
-        lblHkl = new JLabel("hkl");
-        statusPanel.add(lblHkl, "cell 0 3,alignx center,aligny center");
+        chckbxNegativeYLabels = new JCheckBox("Neg. Y labels");
+        chckbxNegativeYLabels.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxNegativeYLabels_itemStateChanged(e);
+            }
+        });
+        panel.add(chckbxNegativeYLabels, "cell 2 3 2 1");
 
         
         inicia();
     }
 
+    protected void do_btnShowhideOpts_actionPerformed(ActionEvent e) {
+        this.showHideButtonsPanel();
+    }
+    
     public void showHideButtonsPanel() {
+        int iconheight = 16;
         if (this.buttons_panel.isVisible()) {
-            splitPanePosition=splitPane.getDividerLocation();
-            log.writeNameNumPairs("info", true, "splitPanePosition (px)", splitPanePosition);
+            splitPanePosition=splitPane.getDividerLocation();    
             splitPanePosition = splitPanePosition/(double)splitPane.getWidth();
-            log.writeNameNumPairs("info", true, "splitPanePosition (%)", splitPanePosition);
             this.buttons_panel.setVisible(false);
-//            splitPane.setDividerLocation(0.95);
+            //icona i tooltip per MOSTRAR
+            Image LAT = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/showLateral.png")).getImage().getScaledInstance(-100, iconheight, java.awt.Image.SCALE_SMOOTH);
+            btnShowhideOpts.setIcon(new ImageIcon(LAT));
+
         }else {
             //recuperem
             this.buttons_panel.setVisible(true);
-            log.writeNameNumPairs("info", true, "splitPanePosition (%)", splitPanePosition);
+            if(splitPanePosition<0) {
+                int posBut = splitPane.getWidth() - buttons_panel.getPreferredSize().width;
+                splitPanePosition = posBut/(double)splitPane.getWidth();
+                if (splitPanePosition<0)splitPanePosition=0.85;
+            }
             splitPane.setDividerLocation(splitPanePosition);
+            Image LAT = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/hideLateral.png")).getImage().getScaledInstance(-100, iconheight, java.awt.Image.SCALE_SMOOTH);
+            btnShowhideOpts.setIcon(new ImageIcon(LAT));
         }
     }
-
+    
+    
     private void inicia(){
         nTotalOpenedDatSeries = 0;
         this.dataToPlot = new ArrayList<Plottable>();
@@ -474,8 +741,8 @@ public class PlotPanel {
         this.txtYdiv.setText("");
         this.txtYmin.setText("");
         
-        fixAxes = chckbxFixedAxis.isSelected();
-        if (fixAxes) {
+//        fixAxes = chckbxFixedAxis.isSelected();
+        if (!fixAxes) {
             txtNdivx.setEditable(false);
             txtNdivy.setEditable(false);
             txtXdiv.setEditable(false);
@@ -504,6 +771,59 @@ public class PlotPanel {
                     return false;
             }
         });
+        int iconheight = 16;
+        int inset = 2;
+        int buttonSize = iconheight+2*inset;
+        Image FIT = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/fitWindow.png")).getImage().getScaledInstance(-100, iconheight, java.awt.Image.SCALE_SMOOTH);
+        btnFitWindowStatus.setText("");
+        btnFitWindowStatus.setIcon(new ImageIcon(FIT));
+        Image LAT = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/hideLateral.png")).getImage().getScaledInstance(-100, iconheight, java.awt.Image.SCALE_SMOOTH);
+        btnShowhideOpts.setText("");
+        btnShowhideOpts.setIcon(new ImageIcon(LAT));
+        Image COL = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/reassignColors.png")).getImage().getScaledInstance(-100, iconheight, java.awt.Image.SCALE_SMOOTH);
+        btnReassigncolors.setText("");
+        btnReassigncolors.setIcon(new ImageIcon(COL));
+        
+        btnFitWindowStatus.setPreferredSize(new Dimension(buttonSize,buttonSize));
+        btnFitWindowStatus.setMaximumSize(new Dimension(buttonSize,buttonSize));
+        btnFitWindowStatus.setMinimumSize(new Dimension(buttonSize,buttonSize));
+        btnFitWindowStatus.setMargin(new Insets(inset,inset,inset,inset));
+        btnShowhideOpts.setToolTipText("Reset View (fit patterns to window)");
+        btnShowhideOpts.setPreferredSize(new Dimension(buttonSize,buttonSize));
+        btnShowhideOpts.setMaximumSize(new Dimension(buttonSize,buttonSize));
+        btnShowhideOpts.setMinimumSize(new Dimension(buttonSize,buttonSize));
+        btnShowhideOpts.setMargin(new Insets(inset,inset,inset,inset));
+        btnShowhideOpts.setToolTipText("Show/Hide Lateral Options Panel");
+        btnReassigncolors.setPreferredSize(new Dimension(buttonSize,buttonSize));
+        btnReassigncolors.setMaximumSize(new Dimension(buttonSize,buttonSize));
+        btnReassigncolors.setMinimumSize(new Dimension(buttonSize,buttonSize));
+        btnReassigncolors.setMargin(new Insets(inset,inset,inset,inset));
+        btnReassigncolors.setToolTipText("Reassign colors to patterns");
+//        log.debug("end plotpanel inicia");
+        
+        //HEM DE POSAR BE ELS CHECKBOX DEL LATERAL AMB ELS VALORS CORRECTES
+        if (this.isLightTheme()) {
+            comboTheme.setSelectedIndex(0);
+        }else {
+            comboTheme.setSelectedIndex(1);
+        }
+        this.txtXtitle.setText(this.xlabel);
+        this.txtYtitle.setText(this.ylabel);
+        this.chckbxShow.setSelected(this.isShowLegend());
+        this.chckbxAutopos.setSelected(this.autoPosLegend);
+        this.txtXlegend.setText("X coord");
+        this.txtYlegend.setText("Y coord");
+        this.txtZonescalexini.setText(FileUtils.dfX_2.format(scaleFactorT2ang));
+        this.txtZonescalefactor.setText(FileUtils.dfX_2.format(scaleFactorT2fact));
+        this.chckbxX.setSelected(this.showGridX);
+        this.chckbxY.setSelected(this.showGridY);
+        this.chckbxShow.setSelected(this.showLegend);
+        this.chckbxVerticalYAxis.setSelected(this.verticalYAxe);
+        this.chckbxVerticalYLabel.setSelected(this.verticalYlabel);
+        this.chckbxBkgIntensityprf.setSelected(this.plotwithbkg);
+        this.chckbxHklLabels.setSelected(this.hkllabels);
+        this.chckbxFixedAxis.setSelected(this.fixAxes);
+        this.chckbxNegativeYLabels.setSelected(this.negativeYAxisLabels);
         
     }
     
@@ -660,20 +980,22 @@ public class PlotPanel {
 	}
 	
 	private void resetView(boolean resetAxes) {
-	    this.calcMaxMinXY();
-	    this.xrangeMax=this.xMax;
-	    this.xrangeMin=this.xMin;
-	    this.yrangeMax=this.yMax;
-	    this.yrangeMin=this.yMin;
+	    if (arePlottables()) {
+	        this.calcMaxMinXY();
+	        this.xrangeMax=this.xMax;
+	        this.xrangeMin=this.xMin;
+	        this.yrangeMax=this.yMax;
+	        this.yrangeMin=this.yMin;
 
-	    this.calcScaleFitX();
-	    this.calcScaleFitY();
+	        this.calcScaleFitX();
+	        this.calcScaleFitY();
 
-	    if (!checkIfDiv() || resetAxes){
-	        this.autoDivLines(false);
+	        if (!checkIfDiv() || resetAxes){
+	            this.autoDivLines(false);
+	        }
+
+	        this.actualitzaPlot();
 	    }
-
-	    this.actualitzaPlot();
 	}
     
     //CAL COMPROVAR QUE ESTIGUI DINS DEL RANG PRIMER I CORREGIR l'OFFSET sino torna NULL
@@ -683,20 +1005,20 @@ public class PlotPanel {
     }
     
     private double getFrameXFromDataPointX(double xdpoint){
-          double xfr = ((xdpoint-this.xrangeMin) * this.scalefitX) + gapAxisLeft + padding;
+          double xfr = ((xdpoint-this.xrangeMin) * this.scalefitX) + gapAxisLeft;
           return xfr;    
     }
     
     private double getFrameYFromDataPointY(double ydpoint){
-        double yfr = graphPanel.getHeight()-(((ydpoint-this.yrangeMin) * this.scalefitY) + gapAxisBottom + padding);
+        double yfr = graphPanel.getHeight()-(((ydpoint-this.yrangeMin) * this.scalefitY) + gapAxisBottom);
         return yfr;    
   }
     
 
     private Point2D.Double getDataPointFromFramePoint(Point2D.Double framePoint){
         if (isFramePointInsideGraphArea(framePoint)){
-            double xdp = ((framePoint.x - gapAxisLeft - padding) / this.scalefitX) + this.xrangeMin;
-            double ydp = (-framePoint.y+graphPanel.getHeight()-gapAxisBottom - padding)/this.scalefitY +this.yrangeMin;
+            double xdp = ((framePoint.x - gapAxisLeft) / this.scalefitX) + this.xrangeMin;
+            double ydp = (-framePoint.y+graphPanel.getHeight()-gapAxisBottom)/this.scalefitY +this.yrangeMin;
             return new Point2D.Double(xdp,ydp);
         }else{
             return null;
@@ -704,15 +1026,15 @@ public class PlotPanel {
     }
     
     private Point2D.Double getDataPointFromFramePointIgnoreIfInside(Point2D.Double framePoint){
-            double xdp = ((framePoint.x - gapAxisLeft - padding) / this.scalefitX) + this.xrangeMin;
-            double ydp = (-framePoint.y+graphPanel.getHeight()-gapAxisBottom - padding)/this.scalefitY +this.yrangeMin;
+            double xdp = ((framePoint.x - gapAxisLeft) / this.scalefitX) + this.xrangeMin;
+            double ydp = (-framePoint.y+graphPanel.getHeight()-gapAxisBottom)/this.scalefitY +this.yrangeMin;
             return new Point2D.Double(xdp,ydp);
     }
     
     private Plottable_point getDataPointDPFromFramePoint(Point2D.Double framePoint){
         if (isFramePointInsideGraphArea(framePoint)){
-            double xdp = ((framePoint.x - gapAxisLeft - padding) / this.scalefitX) + this.xrangeMin;
-            double ydp = (-framePoint.y+graphPanel.getHeight()-gapAxisBottom - padding)/this.scalefitY +this.yrangeMin;
+            double xdp = ((framePoint.x - gapAxisLeft) / this.scalefitX) + this.xrangeMin;
+            double ydp = (-framePoint.y+graphPanel.getHeight()-gapAxisBottom)/this.scalefitY +this.yrangeMin;
             return new DataPoint(xdp,ydp,0);
         }else{
             return null;
@@ -735,7 +1057,7 @@ public class PlotPanel {
     }
     
     private boolean isFramePointInsideXGraphArea(double px) {
-        double x_low = gapAxisLeft+padding;
+        double x_low = gapAxisLeft;
         double x_high = x_low + this.calcPlotSpaceX();
         if ((px>x_low)&&(px<x_high))return true;
         return false;
@@ -746,8 +1068,8 @@ public class PlotPanel {
     }
     
     private Rectangle2D.Double getRectangleGraphArea(){
-        double xtop = gapAxisLeft+padding;
-        double ytop = gapAxisTop+padding;
+        double xtop = gapAxisLeft;
+        double ytop = gapAxisTop;
         return new Rectangle2D.Double(xtop,ytop,calcPlotSpaceX(),calcPlotSpaceY());
     }
     
@@ -893,11 +1215,11 @@ public class PlotPanel {
     
     //height in pixels of the plot area
     private double calcPlotSpaceY(){
-        return graphPanel.getHeight()-gapAxisTop-gapAxisBottom-2*padding;
+        return graphPanel.getHeight()-gapAxisTop-gapAxisBottom;
     }
     //width in pixels of the plot area
     private double calcPlotSpaceX(){
-        return graphPanel.getWidth()-gapAxisLeft-gapAxisRight-2*padding;
+        return graphPanel.getWidth()-gapAxisLeft-gapAxisRight;
     }
     //escala en Y per encabir el rang que s'ha de plotejar
     private void calcScaleFitY(){
@@ -1186,19 +1508,37 @@ public class PlotPanel {
 	                            dhkl.addAll(dshkl.getClosestPointsToAGivenX(dtth, tol)); //TODOK afegit addall 23/05/19
 	                        }
 	                    }
+	                    
+
                         if (dhkl.size()>0){
                             Iterator<Plottable_point> itrhkl = dhkl.iterator();
                             StringBuilder shkl = new StringBuilder();
-                            shkl.append("<html>");
+//                            shkl.append("<html>");
                             shkl.append("hkl(s)= ");
-                            shkl.append("<br>");
+//                            shkl.append("<br>");
+                            int nhkls = 0;                      //limitem a numero de reflexions
+                            int maxREFS = 15;
+                            boolean maxReached = false;
                             while (itrhkl.hasNext()){
                                 Plottable_point hkl = itrhkl.next();
-                                shkl.append(hkl.getInfo()).append("<br>"); //TODO test canvi de ; a salt linia 27/08/2019
+//                                shkl.append(hkl.getInfo()).append("<br>"); //TODO test canvi de ; a salt linia 27/08/2019
+                                shkl.append(hkl.getInfo()).append("; ");
+                                nhkls++;
+                                if (nhkls>=maxREFS) {
+                                    maxReached=true;
+                                    break;
+                                }
                             }
-                            shkl.append("</html>");
-//                            lblHkl.setText(shkl.substring(0, shkl.length()-2));
-                            lblHkl.setText(shkl.toString());
+//                            shkl.append("</html>");
+                            
+                            //TODO: mirar que si es molt llarga posar punts suspensius i llestos...
+                            String toprinthkl = shkl.substring(0, shkl.length()-2);
+                            if (maxReached) toprinthkl=toprinthkl.concat(" (... and more)");
+//                            if (toprinthkl.length()> 150) { //mitjana 10caracters per reflexio, limitem a 15 reflexions... 
+//                                toprinthkl=toprinthkl.substring(0, 150).concat("...");
+//                            }
+                            lblHkl.setText(toprinthkl);
+//                            lblHkl.setText(shkl.toString());
                         }else {
                             lblHkl.setText("");
                         }
@@ -1381,13 +1721,17 @@ public class PlotPanel {
 	    this.actualitzaPlot();
 	}
 
-	private void do_btnResetView_actionPerformed(ActionEvent e) {
-	    this.fitGraph();
-	}
+//	private void do_btnResetView_actionPerformed(ActionEvent e) {
+//	    this.fitGraph();
+//	}
+	
+    private void do_btnFitWindowStatus_actionPerformed(ActionEvent e) {
+        this.fitGraph();
+    }
 
 	private void do_chckbxFixedAxis_itemStateChanged(ItemEvent e) {
 	    this.fixAxes=chckbxFixedAxis.isSelected();
-	    if (fixAxes==true){
+	    if (!fixAxes){
 	        txtNdivx.setEditable(false);
 	        txtNdivy.setEditable(false);
 	        txtXdiv.setEditable(false);
@@ -1430,6 +1774,136 @@ public class PlotPanel {
     }
     private void do_txtYmaxwin_actionPerformed(ActionEvent e) {
         this.applyWindow();
+    }
+    private void do_btnReassigncolors_actionPerformed(ActionEvent e) {
+        this.reassignColorPatterns();
+        mainframeUpdateData();
+    }
+    
+    private void mainframeUpdateData() {
+        if (D1Dplot_global.getD1Dmain()!=null) {
+            D1Dplot_global.getD1Dmain().updateData(false, false);
+        }
+    }
+    private void do_txtXtitle_actionPerformed(ActionEvent e) {
+        if (txtXtitle.getText().isEmpty()){
+            customXtitle=false;
+        }else{
+            setXlabel(txtXtitle.getText());
+            customXtitle=true;
+        }        
+    }
+    private void do_txtYtitle_actionPerformed(ActionEvent e) {
+        if (txtYtitle.getText().isEmpty()){
+            setYlabel("Intensity");
+            txtYtitle.setText("Intensity");
+        }else {
+            setYlabel(txtYtitle.getText());    
+        }
+        
+    }
+    private void do_comboTheme_itemStateChanged(ItemEvent e) {
+        if(e.getStateChange() == ItemEvent.DESELECTED)return;
+        if (comboTheme.getSelectedItem().toString().equalsIgnoreCase("Light")){
+            logdebug("light theme");
+            setLightTheme(true);
+        }else{
+            logdebug("Dark theme");
+            setLightTheme(false);
+        }
+
+        if (arePlottables()){
+            boolean repaint = FileUtils.YesNoDialog(null, "Repaint current patterns?");
+            if(repaint){
+                reassignColorPatterns();
+            }
+        }
+        actualitzaPlot();
+    }
+    public boolean isCustomXtitle() {
+        return customXtitle;
+    }
+    private void do_chckbxShow_itemStateChanged(ItemEvent e) {
+        setShowLegend(chckbxShow.isSelected());
+    }
+    private void do_chckbxAutopos_itemStateChanged(ItemEvent e) {
+        setAutoPosLegend(chckbxAutopos.isSelected());
+        if (chckbxAutopos.isSelected()){
+            txtXlegend.setEditable(false);
+            txtYlegend.setEditable(false);
+        }else{
+            txtXlegend.setEditable(true);
+            txtYlegend.setEditable(true);
+        }
+        //legend pos Actualitzem sempre
+        txtXlegend.setText(Integer.toString(getLegendX()));
+        txtYlegend.setText(Integer.toString(getLegendY()));
+    }
+    private void do_txtXlegend_actionPerformed(ActionEvent e) {
+        try{
+            int lx = Integer.parseInt(txtXlegend.getText());
+            setLegendX(lx);
+            txtXlegend.setText(Integer.toString(getLegendX()));
+        }catch(Exception ex){
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
+        }
+    }
+    private void do_txtYlegend_actionPerformed(ActionEvent e) {
+        try{
+            int ly = Integer.parseInt(txtYlegend.getText());
+            setLegendY(ly);
+            txtYlegend.setText(Integer.toString(getLegendY()));
+        }catch(Exception ex){
+            if (D1Dplot_global.isDebug())ex.printStackTrace();
+        }
+    }
+    private void do_chckbxApply_itemStateChanged(ItemEvent e) {
+        applyPartialYscale();
+    }
+    private void do_txtZonescalexini_keyReleased(KeyEvent e) {
+        if (e.getKeyCode()==KeyEvent.VK_ENTER) {
+            applyPartialYscale();
+        }
+    }
+    private void do_txtZonescalefactor_keyReleased(KeyEvent e) {
+        if (e.getKeyCode()==KeyEvent.VK_ENTER) {
+            applyPartialYscale();
+        }
+    }
+    private void applyPartialYscale() {
+        //default values
+        float t2ini=30;
+        float t2fac=1.0f;
+        try {
+            t2ini=Float.parseFloat(txtZonescalexini.getText());
+            t2fac=Float.parseFloat(txtZonescalefactor.getText());
+        }catch(Exception ex) {
+            log.warning("Error reading t2 value or factor");
+            txtZonescalexini.setText("30.0");
+            txtZonescalefactor.setText("1.0");
+        }
+        setPartialYScale(chckbxApply.isSelected(),t2ini,t2fac);
+    }
+    private void do_chckbxX_itemStateChanged(ItemEvent e) {
+        setShowGridX(chckbxX.isSelected());
+    }
+    private void do_chckbxY_itemStateChanged(ItemEvent e) {
+        setShowGridY(chckbxY.isSelected());
+    }
+    private void do_chckbxVerticalYAxis_itemStateChanged(ItemEvent e) {
+        setVerticalYAxe(chckbxVerticalYAxis.isSelected());
+    }
+    private void do_chckbxVerticalYLabel_itemStateChanged(ItemEvent e) {
+        setVerticalYlabel(chckbxVerticalYLabel.isSelected());
+    }
+    private void do_chckbxBkgIntensityprf_itemStateChanged(ItemEvent e) {
+        setPlotwithbkg(chckbxBkgIntensityprf.isSelected());
+    }
+    private void do_chckbxHklLabels_itemStateChanged(ItemEvent e) {
+        setHkllabels(chckbxHklLabels.isSelected());
+    }
+    private void do_chckbxNegativeYLabels_itemStateChanged(ItemEvent e) {
+        setNegativeYAxisLabels(chckbxNegativeYLabels.isSelected());
     }
 
     public String getVisualParametersToSave() {
@@ -1607,6 +2081,7 @@ public class PlotPanel {
 
 	public void setXlabel(String xlabel) {
 	    this.xlabel = xlabel;
+	    txtXtitle.setText(xlabel);
 	    this.actualitzaPlot();
 	}
 
@@ -1616,6 +2091,7 @@ public class PlotPanel {
 
 	public void setYlabel(String ylabel) {
 	    this.ylabel = ylabel;
+	    txtYtitle.setText(ylabel);
 	    this.actualitzaPlot();
 	}
 
@@ -1811,12 +2287,12 @@ public class PlotPanel {
 	    }else {
 	        this.lightTheme=false;
 	    }
-	    this.gapAxisTop = opt.getValAsInteger("axisGapTop", this.gapAxisTop);
-	    this.gapAxisBottom = opt.getValAsInteger("axisGapBottom", this.gapAxisBottom);
-	    this.gapAxisLeft = opt.getValAsInteger("axisGapLeft", this.gapAxisLeft);
-	    this.gapAxisRight = opt.getValAsInteger("axisGapRight", this.gapAxisRight);
-	    this.padding = opt.getValAsInteger("generalPadding", this.padding);
-	    this.AxisLabelsPadding = opt.getValAsInteger("axisLabelsPadding", this.AxisLabelsPadding);
+//	    this.gapAxisTop = opt.getValAsInteger("axisGapTop", this.gapAxisTop);
+//	    this.gapAxisBottom = opt.getValAsInteger("axisGapBottom", this.gapAxisBottom);
+//	    this.gapAxisLeft = opt.getValAsInteger("axisGapLeft", this.gapAxisLeft);
+//	    this.gapAxisRight = opt.getValAsInteger("axisGapRight", this.gapAxisRight);
+//	    this.padding2px = opt.getValAsInteger("paddingSmall", this.padding2px);
+//	    this.padding5px = opt.getValAsInteger("paddingMid", this.padding5px);
 	    this.incXPrimPIXELS = opt.getValAsDouble("axisSepPrimaryXDivInAutoMode", this.incXPrimPIXELS);
 	    this.incXSecPIXELS = opt.getValAsDouble("axisSepSecundaryXDivInAutoMode", this.incXSecPIXELS);
 	    this.incYPrimPIXELS = opt.getValAsDouble("axisSepPrimaryYDivInAutoMode", this.incYPrimPIXELS);
@@ -1829,6 +2305,7 @@ public class PlotPanel {
 	    this.def_axisL_fsize = opt.getValAsFloat("axisLabelFontSizeRelative", this.def_axisL_fsize);
 	    this.def_nDecimalsX = opt.getValAsInteger("axisDecimalsX", this.def_nDecimalsX);
 	    this.def_nDecimalsY = opt.getValAsInteger("axisDecimalsY", this.def_nDecimalsY);
+	    this.def_legend_fsize = opt.getValAsFloat("legendFontSizeRelative", this.def_legend_fsize);
 	    this.colorDBcomp = opt.getValAsColor("colorDBcomp", this.colorDBcomp);
 	}
 
@@ -1853,12 +2330,12 @@ public class PlotPanel {
 	    String col = "Light";
 	    if (!isLightTheme())col="Dark";
 	    opt.put("colorTheme", col);
-	    opt.put("axisGapTop", String.format("%d", this.gapAxisTop));
-	    opt.put("axisGapBottom", String.format("%d", this.gapAxisBottom));
-	    opt.put("axisGapLeft", String.format("%d", this.gapAxisLeft));
-	    opt.put("axisGapRight", String.format("%d", this.gapAxisRight));
-	    opt.put("generalPadding", String.format("%d", this.padding));
-	    opt.put("axisLabelsPadding", String.format("%d", this.AxisLabelsPadding));
+//	    opt.put("axisGapTop", String.format("%d", this.gapAxisTop));
+//	    opt.put("axisGapBottom", String.format("%d", this.gapAxisBottom));
+//	    opt.put("axisGapLeft", String.format("%d", this.gapAxisLeft));
+//	    opt.put("axisGapRight", String.format("%d", this.gapAxisRight));
+//	    opt.put("generalPadding", String.format("%d", this.padding2px));
+//	    opt.put("axisLabelsPadding", String.format("%d", this.padding5px));
 	    opt.put("axisSepPrimaryXDivInAutoMode", String.format("%.2f", this.incXPrimPIXELS));
 	    opt.put("axisSepSecundaryXDivInAutoMode", String.format("%.2f", this.incXSecPIXELS));
 	    opt.put("axisSepPrimaryXDivInAutoMode", String.format("%.2f", this.incYPrimPIXELS));
@@ -1873,7 +2350,7 @@ public class PlotPanel {
         opt.put("axisDecimalsX", String.format("%d", this.def_nDecimalsX));
         opt.put("axisDecimalsY", String.format("%d", this.def_nDecimalsY));
         opt.put("colorDBcomp", FileUtils.getColorName(this.colorDBcomp));
-        
+        opt.put("legendFontSizeRelative", String.format("%.1f", this.def_legend_fsize));
 	    return opt;
 	}
 	
@@ -2103,19 +2580,13 @@ public class PlotPanel {
                 nTotalOpenedDatSeries=0;
             }
         }
+ 
         
         private void drawAxes(Graphics2D g1, boolean gridY, boolean gridX){
 
-            //provem de fer linia a 60 pixels de l'esquerra i a 60 pixels de baix (40 i 40 de dalt i a la dreta com a marges)
-
-            double coordXeixY = gapAxisLeft+padding;
-            double coordYeixX = panelH-gapAxisBottom-padding;
-
-            Point2D.Double vytop = new Point2D.Double(coordXeixY,gapAxisTop+padding);
-            Point2D.Double vybot = new Point2D.Double(coordXeixY,coordYeixX);
-            Point2D.Double vxleft = vybot;
-            Point2D.Double vxright = new Point2D.Double(panelW-gapAxisRight-padding,coordYeixX);
-
+            //REFET el 18-Sep-2019, pintarem d'esquerra a dreta i de dalt a baix aprofitant el maxim els espais
+            //i definirem des d'aquí els gaps
+            
             if(lightTheme){
                 g1.setColor(Light_frg);
             }else{
@@ -2123,36 +2594,123 @@ public class PlotPanel {
             }
             BasicStroke stroke = new BasicStroke(1.0f);
             g1.setStroke(stroke);
-
-            Line2D.Double ordenada = new Line2D.Double(vytop,vybot);  //Y axis vertical
-            Line2D.Double abcissa = new Line2D.Double(vxleft, vxright);  //X axis horizontal
-
-            if (verticalYAxe)g1.draw(ordenada);
-            g1.draw(abcissa);
-
-            //PINTEM ELS TITOLS DELS EIXOS
-            Font font = g1.getFont();
             FontRenderContext frc = g1.getFontRenderContext();
-            // X-axis (abcissa) label.
-            String s = getXlabel();
-            double sy = panelH - AxisLabelsPadding;
-            g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
-            double sw = g1.getFont().getStringBounds(s, frc).getWidth();
-            double sx = (panelW - sw)/2;
-            g1.drawString(s, (float)sx,(float)sy);
-            g1.setFont(font); //recuperem font defecte
-
-
-            // **** linies divisio eixos
             
             if (!checkIfDiv()) {
                 log.info("Error drawing division lines on the axes, please check");
                 return;
             }
-            if (fixAxes) autoDivLines(true);
+            if (!fixAxes) autoDivLines(true);
             
-            //---eix X
+            gapAxisTop=padding5px;
+            double valY_str_height = padding5px; //s'actualitza despres
+            gapAxisRight=padding5px;
+            gapAxisLeft=padding5px;
+            gapAxisBottom=padding5px;
+            
+            /*
+             * Primer posarem els titols dels 2 eixos i mirarem espai que necessiten
+             * 
+             * i definirem els GAPS
+             * 
+             */
+            
+            //EIX X
+            // X-axis (abcissa) label.
+            String xlabel = getXlabel();
+            double xlabelY = panelH - padding5px;
+            TextLayout xLabelTextLayout = new TextLayout(xlabel, g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize), frc);
+            double xlabelWidth = xLabelTextLayout.getBounds().getWidth();
+            double xlabelHeigth = xLabelTextLayout.getBounds().getHeight();
+            //la pintarem despres per buscar exactament el centre de l'espai considerant gapLeft
 
+            //mirem el màxim que pot ocupar d'alt el valor X
+            String str_valX = this.def_xaxis_format.format(xrangeMax);
+            TextLayout valXTextLayout = new TextLayout(str_valX,g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize),frc);
+            double valX_str_height = valXTextLayout.getBounds().getHeight();
+            double valX_str_width = valXTextLayout.getBounds().getWidth();
+
+            //ara per tenir la posicio Y de l'eix X podem sumar 
+            //AxisLabelsPadding + labelXheight + AxisLabelsPadding + maxHeightValues + AxisLabelsPadding + meitatLiniaPrincipalDivisio
+            
+            double coordYeixX = panelH-(padding5px*3+xlabelHeigth+valX_str_height + (div_PrimPixSize/2.f));
+            gapAxisBottom = (int)FastMath.round(panelH-coordYeixX);
+                    
+            //EIX Y
+            double coordXeixY = padding5px; //en cas de no eix 
+            
+            if (verticalYAxe) {
+                String s = getYlabel();
+                TextLayout yLabelTextLayout = new TextLayout(ylabel, g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize), frc);
+                double ylabelWidth = yLabelTextLayout.getBounds().getWidth();
+                double ylabelHeight =  yLabelTextLayout.getBounds().getHeight();
+                //per defecte horitzontal a dalt a l'esquerra
+                double ylabelX = padding5px;
+                double ylabelY = ylabelHeight + padding5px;
+                
+                if (verticalYlabel){
+                    ylabelY = (float)(panelH - gapAxisBottom)/2. + ylabelWidth/2; //may2019 fix
+                    ylabelX = (ylabelHeight/2.f)+padding5px; //TODO PROBABLEMENT NO HE DE DIVIDIR ENTRE 2 ara que no tinc general padding
+                    AffineTransform orig = g1.getTransform();
+                    g1.rotate(-Math.PI/2,ylabelX,ylabelY);
+                    yLabelTextLayout.draw(g1, (float)ylabelX,(float)ylabelY);
+                    g1.setTransform(orig);
+                }else{
+                    //el posem sobre l'eix en horitzontal
+                    yLabelTextLayout.draw(g1, (float)ylabelX,(float)ylabelY);
+                }
+
+                //mirem el màxim que pot ocupar el valor Y
+                double maxYval = FastMath.max(FastMath.abs(yrangeMax),FastMath.abs(yrangeMin));
+                s = this.def_yaxis_format.format(maxYval);
+                TextLayout valYTextLayout = new TextLayout(s,g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize),frc);
+                double valY_str_width = valYTextLayout.getBounds().getWidth();
+                valY_str_height = valYTextLayout.getBounds().getHeight();
+                
+                //ara per tenir la posicio X de l'eix Y podem sumar 
+                //AxisLabelsPadding + labelYheight (nomes si vertical) + AxisLabelsPadding + maxWidth + AxisLabelsPadding + meitatLiniaPrincipalDivisio
+                coordXeixY = padding5px*3+valY_str_width + (div_PrimPixSize/2.f);
+                
+                if (verticalYlabel) {
+                    coordXeixY=coordXeixY+ylabelHeight;
+                }else {
+                    gapAxisTop=(int)FastMath.round(gapAxisTop+ylabelHeight+padding5px);
+                }
+                gapAxisLeft=(int)FastMath.round(coordXeixY);
+            }else {
+                //cal afegir maxwidth/2. al gapLeft per encabir el label val X si treiem eix
+                gapAxisLeft = gapAxisLeft + (int)(valX_str_width/2.);
+            }
+            
+            //al gap axis top he d'afegir una mica mes perquè cal encabir la "meitat" dels valors ja que es pinten sempre que surtin sobre l'eix i a la meitat de la ratlla.
+            gapAxisTop = gapAxisTop + (int)(valY_str_height/2.f);
+            gapAxisRight = gapAxisRight + (int)(valX_str_width/2.);
+            
+            //ara ja podem centrar el xlabel, el pintem
+            double xlabelX = (panelW - gapAxisLeft - gapAxisRight)/2.f - xlabelWidth/2.f + gapAxisLeft;
+            xLabelTextLayout.draw(g1, (float)xlabelX,(float)xlabelY);
+
+            //al haver canviat gaps fem calc scalefit (TODO: revisar si tot es comporta bé)
+            calcScaleFitX();
+            calcScaleFitY();
+            
+            /*
+             * Ara ja podem pintar els eixos 
+             */
+            
+            Point2D.Double vytop = new Point2D.Double(gapAxisLeft,gapAxisTop);
+            Point2D.Double vybot = new Point2D.Double(gapAxisLeft,coordYeixX);
+            Point2D.Double vxleft = vybot;
+            Point2D.Double vxright = new Point2D.Double(panelW-gapAxisRight,coordYeixX);
+            Line2D.Double ordenada = new Line2D.Double(vytop,vybot);  //Y axis vertical
+            Line2D.Double abcissa = new Line2D.Double(vxleft, vxright);  //X axis horizontal
+            g1.draw(abcissa);
+            //la ordenada la dibuxarem si s'escau despres
+            
+            /*
+             * i ara la resta de parafarnalia
+             */
+            ////EIX X
             //Per tots els punts les coordenades Y seran les mateixes
             double yiniPrim = coordYeixX - (div_PrimPixSize/2.f); 
             double yfinPrim = coordYeixX + (div_PrimPixSize/2.f);
@@ -2171,20 +2729,17 @@ public class PlotPanel {
                         Line2D.Double l = new Line2D.Double(xvalPix,yiniPrim,xvalPix,yfinPrim);
                         g1.draw(l);
                         //ara el label sota la linia 
-                        s = this.def_xaxis_format.format(xval);
-                        g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
-                        sw = g1.getFont().getStringBounds(s, frc).getWidth();
-                        double sh = g1.getFont().getStringBounds(s, frc).getHeight();
+                        String s = this.def_xaxis_format.format(xval);
+                        valXTextLayout = new TextLayout(s,g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize),frc);
+                        double sw = valXTextLayout.getBounds().getWidth();
+                        double sh = valXTextLayout.getBounds().getHeight();
                         double xLabel = xvalPix - sw/2f; //el posem centrat a la linia
-                        double yLabel = yfinPrim + AxisLabelsPadding + sh;
-                        g1.drawString(s, (float)xLabel, (float)yLabel);
-//                        xval = xval + div_incXPrim;
-                        g1.setFont(font);
+                        double yLabel = yfinPrim + padding5px + sh;
+                        valXTextLayout.draw(g1, (float)xLabel, (float)yLabel);
                     }else {
                         //secundaria: linia curta
                         Line2D.Double l = new Line2D.Double(xvalPix,yiniSec,xvalPix,yfinSec);
                         g1.draw(l);
-//                        xval = xval + div_incXSec;
                     }
                     
                     //i ara el grid
@@ -2201,66 +2756,41 @@ public class PlotPanel {
                 idiv = idiv + 1;
             }
             
-            //---eix Y
-            
+            ////EIX Y
             if (verticalYAxe) {
-                // Y-axis (ordinate) label.
-                s = getYlabel();
-                sw = g1.getFont().getStringBounds(s, frc).getWidth();
-                double sh =  g1.getFont().getStringBounds(s, frc).getHeight();
-                double ylabelheight = sh; //per utilitzar-ho despres
-                sx = AxisLabelsPadding;
-                sy = sh + AxisLabelsPadding;
-                g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
-                if (verticalYlabel){
-//                    sy = (panelH - sw)/2; //may2019 fix
-                    sy = panelH/2. + sw/2.;
-                    sx = (ylabelheight/2)+padding;
-                    AffineTransform orig = g1.getTransform();
-                    g1.rotate(-Math.PI/2,sx,sy);
-                    g1.drawString(s,(float)sx,(float)sy);
-                    g1.setTransform(orig);
-                }else{
-                    //el posem sobre l'eix en horitzontal
-                    g1.drawString(s,(float)sx,(float)sy);
-                }
-                g1.setFont(font);
-
+                g1.draw(ordenada);
+                //Y axis divisions and labels:
                 //Per tots els punts les coordenades Y seran les mateixes
+
                 double xiniPrim = coordXeixY - (div_PrimPixSize/2.f); 
                 double xfinPrim = coordXeixY + (div_PrimPixSize/2.f);
                 double xiniSec = coordXeixY - (div_SecPixSize/2.f); 
                 double xfinSec = coordXeixY + (div_SecPixSize/2.f);
-                
+
                 ndiv = (int) (div_incYPrim/div_incYSec);
                 idiv = 0;
                 double yval = div_startValY;
-                
+
                 while (yval <= yrangeMax){
                     if (yval >= yrangeMin){ //la pintem nomes si estem dins el rang, sino numés icrementem el num de divisions
                         double yvalPix = getFrameYFromDataPointY(yval);
+                        
+                        if (!negativeYAxisLabels && (yval<0)){
+                            yval = yval + div_incYSec;
+                            continue;
+                        }
+                        
                         if (idiv%ndiv==0) {
                             Line2D.Double l = new Line2D.Double(xiniPrim, yvalPix, xfinPrim, yvalPix);
                             g1.draw(l);
                             //ara el label a l'esquerra de la linia (atencio a negatius, depen si hi ha l'opcio)
-                            s = this.def_yaxis_format.format(yval);
-                            g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize));
-                            sw = g1.getFont().getStringBounds(s, frc).getWidth();
-                            sh = g1.getFont().getStringBounds(s, frc).getHeight();
-                            double xLabel = xiniPrim - AxisLabelsPadding - sw; 
-                            double yLabel = yvalPix + sh/2f; //el posem centrat a la linia
-
-                            //Sino hi cap fem la font mes petita
-                            double limit = gapAxisLeft;
-                            if (verticalYlabel)limit = gapAxisLeft-ylabelheight;
-                            while(sw>limit){
-                                g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
-                                sw = g1.getFont().getStringBounds(s, g1.getFontRenderContext()).getWidth();
-                                xLabel = xiniPrim - AxisLabelsPadding - sw;
-                            }
-
-                            g1.drawString(s, (float)xLabel, (float)yLabel);
-                            g1.setFont(font);                //recuperem font
+                            String s = this.def_yaxis_format.format(yval);
+                            TextLayout valYTextLayout = new TextLayout(s,g1.getFont().deriveFont(g1.getFont().getSize()+def_axis_fsize),frc);
+                            double sw = valYTextLayout.getBounds().getWidth();
+                            double sh = valYTextLayout.getBounds().getHeight();
+                            double xLabel = xiniPrim - padding5px - sw; 
+                            double yLabel = yvalPix + sh/2f; //el posem centrat a la linia.. no se perquè queda millor amb 3 que 2
+                            valYTextLayout.draw(g1, (float)xLabel, (float)yLabel); //prova d'utilitzar textLayouts -- funciona be i el getbounds va millor
                         }else {
                             Line2D.Double l = new Line2D.Double(xiniSec,yvalPix,xfinSec,yvalPix);
                             g1.draw(l);
@@ -2494,8 +3024,8 @@ public class PlotPanel {
             if (!isFramePointInsideXGraphArea(frameX)) return;
             g1.setColor(col);
             g1.setStroke(stroke);
-            int ytop = gapAxisTop+padding;
-            int ybot = panelH-gapAxisBottom-padding;
+            int ytop = gapAxisTop+padding5px;
+            int ybot = panelH-gapAxisBottom-padding5px;
             int dist = FastMath.abs(ybot-ytop); //faig abs per si de cas...
             Point2D.Double ptop = new Point2D.Double(frameX, ybot - dist * (percent/100.)); //100% es com tenir Ytop
             Point2D.Double pbot = new Point2D.Double(frameX, ybot);
@@ -2508,8 +3038,8 @@ public class PlotPanel {
                 Font font = g1.getFont();
                 g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
                 double[] swh = getWidthHeighString(g1,label);
-                double sy = gapAxisTop+padding + swh[1];
-                double sx = frameX + padding;
+                double sy = gapAxisTop+padding5px + swh[1];
+                double sx = frameX + padding5px;
                 g1.drawString(label, (float)sx,(float)sy);
                 g1.setFont(font); //recuperem font defecte
             }
@@ -2518,88 +3048,70 @@ public class PlotPanel {
         
         private void drawLegend(Graphics2D g1){
 
-            int rectMaxWidth = 300;
-            int currentMaxWidth = 0;
-            int entryHeight = 25;
-            int margin = 10;
-            int linelength = 15;
+//            int rectMaxWidth = 300;
+//            int currentMaxWidth = 0;
+//            int entryHeight = 25;
+            int margin = 5; //podria fer servir el padding5px
+            int linelength = 15; //longitud de la linia a la llegenda
             float strokewidth = 3;
-            Font font = g1.getFont(); //font inicial
             
+            FontRenderContext frc = g1.getFontRenderContext();
+            
+            //1r mirem i definim mides
+            double entryMaxWidth = 1;
+            double entryMaxHeight = 1;
+            int entries = 0;
+            for (Plottable p:dataToPlot) {
+                for (DataSerie ds:p.getDataSeries()) {
+                    if (!ds.plotThis)continue;
+                    if (ds.isEmpty())continue;
+                    //quines series no volem mostrar?
+                    if (ds.getTipusSerie()==SerieType.peaks)continue;
+                    if (ds.getTipusSerie()==SerieType.bkg)continue;
+                    
+                    TextLayout lay = new TextLayout(ds.serieName, g1.getFont().deriveFont(g1.getFont().getSize()+def_legend_fsize), frc);
+                    double entryWidth = lay.getBounds().getWidth();
+                    double entryHeight = lay.getBounds().getHeight();
+                    if (entryWidth>entryMaxWidth)entryMaxWidth=entryWidth;
+                    if (entryHeight>entryMaxHeight)entryMaxHeight=entryHeight;
+                    entries++;
+                }
+            }
+            //ara ja podem calcular el width del quadrat == margin*2+linelength+margin+entryMaxWidth+margin*2
+            int rectWidth = (int)FastMath.round(entryMaxWidth + margin*5 + linelength);
+            //i el height del quadrat == margin*2 + entryMaxHeight*entries + margin*(entries-1) + margin*2
+            int rectHeight = (int)FastMath.round(entryMaxHeight*entries + margin*(entries-1+4));
+            
+            //dibuixem el quadrat:
             if (autoPosLegend){
-                legendX = panelW-padding-rectMaxWidth;
-                legendY = padding;
-            }else{
-                if (legendX>panelW-padding-2*margin) legendX=panelW-padding-2*margin;
-                if (legendX<padding) legendX=padding;
-                if (legendY<padding) legendY=padding;
-                if (legendY>panelH-padding-2*margin) legendY=panelH-padding-2*margin;
+                legendX = panelW-padding5px*2-rectWidth;
+                legendY = padding5px*2;
+            }else{ //TODO revisar/actualitzar
+                if (legendX>panelW-padding5px-2*margin) legendX=panelW-padding5px-2*margin;
+                if (legendX<padding5px) legendX=padding5px;
+                if (legendY<padding5px) legendY=padding5px;
+                if (legendY>panelH-padding5px-2*margin) legendY=panelH-padding5px-2*margin;
             }
 
             
+            //provo de desactivar el fill... hauria d'agafar el color de fons del pattern
+//            if (lightTheme){
+//                g1.setColor(Light_Legend_bkg);    
+//            }else{
+//                g1.setColor(Dark_Legend_bkg);
+//            }
+//            g1.fillRect(legendX,legendY,rectWidth,rectHeight);
+            
+            if (lightTheme){
+                g1.setColor(Light_Legend_line);    
+            }else{
+                g1.setColor(Dark_Legend_line);
+            }
+            BasicStroke stroke = new BasicStroke(1.0f);
+            g1.setStroke(stroke);
+            g1.drawRect(legendX,legendY,rectWidth,rectHeight);
+            
             try {
-                int entries = 0;
-                for (Plottable p:dataToPlot) {
-                    for (DataSerie ds:p.getDataSeries()) {
-                        if (!ds.plotThis)continue;
-                        if (ds.isEmpty())continue;
-                        //quines series no volem mostrar?
-                        if (ds.getTipusSerie()==SerieType.peaks)continue;
-                        if (ds.getTipusSerie()==SerieType.bkg)continue;
-                        //dibuixem primer la linia
-                        int l_iniX = legendX+margin;
-                        int l_finX = legendX+margin+linelength;
-                        int l_y = (int) (legendY+margin+entries*(entryHeight)+FastMath.round(entryHeight/2.));
-
-                        g1.setColor(ds.color);
-                        BasicStroke stroke = new BasicStroke(strokewidth);
-                        g1.setStroke(stroke);
-
-                        Line2D.Float l = new Line2D.Float(l_iniX,l_y,l_finX,l_y);
-                        g1.draw(l);
-
-                        //ara el text
-                        int t_X = l_finX+margin; 
-                        int maxlength = panelW-padding-margin-t_X;
-                        String s = ds.serieName; 
-                        g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
-                        double[] swh = getWidthHeighString(g1,s);
-                        int count=0;
-                        while (swh[0]>maxlength){
-                            g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
-                            swh = getWidthHeighString(g1,s);
-                            count = count +1;
-                            if (count>20)throw new Exception();
-                        }
-                        int t_Y = (int) (l_y-strokewidth+(swh[1]/2.));
-                        g1.drawString(s, t_X,t_Y);
-                        g1.setFont(font);                //recuperem font
-
-                        int currentWidth = (int) (margin + linelength + margin + swh[0] + margin);
-                        if (currentWidth>currentMaxWidth)currentMaxWidth = currentWidth;
-                        entries++;
-                    }
-                }
-                
-
-                int rerctheight = entries*entryHeight+2*margin;
-                if (lightTheme){
-                    g1.setColor(Light_Legend_bkg);    
-                }else{
-                    g1.setColor(Dark_Legend_bkg);
-                }
-                g1.fillRect(legendX,legendY,FastMath.min(currentMaxWidth,rectMaxWidth),rerctheight);
-                if (lightTheme){
-                    g1.setColor(Light_Legend_line);    
-                }else{
-                    g1.setColor(Dark_Legend_line);
-                }
-                BasicStroke stroke = new BasicStroke(1.0f);
-                g1.setStroke(stroke);
-                g1.drawRect(legendX,legendY,FastMath.min(currentMaxWidth,rectMaxWidth),rerctheight);
-
-                //repeteixo lo d'abans per pintar a sobre... no es gaire eficient...
-                //NO REPETEIXO EXACTE, AQUI TINDRE EN COMPTE ELS TIPUS DE LINIA
                 entries = 0;
                 for (Plottable p:dataToPlot) {
                     for (DataSerie ds:p.getDataSeries()) {
@@ -2612,22 +3124,22 @@ public class PlotPanel {
                         g1.setColor(ds.color);
 
                         //dibuixem primer la linia (si s'escau)
-                        int l_iniX = legendX+margin;
-                        int l_finX = legendX+margin+linelength;
-                        int l_y = (int) (legendY+margin+entries*(entryHeight)+FastMath.round(entryHeight/2.));
+                        int l_iniX = legendX+margin*2;
+                        int l_finX = l_iniX+linelength;
+                        int l_y = (int) (legendY+margin*2+entries*(entryMaxHeight)+entries*margin); //aixo es a DALT, cal posar-ho al mig per linia horitzontal
                         if (ds.lineWidth>0){
-
                             if (ds.getTipusSerie()==SerieType.hkl){
-                                int gap = 20;
+                                int gap = (int) (entryMaxHeight*0.2f); //era 20...
                                 //LINIA VERTICAL
                                 int centreX = (int) ((l_iniX+l_finX)/2.f);
-                                int l_iniY = (int) (legendY+margin+entries*(entryHeight)+gap);
-                                int l_finY = (int) (legendY+margin+entries*(entryHeight)+entryHeight-gap);
+                                int l_iniY = l_y+gap;
+                                int l_finY = l_iniY+(int)entryMaxHeight-gap;
                                 Line2D.Float l = new Line2D.Float(centreX,l_iniY,centreX,l_finY);
                                 g1.draw(l);
                             }else{
                                 //LINIA NORMAL HORITZONAL
-                                Line2D.Float l = new Line2D.Float(l_iniX,l_y,l_finX,l_y);
+                                int l_y_cen=l_y+(int)FastMath.round(entryMaxHeight/2.);
+                                Line2D.Float l = new Line2D.Float(l_iniX,l_y_cen,l_finX,l_y_cen);
                                 g1.draw(l);
                             }
                         }
@@ -2636,13 +3148,12 @@ public class PlotPanel {
                             int sep = (int) (FastMath.abs(l_iniX-l_finX)/5.f);
                             int x1 = l_iniX+sep;
                             int x2 = l_iniX+sep*4;
-
-
                             stroke = new BasicStroke(0.0f);
                             g1.setStroke(stroke);
                             double radiPunt = ds.markerSize/2.f;
-                            g1.fillOval((int)FastMath.round(x1-radiPunt), (int)FastMath.round(l_y-radiPunt), FastMath.round(ds.markerSize), FastMath.round(ds.markerSize));
-                            g1.fillOval((int)FastMath.round(x2-radiPunt), (int)FastMath.round(l_y-radiPunt), FastMath.round(ds.markerSize), FastMath.round(ds.markerSize));
+                            int l_y_cen=l_y+(int)FastMath.round(entryMaxHeight/2.);
+                            g1.fillOval((int)FastMath.round(x1-radiPunt), (int)FastMath.round(l_y_cen-radiPunt), FastMath.round(ds.markerSize), FastMath.round(ds.markerSize));
+                            g1.fillOval((int)FastMath.round(x2-radiPunt), (int)FastMath.round(l_y_cen-radiPunt), FastMath.round(ds.markerSize), FastMath.round(ds.markerSize));
                         }
                         //recuperem stroke width per si de cas hi havia markers
                         stroke = new BasicStroke(strokewidth);
@@ -2650,24 +3161,9 @@ public class PlotPanel {
 
                         //ara el text
                         int t_X = l_finX+margin; 
-                        int maxlength = panelW-padding-margin-t_X;
-                        String s =  ds.serieName;
-                        g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()+def_axisL_fsize));
-                        double[] swh = getWidthHeighString(g1,s);
-                        int count=0;
-                        while (swh[0]>maxlength){
-                            g1.setFont(g1.getFont().deriveFont(g1.getFont().getSize()-1f));
-                            swh = getWidthHeighString(g1,s);
-                            count++;
-                            if (count>20)throw new Exception();
-                        }
-                        int t_Y = (int) (l_y-strokewidth+(swh[1]/2.));
-                        g1.drawString(s, t_X,t_Y);
-                        g1.setFont(font);                //recuperem font
-
-                        int currentWidth = (int) (margin + linelength + margin + swh[0] + margin);
-                        if (currentWidth>currentMaxWidth)currentMaxWidth = currentWidth;
-                        
+                        int t_Y = (int) (l_y+entryMaxHeight-strokewidth/2.);
+                        TextLayout lay = new TextLayout(ds.serieName, g1.getFont().deriveFont(g1.getFont().getSize()+def_legend_fsize), frc);
+                        lay.draw(g1, t_X,t_Y);
                         entries++;
                     }
                 }
@@ -2711,7 +3207,4 @@ public class PlotPanel {
             return w_h;
         }
     }
-    
-    
-
 }

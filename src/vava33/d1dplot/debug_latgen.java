@@ -51,7 +51,7 @@ public class debug_latgen {
     DataSerie dsLatGen;
     Cell cel;
 
-    private static final String className = "debug_latgen";
+    private static final String className = "ManualIndexing";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     private IndexDialog indexDialog;

@@ -93,7 +93,8 @@ public class FitPeakDialog {
      * Create the dialog.
      */
     public FitPeakDialog(PlotPanel p) {
-        this.fitPkDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Subtract Patterns",false);
+        this.fitPkDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Fit Peak(s) **EXPERIMENTAL**",false);
+        log.info("Fit Peak(s) is IN DEVELOPMENT. It contains errors and MAY CRASH THE PROGRAM"); 
         this.plotpanel = p;
         this.contentPanel = new JPanel();
         fitPkDialog.setIconImage(D1Dplot_global.getIcon());
@@ -397,7 +398,7 @@ public class FitPeakDialog {
             }
 
             this.do_btnPlot_actionPerformed(null);
-
+            
             break;
         case 1:
             break;

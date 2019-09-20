@@ -42,6 +42,8 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import com.vava33.d1dplot.auxi.DoubleJSlider;
 import com.vava33.d1dplot.auxi.PattOps;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 public class FindPeaksDialog {
 
@@ -104,6 +106,12 @@ public class FindPeaksDialog {
                 }
                 {
                     txtTthmin = new JTextField();
+                    txtTthmin.addKeyListener(new KeyAdapter() {
+                        @Override
+                        public void keyPressed(KeyEvent e) {
+                            do_txtTthmin_keyPressed(e);
+                        }
+                    });
                     panel.add(txtTthmin, "cell 3 1,growx");
                     txtTthmin.setColumns(5);
                 }
@@ -113,12 +121,22 @@ public class FindPeaksDialog {
                 }
                 {
                     txtTthmax = new JTextField();
+                    txtTthmax.addKeyListener(new KeyAdapter() {
+                        @Override
+                        public void keyPressed(KeyEvent e) {
+                            do_txtTthmax_keyPressed(e);
+                        }
+                    });
                     panel.add(txtTthmax, "cell 3 2,growx,aligny top");
                     txtTthmax.setColumns(5);
                 }
                 {
                     chckbxUseBkgEstimation = new JCheckBox("use bkg estimation");
-                    chckbxUseBkgEstimation.setSelected(true);
+                    chckbxUseBkgEstimation.addItemListener(new ItemListener() {
+                        public void itemStateChanged(ItemEvent e) {
+                            do_chckbxUseBkgEstimation_itemStateChanged(e);
+                        }
+                    });
                     panel.add(chckbxUseBkgEstimation, "cell 2 3 2 1,alignx center");
                 }
 
@@ -190,7 +208,7 @@ public class FindPeaksDialog {
         			do_btnIndex_actionPerformed(e);
         		}
         	});
-        	contentPanel.add(btnIndex, "cell 0 2,growx");
+        	contentPanel.add(btnIndex, "cell 0 2 2 1,growx");
         }
         {
             JPanel buttonPane = new JPanel();
@@ -218,6 +236,19 @@ public class FindPeaksDialog {
             }
 
         }
+        //omplo els textboxes
+        if (isOneSerieSelected()) {
+            DataSerie ds = getMostFavorableDS();
+            try {
+                txtTthmin.setText(FileUtils.dfX_3.format(ds.getMinX()));
+                txtTthmax.setText(FileUtils.dfX_3.format(ds.getMaxX()));
+            }catch(Exception ex) {
+                log.debug("Error reading 2th min/max");
+            }
+        }
+        
+        
+        
         this.autoPeakSearch();
     }
 
@@ -246,17 +277,29 @@ public class FindPeaksDialog {
             }
             
             DataSerie llindar = null;
-            if (usebkg) llindar = PattOps.findPeaksGetBkgLlindar(ds);
+            if (usebkg) {
+                llindar = PattOps.findPeaksGetBkgLlindar(ds);
+            }
+//            else {
+//                double llindar_value = ds.calcYmeanYDesvYmaxYmin(plotpanel.isPlotwithbkg())[1]; //ja es multiplicara per fact a findPeaks
+//                llindar = new DataSerie(ds, SerieType.bkg,false);
+//                PattOps.addConstantYPointsToDataserie(llindar,50,ds.getMinX(),ds.getMaxX(),llindar_value);
+//            }
             DataSerie pks = PattOps.findPeaksEvenBetter(ds,llindar,fact,tthmin,tthmax,plotpanel.isPlotwithbkg());
             pks.serieName=ds.serieName+" (peaks)";
             ds.getParent().replaceDataSerie(pks, SerieType.peaks, true);
-            if (llindar!=null){
-                llindar.setScale(fact);
-                llindar.setTipusSerie(SerieType.bkg); //canvio l'estil
-                plotpanel.setBkgseriePeakSearch(llindar);
-            }else{
-                plotpanel.getBkgseriePeakSearch().clearPoints();
+            if (llindar==null){
+                //plotejo linia recta
+                double llindar_value = ds.calcYmeanYDesvYmaxYmin(plotpanel.isPlotwithbkg())[1];
+                llindar = new DataSerie(ds, SerieType.bkg,false);
+                PattOps.addConstantYPointsToDataserie(llindar,50,ds.getMinX(),ds.getMaxX(),llindar_value);
             }
+            
+            llindar.setScale(fact);
+            llindar.setTipusSerie(SerieType.bkg); //canvio l'estil
+            plotpanel.setBkgseriePeakSearch(llindar);
+            
+            
         }catch(Exception ex){
             ex.printStackTrace();
         }
@@ -382,4 +425,17 @@ public class FindPeaksDialog {
 	    if (id==null)id = new IndexDialog(this.d1dmain.getMainFrame(), this.plotpanel);
 		id.visible(true);
 	}
+    protected void do_chckbxUseBkgEstimation_itemStateChanged(ItemEvent e) {
+        this.autoPeakSearch();
+    }
+    protected void do_txtTthmin_keyPressed(KeyEvent e) {
+        if (e.getKeyCode()==KeyEvent.VK_ENTER) {
+            autoPeakSearch();
+        }
+    }
+    protected void do_txtTthmax_keyPressed(KeyEvent e) {
+        if (e.getKeyCode()==KeyEvent.VK_ENTER) {
+            autoPeakSearch();
+        }
+    }
 }

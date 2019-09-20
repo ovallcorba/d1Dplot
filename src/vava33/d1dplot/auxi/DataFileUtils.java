@@ -63,8 +63,8 @@ public final class DataFileUtils {
 		public String getDescription() {return description;}
     }
     
-    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,FF,D1P,PRF,GR,TXT;}
-    public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR,FF;}
+    public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,FF,D1P,PRF,GR,REF,RAW,TXT;}
+    public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR,FF,REF;}
     
     public static SupportedReadExtensions getReadExtEnum(String n) {
         for (SupportedReadExtensions x: SupportedReadExtensions.values()) {
@@ -84,29 +84,18 @@ public final class DataFileUtils {
     static
     {
         XRDformatInfo = new LinkedHashMap<String, FileFormat>(); //ext, description
-        XRDformatInfo.put("dat", new FileFormat(new String[]{"dat","DAT"},"2 or 3 columns file 2th/int/(err) with header (.dat)"));
-        XRDformatInfo.put("xye", new FileFormat(new String[]{"xye","XYE"},"3 columns file 2th/int/err (*.xye)"));
-        XRDformatInfo.put("xy", new FileFormat(new String[]{"xy","XY"},"2 columns file 2th/int (*.xy)"));
-        XRDformatInfo.put("asc", new FileFormat(new String[]{"asc","ASC"},"2 columns file 2th/int with no headers (*.asc)"));
+        XRDformatInfo.put("dat", new FileFormat(new String[]{"dat","DAT"},"2 or 3 columns: 2th/int/(err) with header (.dat)"));
+        XRDformatInfo.put("xye", new FileFormat(new String[]{"xye","XYE"},"3 columns: 2th/int/err (*.xye)"));
+        XRDformatInfo.put("xy", new FileFormat(new String[]{"xy","XY"},"2 columns: 2th/int (*.xy)"));
+        XRDformatInfo.put("asc", new FileFormat(new String[]{"asc","ASC"},"2 columns: 2th/int with no headers (*.asc)"));
         XRDformatInfo.put("gsa", new FileFormat(new String[]{"gsa","GSA"},"GSAS Standard Powder Data File (*.gsa)"));
         XRDformatInfo.put("xrdml", new FileFormat(new String[]{"xrdml","XRDML"},"Panalytical format (*.xrdml)"));
         XRDformatInfo.put("ff", new FileFormat(new String[]{"ff","FF"},"List of intensities in free format (*.ff)"));
         XRDformatInfo.put("d1p", new FileFormat(new String[]{"d1p","D1P"},"Obs,calc and difference profiles from d1Dplot (*.d1p)"));
         XRDformatInfo.put("prf", new FileFormat(new String[]{"prf","PRF"},"Obs,calc and difference profiles from fullprof (*.prf)"));
         XRDformatInfo.put("gr", new FileFormat(new String[]{"gr","GR"},"g(r) from pdfgetx3 (*.gr)"));
-        XRDformatInfo.put("txt", new FileFormat(new String[]{"txt","TXT"},"2 columns space or comma separated (*.txt)"));
-    }
-    
-    public static enum SupportedReadRefExtensions {REF,HKL,DAT,TXT;}
-    public static enum SupportedWriteRefExtensions {REF;}
-    public static final LinkedHashMap<String, FileFormat> REFformatInfo;
-    static
-    {
-    	REFformatInfo = new LinkedHashMap<String, FileFormat>(); //ext, description
-    	REFformatInfo.put("ref", new FileFormat(new String[]{"ref","REF"},"1 column of 2theta values (*.ref)"));
-    	REFformatInfo.put("hkl", new FileFormat(new String[]{"hkl","HKL"},"reflections file (*.hkl)"));
-    	REFformatInfo.put("dat", new FileFormat(new String[]{"dat","DAT"},"2 or 3 columns file 2th/int/(err) with optional header"));
-    	REFformatInfo.put("txt", new FileFormat(new String[]{"txt","TXT"},"2 columns space or comma separated (*.txt)"));
+        XRDformatInfo.put("txt", new FileFormat(new String[]{"txt","TXT","raw","RAW"},"2 columns space or comma separated (*.txt)"));
+        XRDformatInfo.put("ref", new FileFormat(new String[]{"ref","REF"},"1 or 2 columns: X/relative intensity) with X=2th or dsp (*.ref)"));
     }
     
     public static enum SupportedWritePeaksFormats {DIC,TXT;}
@@ -157,51 +146,10 @@ public final class DataFileUtils {
             }
         }
         //afegim filtre de tots els formats
-        filter[nfiltre] = new FileNameExtensionFilter("All 1D-XRD supported formats", frmStrings.toArray(new String[frmStrings.size()]));
+        filter[filter.length-1] = new FileNameExtensionFilter("All 1D-XRD supported formats", frmStrings.toArray(new String[frmStrings.size()]));
         return filter;
     }
-    
-    public static FileNameExtensionFilter[] getExtensionFilterRefWrite(){
-        Iterator<String> itrformats = DataFileUtils.REFformatInfo.keySet().iterator();
-        FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedWriteRefExtensions.values().length];
-        int nfiltre=0;
-        while (itrformats.hasNext()){
-            FileFormat frm = DataFileUtils.REFformatInfo.get(itrformats.next());
-            DataFileUtils.SupportedWriteRefExtensions wfrm = null;
-            for (int i=0; i<frm.getExtensions().length; i++) {
-            	wfrm = FileUtils.searchEnum(DataFileUtils.SupportedWriteRefExtensions.class, frm.getExtensions()[i]);	
-            }
-            if (wfrm!=null){
-                //afegim filtre
-            	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
-                nfiltre = nfiltre +1;
-            }
-        }
-        return filter;
-    }
-    
-    public static FileNameExtensionFilter[] getExtensionFilterRefRead(){
-        Iterator<String> itrformats = DataFileUtils.REFformatInfo.keySet().iterator();
-        FileNameExtensionFilter[] filter = new FileNameExtensionFilter[DataFileUtils.SupportedReadRefExtensions.values().length+1];
-        List<String> frmStrings = new ArrayList<String>();
-        int nfiltre=0;
-        while (itrformats.hasNext()){
-            FileFormat frm = DataFileUtils.REFformatInfo.get(itrformats.next());
-            DataFileUtils.SupportedReadRefExtensions wfrm = null;
-            for (int i=0; i<frm.getExtensions().length; i++) {
-            	wfrm = FileUtils.searchEnum(DataFileUtils.SupportedReadRefExtensions.class, frm.getExtensions()[i]);	
-            }
-            if (wfrm!=null){
-                //afegim filtre
-            	filter[nfiltre]=new FileNameExtensionFilter(frm.getDescription(),frm.getExtensions());
-            	frmStrings.addAll(Arrays.asList(frm.getExtensions()));
-                nfiltre = nfiltre +1;
-            }
-        }
-        //afegim filtre de tots els formats
-        filter[nfiltre] = new FileNameExtensionFilter("All supported formats", frmStrings.toArray(new String[frmStrings.size()]));
-        return filter;
-    }
+   
     
     public static FileNameExtensionFilter[] getExtensionFilterPeaksWrite(){
         Iterator<String> itrformats = DataFileUtils.peakFormatInfo.keySet().iterator();
@@ -255,6 +203,9 @@ public final class DataFileUtils {
                 break;
             case GR:
                 p = readGR(d1file);
+                break;
+            case REF:
+                p = readREF(d1file);
                 break;
             default:
                 p = readUNK(d1file); //TXT
@@ -321,6 +272,9 @@ public final class DataFileUtils {
                 break;
             case GR:
                 written = writeGR(serie,d1File,overwrite,addYbkg);
+                break;
+            case REF:
+                written = writeREF(serie,d1File,overwrite,addYbkg);
                 break;
             default:
                 log.warning("Unknown format to write");
@@ -422,7 +376,28 @@ public final class DataFileUtils {
     
     private static Data_Common readASC(File f){
         return readDAT(f);
-
+    }
+    
+    private static Data_Common readREF(File f){
+        Data_Common dc =  readDAT(f);
+        dc.getDataSerie(0).setTipusSerie(SerieType.ref);
+        //TODO:
+        // 1) preguntar si es en t2 o d-spacing i posar-ho a x-units, ho podem detectar, normalment d-spacing decreix i tth creix
+        // 2) en cas dsp demanar si es vol transformar
+        try {
+            if (dc.getDataSerie(0).getNpoints()>=3) {
+                double diff = dc.getDataSerie(0).getPointWithCorrections(2, false).getX()-dc.getDataSerie(0).getPointWithCorrections(1, false).getX();
+                if (diff<=0) { // (segur que no es tth... suposem dsp)
+                    dc.getDataSerie(0).setxUnits(Xunits.dsp);
+                    log.info("REF file with d-spacing values? please check X-units.");
+                }else {
+                    log.info("REF file with 2-theta values? please check X-units.");
+                }
+            }
+        }catch (Exception ex) {
+            log.debug("Unable to detect X-units for REF serie");
+        }
+        return dc;
     }
     
     //only 1 serie
@@ -1943,6 +1918,34 @@ public final class DataFileUtils {
         PrintWriter out = null;
         try {
             out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
+            for (int i=0; i<ds.getNpoints(); i++){
+                Plottable_point pp = ds.getPointWithCorrections(i,addYbkg);
+                String s = String.format("%.6f  %.2f", pp.getX(),pp.getY());
+                s = s.replace(",", ".");
+                out.println(s);                  
+            }
+                        
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            written = false;
+        }finally {
+            if(out!=null)out.close();
+        }
+        return written;
+    }
+    
+    private static boolean writeREF(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
+        if (outf.exists()&&!overwrite)return false;
+        if (outf.exists()&&overwrite)outf.delete();
+        boolean written = true;
+        PrintWriter out = null;
+        try {
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));
+            
+            if (ds.getWavelength()>0) {
+                out.println(String.format("# wavelength=%8.4f",ds.getWavelength()));
+            }
+            
             for (int i=0; i<ds.getNpoints(); i++){
                 Plottable_point pp = ds.getPointWithCorrections(i,addYbkg);
                 String s = String.format("%.6f  %.2f", pp.getX(),pp.getY());

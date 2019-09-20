@@ -49,11 +49,11 @@ public final class ArgumentLauncher {
     
     public static void readArguments(D1Dplot_main mainf, String[] args){
     	ArgumentLauncher.mf=mainf;
-    	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 65));
+    	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 77));
     	ConsoleWritter.afegirSaltLinia();
         ConsoleWritter.afegirText(false, false, "              ");
     	ConsoleWritter.afegirText(true, false, D1Dplot_global.welcomeMSG);
-    	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 65));
+    	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 77));
 
         if (args.length==0)return; //no hi ha res
         

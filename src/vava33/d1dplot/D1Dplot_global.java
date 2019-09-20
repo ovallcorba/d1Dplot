@@ -2,7 +2,7 @@ package com.vava33.d1dplot;
 
 /**
  * D1Dplot
- * 
+ *      
  * Global parameters
  * 
  * @author Oriol Vallcorba
@@ -30,11 +30,13 @@ import com.vava33.jutils.VavaLogger;
 
 public final class D1Dplot_global {
 
-    public static final int version = 1901; //nomes canviare la versio global quan faci un per distribuir
-    public static final int build_date = 190617; //nomes canviare la versio global quan faci un per distribuir
+    public static final int version = 1909; //nomes canviare la versio global quan faci un per distribuir
+    public static final int build_date = 190920; //aquesta si que la canviare sempre
     public static final String welcomeMSG = "d1Dplot v"+version+" ("+build_date+") by O.Vallcorba\n\n"
     		+ " This is a DEVELOPMENT version and contains errors. Please USE WITH CAUTION.\n"
     		+ " Report of errors or comments about the program are appreciated.\n";
+    
+    public static final String pubMSG = " If you find the program useful for your research please cite it. Thank you!\n";
     
     private static final String className = "d1Dplot_global";
     public static final String fileSeparator = System.getProperty("file.separator");
@@ -57,15 +59,15 @@ public final class D1Dplot_global {
     
     private static D1Dplot_main d1DMainFrame;
     
-    private static final boolean overrideLogLevelConfigFile = true;
+    private static final boolean overrideLogLevelConfigFile = false;
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     
     //global 
-    private static boolean loggingConsole = true; //console
+    private static boolean loggingConsole = false; //console
     private static boolean loggingFile = false; //file
     private static boolean loggingTA = true; //textArea -- NO ESCRIT AL FITXER DE CONFIGURACIO JA QUE VOLEM SEMPRE ACTIVAT
-    private static String loglevel = "debug"; //info, config, etc...
+    private static String loglevel = "info"; //info, config, etc...
     private static String workdir = System.getProperty("user.dir");
     private static boolean keepMainWinSize = false;
     
@@ -168,7 +170,6 @@ public final class D1Dplot_global {
         DataSerie.def_hklticksize=readedOpt.getValAsInteger("hklTickSize", DataSerie.def_hklticksize);
         DataSerie.def_lineWidth=readedOpt.getValAsFloat("linewidth", DataSerie.def_lineWidth);
         DataSerie.def_markerSize=readedOpt.getValAsFloat("markersize", DataSerie.def_markerSize);
-        DataSerie.prfFullprofColors=readedOpt.getValAsBoolean("prfFullprofColors", DataSerie.prfFullprofColors);
         PDDatabase.setLocalDB(readedOpt.getValAsString("defCompoundDB", PDDatabase.getLocalDB()));
         DBfile = PDDatabase.getLocalDB();
         	    
@@ -193,10 +194,11 @@ public final class D1Dplot_global {
 	            output.println("** D1Dplot configuration file **");
 	            output.println("# Global");
 	            output.println("workdir = "+workdir);
-	            output.println("loggingConsole = "+Boolean.toString(loggingConsole));
-	            output.println("loggingFile = "+Boolean.toString(loggingFile));
-	            output.println("loglevel = "+loglevel);
-	            output.println("lookAndFeel = "+D1Dplot_main.getLandF());
+	            //AQUESTS ELS HE DESACTIVAT EL 23/09/2019, encara es poden llegir pero no s'escriuen al fitxer (no es per usuaris).
+//	            output.println("loggingConsole = "+Boolean.toString(loggingConsole));
+//	            output.println("loggingFile = "+Boolean.toString(loggingFile));
+//	            output.println("loglevel = "+loglevel);
+//	            output.println("lookAndFeel = "+D1Dplot_main.getLandF());
 	            output.println(String.format("%s = %d", "iniWidth",def_Width));
 	            output.println(String.format("%s = %d", "iniHeight",def_Height));
 	            output.println("rememberDimensions = "+Boolean.toString(keepMainWinSize));
@@ -215,7 +217,6 @@ public final class D1Dplot_global {
 	            output.println(String.format("%s = %d", "hklTickSize",DataSerie.def_hklticksize));
 	            output.println(String.format("%s = %.2f", "def_linewidth",DataSerie.def_lineWidth));
 	            output.println(String.format("%s = %.2f", "def_markerSize",DataSerie.def_markerSize));
-	            output.println("prfFullprofColors = "+Boolean.toString(DataSerie.prfFullprofColors));
 	            output.close();
 	
 	        }catch(Exception e){
@@ -253,7 +254,6 @@ public final class D1Dplot_global {
 	  log.printmsg(loglevel,String.format("%s = %d", "hklTickSize",DataSerie.def_hklticksize));
 	  log.printmsg(loglevel,String.format("%s = %.2f", "def_linewidth",DataSerie.def_lineWidth));
 	  log.printmsg(loglevel,String.format("%s = %.2f", "def_markerSize",DataSerie.def_markerSize));
-	  log.printmsg(loglevel,"prfFullprofColors = "+Boolean.toString(DataSerie.prfFullprofColors));
 	  log.printmsg(loglevel,"*****************************************************************************");
 	
 	}

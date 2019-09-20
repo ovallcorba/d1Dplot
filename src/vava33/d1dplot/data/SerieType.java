@@ -54,11 +54,9 @@ public enum SerieType {
         case bkgEstimP:
             return Color.PINK;
         case obs:
-            if(DataSerie.prfFullprofColors)return Color.RED;
-            return Color.BLACK;
-        case cal:
-            if(DataSerie.prfFullprofColors)return Color.BLACK;
             return Color.RED;
+        case cal:
+            return Color.BLACK;
         case diff:
             return Color.BLUE;
         case hkl:
@@ -124,5 +122,4 @@ public enum SerieType {
             return DataSerie.def_lineWidth;
         }
     }
-    
 }
