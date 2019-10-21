@@ -257,13 +257,6 @@ public class SubtractDialog {
         int nds2 = (Integer) tableDS2.getValueAt(r2, 1);
         DataSerie ds1 = plotpanel.getPlottable(np1).getDataSerie(nds1);
         DataSerie ds2 = plotpanel.getPlottable(np2).getDataSerie(nds2);
-        
-        if (ds1.getNpoints()!=ds2.getNpoints()){
-            log.debug("Different number of points between series");
-        }
-        if (ds1.getPointWithCorrections(0,plotpanel.isPlotwithbkg()).getX()!=ds2.getPointWithCorrections(0,plotpanel.isPlotwithbkg()).getX()){
-            log.debug("Different first point on both series");
-        }
 
         float factor = 1.0f;
         double fac_t2i = 0.0f;
@@ -273,20 +266,17 @@ public class SubtractDialog {
             try{
                 fac_t2i = Double.parseDouble(txtTini.getText());
             }catch(Exception ex){
-                ex.printStackTrace();
                 log.warning("Error reading factor t2i, using 0.0");
             }
             try{
                 fac_t2f = Double.parseDouble(txtTfin.getText());
             }catch(Exception ex){
-                ex.printStackTrace();
                 log.warning("Error reading factor t2f, using 100.0");
             }
         }else {
             try{
                 factor = Float.parseFloat(txtFactor.getText());
             }catch(Exception ex){
-                ex.printStackTrace();
                 log.warning("Error reading factor, using 1.0");
             }
         }

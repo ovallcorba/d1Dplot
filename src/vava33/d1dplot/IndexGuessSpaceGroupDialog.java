@@ -9,13 +9,12 @@ package com.vava33.d1dplot;
  */
 
 import javax.swing.JDialog;
-import javax.swing.JPanel;
 
 import com.vava33.cellsymm.CellSymm_global.CrystalCentering;
 import com.vava33.cellsymm.CellSymm_global.CrystalFamily;
 import com.vava33.cellsymm.SpaceGroup;
 import com.vava33.d1dplot.index.IndexSolution;
-import com.vava33.jutils.VavaLogger;
+//import com.vava33.jutils.VavaLogger;
 import net.miginfocom.swing.MigLayout;
 import javax.swing.JLabel;
 import javax.swing.JCheckBox;
@@ -26,12 +25,10 @@ import java.awt.event.ActionEvent;
 
 public class IndexGuessSpaceGroupDialog {
 
-    private static final String className = "GuessSpaceGroup_dialog";
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+//    private static final String className = "GuessSpaceGroup_dialog";
+//    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
-    private JPanel contentPanel;
     private JDialog GuessSpaceGroupDialog;
-//    private PlotPanel plotpanel;
     private IndexDialog indexDialog;
     private IndexSolution indexSolToGuessSG;
     private JTextField txtPars;
@@ -54,7 +51,6 @@ public class IndexGuessSpaceGroupDialog {
 //        this.plotpanel=p;
         this.indexDialog=d;
         this.indexSolToGuessSG=is;
-        this.contentPanel = new JPanel();
         this.GuessSpaceGroupDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Guess SpaceGroup",false);
         GuessSpaceGroupDialog.getContentPane().setLayout(new MigLayout("", "[][][][][][][][]", "[][][][]"));
         

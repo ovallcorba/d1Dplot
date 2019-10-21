@@ -9,7 +9,6 @@ package com.vava33.d1dplot.index;
  */
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 

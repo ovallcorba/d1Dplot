@@ -29,7 +29,6 @@ import com.vava33.d1dplot.data.Plottable_point;
 import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.ConsoleWritter;
 import com.vava33.jutils.FileUtils;
-import com.vava33.jutils.VavaLogger;
 
 public final class ArgumentLauncher {
     
@@ -38,8 +37,8 @@ public final class ArgumentLauncher {
     private static boolean launchGraphics = true; //dira si cal mostrar o no el graphical user interface o sortir del programa directament
     static D1Dplot_main mf;
     
-    private static final String className = "ArgLauncher2";
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+//    private static final String className = "ArgLauncher2";
+//    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
 
     /*
      * -macro com a primer argument implica interactive
@@ -101,29 +100,21 @@ public final class ArgumentLauncher {
             ConsoleWritter.stat("");
             return;
         }
-
-        log.debug("args.length= "+args.length);
         
         List<File> files = new ArrayList<File>();
         for (int i = 0; i < args.length; i++) {
             files.add(new File(args[i]));
-            log.debug("args["+i+"]="+args[i]);
         }
         
         if (files.isEmpty())return;
         //el workpath sera el del primer fitxer
         D1Dplot_global.setWorkdir(files.get(0));
-        log.debug("workdir="+D1Dplot_global.getWorkdir());
         
         Iterator<File> itrF = files.iterator();
         while (itrF.hasNext()){
             File f = itrF.next();
-            log.debug("evaluating: "+f.toString());
             if (f.exists()){
-                log.debug("it exists!");
                 mf.readDataFile(f);    
-            }else{
-                log.debug("it does not exist!");
             }
         }
         mf.updateData(true,true);
@@ -173,10 +164,7 @@ public final class ArgumentLauncher {
         ifound = getArgLindexOf(argL,"-xIn");
         if (ifound>=0){
             inXunits = Xunits.getEnum(argL.get(ifound+1));
-            if (inXunits==null) {
-                log.debug("Error reading input XUNITS");
-//                inXunits = Xunits.tth;
-            }else {
+            if (inXunits!=null) {
                 s_unitsIn = String.format("%30s = %s","Input Xunits",inXunits.getName());    
             }
             argL.remove(ifound+1);
@@ -186,10 +174,7 @@ public final class ArgumentLauncher {
         ifound = getArgLindexOf(argL,"-xOut");
         if (ifound>=0){
             outXunits = Xunits.getEnum(argL.get(ifound+1));
-            if (outXunits==null) {
-                log.debug("Error reading output XUNITS");
-//                outXunits = Xunits.tth;
-            }else {
+            if (outXunits!=null) {
                 s_unitsOut = String.format("%30s = %s","Output Xunits",outXunits.getName());
                 changeXunits=true;
             }
@@ -200,10 +185,7 @@ public final class ArgumentLauncher {
         ifound = getArgLindexOf(argL,"-fmtIn");
         if (ifound>=0){
             inFormat = DataFileUtils.getReadExtEnum(argL.get(ifound+1));
-            if (inFormat==null) {
-                log.debug("Error reading input FORMAT");
-//                informat = SupportedReadExtensions.DAT;
-            }else {
+            if (inFormat!=null) {
                 s_formatIn = String.format("%30s = %s","Input format",inFormat.name());    
             }
             argL.remove(ifound+1);
@@ -213,10 +195,7 @@ public final class ArgumentLauncher {
         ifound = getArgLindexOf(argL,"-fmtOut");
         if (ifound>=0){
             outFormat = DataFileUtils.getWriteExtEnum(argL.get(ifound+1));
-            if (outFormat==null) {
-                log.debug("Error reading output FORMAT");
-//                outformat = SupportedWriteExtensions.DAT;
-            }else {
+            if (outFormat!=null) {
                 s_formatOut = String.format("%30s = %s","Output format",outFormat.name());    
             }
             
@@ -230,7 +209,7 @@ public final class ArgumentLauncher {
                 inWave = Double.parseDouble(argL.get(ifound+1));  
                 s_waveIn = String.format("%30s = %.5f","Input Wavelength",inWave);
             }catch(Exception ex){
-                log.debug("Error reading inWavelength");
+                ConsoleWritter.stat("Error reading inWavelength");
             }
             argL.remove(ifound+1);
             argL.remove(ifound);
@@ -243,7 +222,7 @@ public final class ArgumentLauncher {
                 s_waveOut = String.format("%30s = %.5f","Output Wavelength",outWave);
                 changeWave = true;
             }catch(Exception ex){
-                log.debug("Error reading outWavelength");
+                ConsoleWritter.stat("Error reading outWavelength");
             }
             argL.remove(ifound+1);
             argL.remove(ifound);
@@ -333,7 +312,6 @@ public final class ArgumentLauncher {
             File f = new File(argL.get(i));
             if (f.exists()) {
                 fitxers.add(f);
-                log.debug("added: "+f.getAbsolutePath());
                 ConsoleWritter.statf("File found: %s", f.getAbsolutePath());
             }else {
                 ConsoleWritter.statf("File NOT found (please check path): %s", f.getAbsolutePath());

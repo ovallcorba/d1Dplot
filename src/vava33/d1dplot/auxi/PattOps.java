@@ -44,9 +44,7 @@ public final class PattOps {
         double[] vals = ds.calcYmeanYDesvYmaxYmin(false); 
         double Imean = vals[0];
         double Imin = vals[3];
-        
-        log.debug("Imean= "+Imean+" Imin= "+Imin);
-        
+                
         //ara corregim els punts
         for(int i=0; i<ds.getNpoints(); i++){
             double x = ds.getPointWithCorrections(i,false).getX();
@@ -140,7 +138,6 @@ public final class PattOps {
     public static DataSerie findBkgPoints(DataSerie ds,int npoints){
         //dividirem la dataserie en troços (npoints) i a cada lloc buscarem el punt amb la I mes petita que estigui per sota del promig
         int npzona = (int)(ds.getNpoints()/npoints);
-        log.debug("npuntsZona="+npzona);
         DataSerie dpPuntsFons = new DataSerie(ds,SerieType.bkgEstimP,false);
         int startP = 0;
         while ((startP+npzona)<ds.getNpoints()){
@@ -245,7 +242,7 @@ public final class PattOps {
         int rangedp2 = ifindp2 - iinidp2;
         
         if (rangedp1!=rangedp2){
-            log.debug("different nr of points in the coincident range");
+            log.warning("Different nr of points in the coincident range");
             return null;
         }
         
@@ -315,7 +312,7 @@ public final class PattOps {
           totRange = totRange + rangedp[i];
       }
       if (totRange/dss.length != rangedp[0]){
-          log.debug("inconsitency on nr of points in the coincident range");
+          log.warning("Inconsitency on nr of points in the coincident range");
           return null;
       }
 
@@ -340,7 +337,6 @@ public final class PattOps {
         DataSerie out = new DataSerie(DSorigin,DSorigin.getTipusSerie(),false); //ja l'afegirem al pattern despres si cal
       
         for (int i=0; i<DSorigin.getNpoints(); i++){
-//            Plottable_point dp = DStoConvert.getClosestDP_xonly(DSorigin.getPointWithCorrections(i, false).getX(),-1.0);
             Plottable_point dp = DSorigin.getPointWithCorrections(i,false);
             Plottable_point[] surr = DStoConvert.getSurroundingDPs(dp.getX());
             if (surr==null) {
@@ -381,7 +377,7 @@ public final class PattOps {
         
         int iniIndex = dp1.getIndexOfDP(dp1.getClosestDP_xonly(t2i, tol));
         if (iniIndex == -1){
-            log.debug("datapoint with t2i not found");
+//            log.warning("Datapoint with t2i not found");
             return false;
         }
         int ncoincidents = 0;
@@ -500,4 +496,16 @@ public final class PattOps {
             ds.addPoint(new DataPoint(xmin+i*sep,intensity,0));
         }
     }
+    
+    public static double getLorValue(double x, double mean, double fwhm) {
+        return 2./FastMath.PI/(1+4*(x-mean)*(x-mean)/fwhm/fwhm);
+    }
+    public static double getGaussValue(double x, double mean, double fwhm) {
+        //2.7726 is 4*ln(2)
+        //1.66 es l'arrel de lo de sobre
+        //1.77 arrel de pi
+        return (0.939437278)*FastMath.exp((-2.7726*(x-mean)*(x-mean))/(fwhm*fwhm));
+    }
+    
+    
 }

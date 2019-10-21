@@ -210,7 +210,6 @@ public final class PDDatabase {
                     if ((lines % 500) == 0){
                         float percent = ((float)lines/(float)totalLines)*100.f;
                         setProgress((int) percent);
-                        log.debug(String.valueOf(percent));
                     }
                     
                     lines = lines + 1;
@@ -283,7 +282,6 @@ public final class PDDatabase {
                                             cfinished = true;
                                             continue;
                                         }
-                                        //log.debug(line3);
                                         String[] dspline = line3.trim().split("\\s+");
                                         int h = Integer.parseInt(dspline[0]);
                                         int k = Integer.parseInt(dspline[1]);
@@ -293,7 +291,7 @@ public final class PDDatabase {
                                         try{
                                             inten = Float.parseFloat(dspline[4]);    
                                         }catch(Exception exinten){
-                                            log.debug(String.format("no intensity found for reflection %d %d %d",h,k,l));
+                                            log.warning(String.format("No intensity found for reflection %d %d %d",h,k,l));
                                         }
                                         comp.addPeak(h, k, l, dsp, inten);
                                     }
@@ -333,7 +331,6 @@ public final class PDDatabase {
                                             cfinished = true;
                                             continue;
                                         }
-                                        //log.debug(line3);
                                         String[] dspline = line3.trim().split("\\s+");
                                         int h = Integer.parseInt(dspline[2]);
                                         int k = Integer.parseInt(dspline[3]);
@@ -346,7 +343,6 @@ public final class PDDatabase {
                                 
                                 
                             } catch (Exception e) {
-                                if(D1Dplot_global.isDebug())e.printStackTrace();
                                 log.warning("Error reading compound: "+comp.getCompName());
                             }                        
                             
@@ -357,7 +353,6 @@ public final class PDDatabase {
                 }
                 scDBfile.close();
             }catch(Exception e){
-                if(D1Dplot_global.isDebug())e.printStackTrace();
                 log.warning("Error reading DB file");
                 this.cancel(true);
                 return 1;
@@ -420,7 +415,6 @@ public final class PDDatabase {
                     if ((icomp % 100) == 0){
                         float percent = ((float)icomp/(float)ncomp)*100.f;
                         setProgress((int) percent);
-                        log.debug(String.valueOf(percent));
                     }
                     
                     icomp = icomp + 1;
@@ -465,7 +459,6 @@ public final class PDDatabase {
                 output.close();
                 
             }catch(Exception e){
-                e.printStackTrace();
                 this.cancel(true);
                 log.info("Error writting compound DB: "+dbfile.toString());
                 return 1;
@@ -581,7 +574,6 @@ public final class PDDatabase {
                 if ((compIndex % nCompounds/100) == 0){
                     float percent = ((float)compIndex/(float)nCompounds)*100.f;
                     setProgress((int) percent);
-                    log.debug(String.valueOf(percent));
                 }
             }
             setProgress(100);

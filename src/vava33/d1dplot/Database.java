@@ -22,7 +22,6 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -505,6 +504,7 @@ public class Database  {
     public void inicia(){
         lm = new DefaultListModel<Object>();
         listCompounds.setModel(lm);
+        chckbxIntensity.setSelected(plotpanel.showDBCompoundIntensity);
         this.readDB(true);
     }
 
@@ -537,8 +537,6 @@ public class Database  {
         openDBFwk.addPropertyChangeListener(new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
-              //log.debug("hello from propertyChange");
-              log.debug(evt.getPropertyName());
               if ("progress" == evt.getPropertyName() ) {
                   int progress = (Integer) evt.getNewValue();
                   pm.setProgress(progress);
@@ -782,8 +780,6 @@ public class Database  {
 
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
-              //log.debug("hello from propertyChange");
-              log.debug(evt.getPropertyName());
               if ("progress" == evt.getPropertyName() ) {
                   int progress = (Integer) evt.getNewValue();
                   pm.setProgress(progress);
@@ -837,7 +833,6 @@ public class Database  {
                     try{
                         comp = (PDCompound)element;    
                     }catch(Exception e){
-                        log.debug("trying searchresult...");
                         comp = ((PDSearchResult)element).getC();
                     }
                     if (comp == null) return false;
@@ -895,7 +890,6 @@ public class Database  {
         saveDBFwk.addPropertyChangeListener(new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
-                log.debug(evt.getPropertyName());
                 if ("progress" == evt.getPropertyName() ) {
                     int progress = (Integer) evt.getNewValue();
                     pm.setProgress(progress);
@@ -997,7 +991,6 @@ public class Database  {
             beta = Float.parseFloat(cellp[4]);
             gamma = Float.parseFloat(cellp[5]);
         }catch(Exception e){
-            if (D1Dplot_global.isDebug())e.printStackTrace();
             JOptionPane.showMessageDialog(DBdialog, "Error parsing cell parameters, should be: a b c alpha beta gamma");
             return false;
         }
@@ -1007,7 +1000,6 @@ public class Database  {
         }
         
         String[] hkl_lines = textAreaDsp.getText().trim().split("\\n");
-        log.debug(Arrays.toString(hkl_lines));
         List<HKLrefl> pdref = new ArrayList<HKLrefl>();
         //CHECK CONSISTENCY HKL
         for (int i=0;i<hkl_lines.length;i++){
@@ -1017,7 +1009,6 @@ public class Database  {
                 return false;
             }else{
                 try{
-                    log.debug(Arrays.toString(line));
                     int h = Integer.parseInt(line[0]);
                     int k = Integer.parseInt(line[1]);
                     int l = Integer.parseInt(line[2]);
@@ -1026,7 +1017,7 @@ public class Database  {
                     try {
                         inten = Float.parseFloat(line[4]);    
                     }catch(Exception e2) {
-                        log.debug("no intensity for reflection");
+//                        log.debug("no intensity for reflection");
                     }
                     HKLrefl refl = new HKLrefl(h,k,l,dsp,inten,0);
                     pdref.add(refl);
@@ -1077,7 +1068,6 @@ public class Database  {
             beta = Double.parseDouble(cellp[4]);
             gamma = Double.parseDouble(cellp[5]);
         }catch(Exception ex){
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
             JOptionPane.showMessageDialog(DBdialog, "Cell parameters needed (a b c alpha beta gamma) to parse hkl file");
             return;
         }
@@ -1097,13 +1087,11 @@ public class Database  {
                     float inten = Integer.parseInt(values[3]);
                     refs.add(new HKLrefl(h,k,l,cel.calcDspHKL(h, k, l),inten,0));
                 }catch(Exception ex2){
-                    if (D1Dplot_global.isDebug())ex2.printStackTrace();
                     log.warning("Error parsing h,k,l,intensity values");
                 }
             }
             shkl.close();
         } catch (Exception ex) {
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
             log.warning("Error reading HKL file");
         }
         
@@ -1160,7 +1148,7 @@ public class Database  {
         cel.normIntensities(100);
         this.textAreaDsp.setText("");
         this.textAreaDsp.setText(cel.getListAsString_HKLMerged_dsp_Fc2());
-        log.debug(cel.getListAsString_HKLMerged_tth_mult_Fc2(0.4246f));
+//        log.debug(cel.getListAsString_HKLMerged_tth_mult_Fc2(0.4246f));
     }
     
     protected void do_btnCalcRefl_actionPerformed(ActionEvent e) {
@@ -1176,7 +1164,6 @@ public class Database  {
             beta = Float.parseFloat(cellp[4]);
             gamma = Float.parseFloat(cellp[5]);
         }catch(Exception ex){
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
             JOptionPane.showMessageDialog(DBdialog, "Cell parameters needed (a b c alpha beta gamma) to parse hkl file");
             return;
         }

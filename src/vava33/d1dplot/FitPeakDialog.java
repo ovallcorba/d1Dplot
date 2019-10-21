@@ -94,7 +94,8 @@ public class FitPeakDialog {
      */
     public FitPeakDialog(PlotPanel p) {
         this.fitPkDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Fit Peak(s) **EXPERIMENTAL**",false);
-        log.info("Fit Peak(s) is IN DEVELOPMENT. It contains errors and MAY CRASH THE PROGRAM"); 
+        fitPkDialog.setTitle("Fit Peak(s) ** IN DEVELOPMENT **");
+        log.info("Fit Peak(s) is IN DEVELOPMENT. It contains errors and MAY CRASH THE PROGRAM!"); 
         this.plotpanel = p;
         this.contentPanel = new JPanel();
         fitPkDialog.setIconImage(D1Dplot_global.getIcon());
@@ -183,15 +184,18 @@ public class FitPeakDialog {
                     tablePV = new JTable();
                     tablePV.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
                     tablePV.setModel(new DefaultTableModel(
-                        new Object[][] {
-                        },
-                        new String[] {
-                            "Mean", "FWHM", "eta", "Ymax", "Y_bkg", "m_bkg"
-                        }
-                    ) {
+                            new Object[][] {
+                            },
+                            new String[] {
+                                    "Mean", "FWHM", "eta", "Ymax", "Y_bkg", "m_bkg"
+                            }
+                            ) {
+                        private static final long serialVersionUID = 1L;
+                        @SuppressWarnings("rawtypes")
                         Class[] columnTypes = new Class[] {
-                            Double.class, Double.class, Double.class, Double.class, Double.class, Double.class
+                                Double.class, Double.class, Double.class, Double.class, Double.class, Double.class
                         };
+                        @SuppressWarnings({ "unchecked", "rawtypes" })
                         public Class getColumnClass(int columnIndex) {
                             return columnTypes[columnIndex];
                         }

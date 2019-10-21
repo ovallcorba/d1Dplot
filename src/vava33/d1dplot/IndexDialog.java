@@ -148,7 +148,7 @@ public class IndexDialog {
     Set<IndexSolution> sols;
     Set<IndexSolution> original_sols;
     IndexGuessSpaceGroupDialog sgGuessDialog;
-    debug_latgen manualIndexDialog;
+    IndexManual manualIndexDialog;
 //    private boolean everythingOK = true;
     private JLabel lblMin;
     private JLabel lblMin_1;
@@ -733,7 +733,7 @@ public class IndexDialog {
     }
     
     private void do_btnManual_actionPerformed(ActionEvent e) {
-        if (manualIndexDialog==null) manualIndexDialog = new debug_latgen(this);
+        if (manualIndexDialog==null) manualIndexDialog = new IndexManual(this);
         manualIndexDialog.visible(true);
     }
     
@@ -1030,7 +1030,6 @@ public class IndexDialog {
                 isol++;
             }
         }catch(Exception ex) {
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
             log.warning("Error writting indexing results file");
         }finally {
             if(out!=null)out.close();
@@ -1109,14 +1108,13 @@ public class IndexDialog {
                 }
                 fillSolucions();
             } catch (Exception ignore) {
-                ignore.printStackTrace();
+                log.warning("Error populating results");
             }
             if (this.isCancelled()) {
                 try {
                     Thread.sleep(1000); //wait to finish... potser no es suficient?
                 } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+//                    log.warning("Error during indexing");
                 }
                 log.warning("** INDEXING CANCELLED **");
                 pBarIndex.setString("indexing cancelled");
@@ -1159,14 +1157,13 @@ public class IndexDialog {
                 }
                 fillSolucions();
             } catch (Exception ignore) {
-                ignore.printStackTrace();
+                log.warning("Error populating results");
             }
             if (this.isCancelled()) {
                 try {
                     Thread.sleep(1000); //wait to finish... potser no es suficient?
                 } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    //notingh
                 }
                 log.warning("** INDEXING CANCELLED **");
                 pBarIndex.setString("indexing cancelled");
@@ -1198,7 +1195,6 @@ public class IndexDialog {
             txtAlstep.setEnabled(false);
             txtBestep.setEnabled(false);
             txtGastep.setEnabled(false);
-//            txtEps.setEnabled(true);
         }
         if (rdbtnGridSearch.isSelected()) {
             txtAstep.setEnabled(true);
@@ -1207,7 +1203,6 @@ public class IndexDialog {
             txtAlstep.setEnabled(true);
             txtBestep.setEnabled(true);
             txtGastep.setEnabled(true);
-//            txtEps.setEnabled(false);
         }
     }
     

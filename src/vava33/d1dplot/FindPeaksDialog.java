@@ -280,11 +280,7 @@ public class FindPeaksDialog {
             if (usebkg) {
                 llindar = PattOps.findPeaksGetBkgLlindar(ds);
             }
-//            else {
-//                double llindar_value = ds.calcYmeanYDesvYmaxYmin(plotpanel.isPlotwithbkg())[1]; //ja es multiplicara per fact a findPeaks
-//                llindar = new DataSerie(ds, SerieType.bkg,false);
-//                PattOps.addConstantYPointsToDataserie(llindar,50,ds.getMinX(),ds.getMaxX(),llindar_value);
-//            }
+
             DataSerie pks = PattOps.findPeaksEvenBetter(ds,llindar,fact,tthmin,tthmax,plotpanel.isPlotwithbkg());
             pks.serieName=ds.serieName+" (peaks)";
             ds.getParent().replaceDataSerie(pks, SerieType.peaks, true);
@@ -301,7 +297,7 @@ public class FindPeaksDialog {
             
             
         }catch(Exception ex){
-            ex.printStackTrace();
+            log.warning("Error during peak search, check parameters");
         }
         d1dmain.updateData(false,true); //ja conte actualitzarPlot
     }
@@ -380,7 +376,7 @@ public class FindPeaksDialog {
                 float max = Float.parseFloat(vals[1]);
                 slider.setMaximum(FastMath.round(max*100));
             }catch(Exception ex){
-                ex.printStackTrace();
+                log.warning("Error parsing min/max values");
             }
         }
     }

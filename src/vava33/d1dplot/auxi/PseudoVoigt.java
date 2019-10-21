@@ -229,9 +229,9 @@ public class PseudoVoigt {
             //2.7726 is 4*ln(2)
             //1.66 es l'arrel de lo de sobre
             //1.77 arrel de pi
-            return (1.6651126/1.7724539)*FastMath.exp((-1*2.7726*(x-mean)*(x-mean))/(fwhm*fwhm));
+            //0.939437278 es el quocient entre els dos anteriors
+            return (0.939437278)*FastMath.exp((-2.7726*(x-mean)*(x-mean))/(fwhm*fwhm));
         }
-        
     }
     
     public class Lorentzian{

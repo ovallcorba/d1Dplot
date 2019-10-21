@@ -60,8 +60,6 @@ import javax.swing.JTextField;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.Font;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.io.File;
 import java.awt.event.ItemListener;
 import java.awt.event.ItemEvent;
@@ -161,12 +159,12 @@ public class Plot2DPanel {
     public Plot2DPanel(JFrame parent) {
     	plot2Ddialog = new JDialog(parent,"2D plot",false);
         plot2Ddialog.setIconImage(D1Dplot_global.getIcon());
-        plot2Ddialog.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                do_this_componentResized(e);
-            }
-        });
+//        plot2Ddialog.addComponentListener(new ComponentAdapter() {
+//            @Override
+//            public void componentResized(ComponentEvent e) {
+//                do_this_componentResized(e);
+//            }
+//        });
         plot2Ddialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         plot2Ddialog.setBounds(100, 100, 960, 567);
 
@@ -479,11 +477,6 @@ public class Plot2DPanel {
 	    maxT2 = dss.get(0).getPointWithCorrections(dss.get(0).getNpoints()-1,false).getX();
 	    minT2 = dss.get(0).getPointWithCorrections(0,false).getX();
 	    
-//	    int quarter = panelImatge.getWidth()/4;
-//	    nameXPos = panelImatge.getWidth()-quarter;
-//	    nameMaxWidth = quarter - 1;
-//	    txtMaxwidth.setText(Integer.toString(nameMaxWidth));
-//	    txtXposition.setText(Integer.toString(nameXPos));
 	    lblColor.setBackground(nameColor);
 	    lblColor.setText("");
 	    lblColor.setOpaque(true);
@@ -494,7 +487,6 @@ public class Plot2DPanel {
 	}
 
 	public void actualitzarVista(){
-//	    logdebug("actualitzarVista called");
 	    this.getPanelImatge().repaint();
 	}
 
@@ -560,9 +552,7 @@ public class Plot2DPanel {
         return x;
     }
 	
-	private void pintaImatge() {
-//        logdebug("ImagePanel pintaImatge called");
-        
+	private void pintaImatge() {        
         if (toPaint == null)return;
         if (toPaint.size()==0)return;
 
@@ -573,7 +563,6 @@ public class Plot2DPanel {
         
         minValSlider = this.slider_contrast.getMinimum();
         valSlider = this.slider_contrast.getValue();
-//        logdebug("ValSlider="+valSlider);
 
         for (int i = 0; i < im.getHeight(); i++) { // per cada fila (Y)
             for (int j = 0; j < im.getWidth(); j++) { // per cada columna (X)
@@ -583,7 +572,6 @@ public class Plot2DPanel {
                 im.setRGB(j, i, this.getColorOfAPixel(j, i).getRGB());
             }
         }
-//        logdebug("ImagePanel pintaImatge updateImage call");
         this.updateImage(im);
     }
     
@@ -614,7 +602,6 @@ public class Plot2DPanel {
         int type = BufferedImage.TYPE_INT_ARGB;
         llegendaImg = new BufferedImage(1, dimY, type);
         float height = (float)panel_llegenda.getHeight();
-//        logdebug("panel llegenda height="+height);
         scalefitYllegenda = height /(float)dimY;
 
         int quarter = (int) (dimY/4.);
@@ -704,8 +691,7 @@ public class Plot2DPanel {
         try{
             c = new Color(red, green, blue);
         }catch(Exception e){
-            if (D1Dplot_global.isDebug())e.printStackTrace();
-//            logdebug("invalid color");
+            log.warning("Error in color generation");
         }
         return c;
     }
@@ -762,26 +748,18 @@ public class Plot2DPanel {
     
     private void fitImage() {
         // En aquest cas hem de fer encabir-ho a la finestra
-//        if(isDebug())log.writeNameNums("CONFIG", true, "panelWidth, ImageWidth", getPanelImatge().getWidth(),getImage().getWidth());
-//        if(isDebug())log.writeNameNums("CONFIG", true, "panelHeight, Imageheigh", getPanelImatge().getHeight(),getImage().getHeight());
         scalefitX = (float)getPanelImatge().getWidth() / (float)getImage().getWidth();
         scalefitY = (float)getPanelImatge().getHeight() / (float)getImage().getHeight();
-//        if(isDebug())log.writeNameNums("CONFIG", true, "scalefitX,scalefitY", scalefitX,scalefitY);
         //aixo no cal centrar perque ara estem distorsionant la imatge, l'origen sempre sera 0 
         originX=0;
         originY=0;
-//        this.xrangeMax=this.maxT2;
-//        this.xrangeMin=this.minT2;
         this.updateXrangeMinMax();
         this.actualitzarVista();
         
     }
     
     private void fitImageZone(Point2D.Double vertexIni, Point2D.Double vertexFin){
-//        logdebug("fit Image zone entered");
-//        if(isDebug())log.writeNameNumPairs("config", true, "verteIni.x,vertexIni.y,vertexFin.x,vertexFin.y", vertexIni.x,vertexIni.y,vertexFin.x,vertexFin.y);
         //com hem pintat el quadrat (hi ha quatre variants)
-        
         if (!this.isSquareSection()){
             vertexIni.y=0;
             vertexFin.y=getPanelImatge().getHeight();
@@ -814,9 +792,6 @@ public class Plot2DPanel {
                 pfin = this.getPixel(vertexFin);
             }
         }
-//        if(isDebug())log.writeNameNumPairs("config", true, "scalefitX,scalefitY,originX,originY", scalefitX,scalefitY,originX,originY);
-//        Point2D.Float pini = this.getPixel(vertexIni);
-//        Point2D.Float pfin = this.getPixel(vertexFin);
         double sizeX = FastMath.abs(FastMath.abs(pfin.x) - FastMath.abs(pini.x));
         double sizeY = FastMath.abs(FastMath.abs(pfin.y) - FastMath.abs(pini.y));
         scalefitX = (float)(getPanelImatge().getWidth() / sizeX);
@@ -825,9 +800,6 @@ public class Plot2DPanel {
         Point2D.Double piniNew = getFramePointFromPixel(pini);
         originX = originX + (int) FastMath.round(-piniNew.x);
         originY = originY + (int) FastMath.round(-piniNew.y);
-//        if(isDebug())log.writeNameNumPairs("config", true, "sizeX,sizeY,scalefitX,scalefitY,verteIni.x,vertexIni.y,originX,originY", sizeX,sizeY,scalefitX,scalefitY,vertexIni.x,vertexIni.y,originX,originY);
-//        this.xrangeMax=pini.x;
-//        this.xrangeMin=pfin.x;
         this.updateXrangeMinMax();
     }
 
@@ -857,8 +829,6 @@ public class Plot2DPanel {
 	    //  (util per moure'l fen drag del mouse)
 	    originX = originX + (int)FastMath.round(incX);
 	    if(!isAlwaysFitY())originY = originY + (int)FastMath.round(incY);
-//	    this.xrangeMin=this.xrangeMin-(incX/scalefitX);
-//	    this.xrangeMax=this.xrangeMax-(incX/scalefitX);
 	    this.updateXrangeMinMax();
 	    if (repaint) {
 	        this.actualitzarVista();
@@ -873,15 +843,11 @@ public class Plot2DPanel {
 	    // aplico el zoom
 	    if (zoomIn) {
 	        scalefitX = scalefitX + (incZoom * scalefitX);
-//            this.xrangeMin=this.xrangeMin+(incZoom/scalefitX);
-//            this.xrangeMax=this.xrangeMax-(incZoom/scalefitX);
 	        if (!isAlwaysFitY()){
 	            scalefitY = scalefitY + (incZoom * scalefitY);                
 	        }
 	    } else {
 	        scalefitX = scalefitX - (incZoom * scalefitX);
-//            this.xrangeMin=this.xrangeMin-(incZoom/scalefitX);
-//            this.xrangeMax=this.xrangeMax+(incZoom/scalefitX);
 	        if (!isAlwaysFitY()){
 	            scalefitY = scalefitY - (incZoom * scalefitY);    
 	        }
@@ -973,7 +939,7 @@ public class Plot2DPanel {
       try {
           ImageIO.write(imgTOT, "png", fpng);
       } catch (Exception ex) {
-          ex.printStackTrace();
+          log.warning("Error writting PNG image");
       }
       log.info(fpng.toString()+" written");
   }
@@ -1148,7 +1114,7 @@ public class Plot2DPanel {
 	        int val = Integer.parseInt(txtMaxcontrast.getText());
 	        slider_contrast.setMaximum(val);
 	    }catch(Exception ex){
-	        ex.printStackTrace();
+	        log.warning("Error setting maximum contrast");
 	    }
 	}
 
@@ -1157,14 +1123,11 @@ public class Plot2DPanel {
 	        int val = Integer.parseInt(txtMincontrast.getText());
 	        slider_contrast.setMinimum(val);
 	    }catch(Exception ex){
-	        ex.printStackTrace();
+            log.warning("Error setting minimum contrast");
 	    }
 	}
 
-	private void do_this_componentResized(ComponentEvent e) {
-	    this.btnFitToWindow.doClick();
-	}
-
+	
 	private void do_btnSaveAsPng_actionPerformed(ActionEvent e) {
 	        File fpng = FileUtils.fchooserSaveNoAsk(plot2Ddialog, new File(D1Dplot_global.getWorkdir()), null,"png"); //ja preguntem despres
 	        if (fpng!=null){
@@ -1185,7 +1148,7 @@ public class Plot2DPanel {
 	                try{
 	                    factor=Float.parseFloat(s);
 	                }catch(Exception ex){
-	                    ex.printStackTrace();
+	                    log.warning("Error reading factor");
 	                }
 	                if(isDebug())log.writeNameNumPairs("config", true, "factor", factor);
 	                this.savePNG(fpng,factor);
@@ -1199,6 +1162,7 @@ public class Plot2DPanel {
 
     protected void do_chckbxGridY_actionPerformed(ActionEvent e) {
         this.gridY=chckbxGridY.isSelected();
+        this.actualitzarVista();
     }
 	
 	private void do_txtMaxwidth_actionPerformed(ActionEvent e) {
@@ -1330,11 +1294,6 @@ public class Plot2DPanel {
 	    nameColor = nColor;
 	}
 
-	private void logdebug(String s){
-	    if (D1Dplot_global.isDebug()){
-	        log.debug(s);
-	    }
-	}
 
 	private boolean isDebug(){
 	    return D1Dplot_global.isDebug();
@@ -1394,7 +1353,6 @@ public class Plot2DPanel {
 	            try {
 	                subimage = getImage().getSubimage(rect.x, rect.y, rect.width, rect.height);
 	            } catch (Exception e) {
-	                if (D1Dplot_global.isDebug())e.printStackTrace();
 	                log.warning("Error getting the subImage");
 	            }
 	            AffineTransform t = new AffineTransform();
@@ -1545,7 +1503,6 @@ public class Plot2DPanel {
 	        //v3-v1
 	        g1.drawLine(v1x, v3y, v1x, v1y);
 	    }
-	
 	}
 
 	public class llegenda2D extends JPanel {
@@ -1554,13 +1511,11 @@ public class Plot2DPanel {
 	        
 	        public llegenda2D(){
 	            super();
-//	            logdebug("constructor llegenda called");
 	        }
 	        
 	        @Override
 	        protected void paintComponent(Graphics g) {
 	            super.paintComponent(g);
-//	            logdebug("paint Component llegenda called");
                 if (getImage() == null)return;
 	            
 	            Graphics2D g2 = (Graphics2D) g;
@@ -1595,13 +1550,11 @@ public class Plot2DPanel {
         
         public axis2D(){
             super();
-//            logdebug("constructor axis called");
         }
         
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-//            logdebug("paint Component axis called");
 
             if (getImage() == null)return;
             if ((scalefitX <= 0) || (scalefitY <= 0))return; //encara no s'ha pintat
@@ -1649,10 +1602,7 @@ public class Plot2DPanel {
             double sy = this.getHeight() - AxisLabelsPadding;
             double sx = (this.getWidth() - sw)/2;
             xLabelTextLayout.draw(g2, (float)sx,(float)sy);
-            
-//            int axisheightTotal = (int) (AxisLabelsPadding*4 + sh*2 + div_PrimPixSize);
-//            this.setSize(this.getWidth(), axisheightTotal);
-            
+
             //pintem eix
             Point2D.Double vxleft = new Point2D.Double(0,div_PrimPixSize/2.f);
             Point2D.Double vxright = new Point2D.Double(this.getWidth(),div_PrimPixSize/2.f);
@@ -1669,7 +1619,6 @@ public class Plot2DPanel {
             int idiv = 0;
             double xval = div_startValX;
             
-//            log.writeNameNumPairs("debug", true, "div_startValX,xrangeMax,xrangeMin", plot1D.div_startValX,xrangeMax,xrangeMin);
             
             while (xval <= xrangeMax){
                 if (xval >= xrangeMin){ //la pintem nomes si estem dins el rang, sino numés icrementem el num de divisions
