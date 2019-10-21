@@ -43,6 +43,9 @@ public class DataPoint implements Plottable_point{ //plottable point ja inclou c
     public void setY(double y) {
         this.y = y;
     }
+    public void addY(double y) {
+        this.y = this.y + y;
+    }
     public double getSdy() {
         return sdy;
     }

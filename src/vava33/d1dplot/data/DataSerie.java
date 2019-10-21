@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.math3.util.FastMath;
+
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.jutils.VavaLogger;
@@ -117,6 +118,14 @@ public class DataSerie {
         return this.seriePoints.indexOf(dp);
     }
     
+    public void addYToDataPoint(int index, double y) {
+        this.seriePoints.get(index).addY(y);
+    }
+    public void setYToDataPoint(int index, double y, double sdy) {
+        this.seriePoints.get(index).setY(y);
+        this.seriePoints.get(index).setSdy(sdy);
+    }
+    
     public DataSerie getSubDataSerie(double t2i, double t2f){
         DataSerie newds = new DataSerie(this.getTipusSerie(),this.xUnits,this.parent);
         for (int i=0;i<this.getNpoints();i++){
@@ -135,15 +144,12 @@ public class DataSerie {
         Collections.sort(seriePoints);
     }
     
-    //TODO:revisar si calen els metodes add/remove/set o ordenar a l'afegir pics
     public void addPoint(Plottable_point dp){
         this.seriePoints.add(dp);
     }
 
     public void removePoint(Plottable_point dp){
-        logdebug("index of the point to remove="+this.seriePoints.indexOf(dp));
-        boolean removed = this.seriePoints.remove(dp);
-        logdebug(Boolean.toString(removed));
+        this.seriePoints.remove(dp);
     }
     public void removePoint(int index){
         this.seriePoints.remove(index);
@@ -486,12 +492,9 @@ public class DataSerie {
                     minDiffX=diffX;
                     minDiffY=diffY;
                     closest = dp;
-                    log.fine("index of the closest in loop (i)= "+i);
-                    log.fine("index of the closest in loop (indexof dp)= "+seriePoints.indexOf(dp));
                 }
             }
         }
-        log.fine("index of the closest="+this.seriePoints.indexOf(closest));
         return closest;
     }
     
@@ -507,12 +510,9 @@ public class DataSerie {
                 if (diffX<minDiffX){
                     minDiffX=diffX;
                     closest = dp;
-                    log.fine("index of the closest X in loop (i)= "+i);
-                    log.fine("index of the closest X in loop (indexof dp)= "+seriePoints.indexOf(dp));
                 }
             }
         }
-        log.fine("index of the closest X ="+this.seriePoints.indexOf(closest));
         return closest;
     }
     
@@ -597,10 +597,6 @@ public class DataSerie {
     public double calcStep(){
         return (this.getMaxX() - this.getMinX())/(this.getNpoints()-1);
     }
-    
-    private void logdebug(String s){
-        if(D1Dplot_global.isDebug())log.debug(s);
-    }
 
     public Plottable getParent() {
         return parent;
@@ -664,6 +660,19 @@ public class DataSerie {
         return found;
     }
     
+    //+-halftol
+    public int[] getMaxMinIndicesDataPointsRange(double centralX, double halfrange) {
+        double minval = centralX-halfrange;
+        Plottable_point p = this.getClosestDP_xonly(minval, -1);
+        int min = 0;
+        if (p!=null) min = this.getIndexOfDP(p);
+        double maxval = centralX+halfrange;
+        p = this.getClosestDP_xonly(maxval, -1);
+        int max = this.getNpoints()-1;
+        if (p!=null) max = this.getIndexOfDP(p);
+        return new int[] {min,max};
+    }
+    
     public double[] getXasDoubleArray() {
         double[] d = new double[this.getNpoints()];
         for (int i=0;i<this.getNpoints();i++) {
@@ -678,6 +687,20 @@ public class DataSerie {
             d[i]=this.getPointWithCorrections(i, false).getY();
         }
         return d;
+    }
+    
+    public void normalizeIntensitiesToValue(double value) {
+        //calculem el factor de normalitzacio de les intensitats a value
+        double maxInten = -1;
+        for (Plottable_point dp:seriePoints) {
+            double inten=dp.getY();
+            if (inten>maxInten)maxInten=inten;
+        }
+        double factor = value/maxInten;
+        //i corregim intensitats
+        for (Plottable_point dp:seriePoints) {
+            dp.setY(dp.getY()*factor);
+        }
     }
     
     

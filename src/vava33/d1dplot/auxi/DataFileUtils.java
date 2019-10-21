@@ -149,7 +149,7 @@ public final class DataFileUtils {
         filter[filter.length-1] = new FileNameExtensionFilter("All 1D-XRD supported formats", frmStrings.toArray(new String[frmStrings.size()]));
         return filter;
     }
-   
+    
     
     public static FileNameExtensionFilter[] getExtensionFilterPeaksWrite(){
         Iterator<String> itrformats = DataFileUtils.peakFormatInfo.keySet().iterator();
@@ -216,7 +216,7 @@ public final class DataFileUtils {
             //ho tornem a intentar...
             p = readUNK(d1file);
             if (p==null) {
-                log.debug("Error reading pattern "+d1file.getAbsolutePath());
+                log.warning("Error reading pattern "+d1file.getAbsolutePath());
                 return null;               
             }
         }
@@ -230,14 +230,11 @@ public final class DataFileUtils {
     //Autodetect format from extension or ask
     public static Plottable readPatternFile(File d1file) {
         // comprovem extensio
-        log.debug(d1file.toString());
         String ext = FileUtils.getExtension(d1file).trim();
 
         // this line returns the FORMAT in the ENUM or NULL
         SupportedReadExtensions format = FileUtils.searchEnum(SupportedReadExtensions.class, ext);
         
-        if (format != null) {log.debug("Format=" + format.toString());}
-
         if (format == null) {
             SupportedReadExtensions[] possibilities = SupportedReadExtensions.values();
             SupportedReadExtensions s = (SupportedReadExtensions) JOptionPane.showInputDialog(null, "Input format:", "Read File",
@@ -286,7 +283,6 @@ public final class DataFileUtils {
     
     public static File writePatternFile(File d1File, DataSerie serie, boolean overwrite, boolean addYbkg) {
         // comprovem extensio
-        log.debug(d1File.toString());
         String ext = FileUtils.getExtension(d1File).trim();
 
         //DETECCIO SERIE BKG
@@ -324,9 +320,6 @@ public final class DataFileUtils {
         // this line returns the FORMAT in the ENUM or NULL
         SupportedWriteExtensions format = FileUtils.searchEnum(
                 SupportedWriteExtensions.class, ext);
-        if (format != null) {
-            log.debug("Format=" + format.toString());
-        }
 
         if (format == null) {
             SupportedWriteExtensions[] possibilities = SupportedWriteExtensions
@@ -381,6 +374,22 @@ public final class DataFileUtils {
     private static Data_Common readREF(File f){
         Data_Common dc =  readDAT(f);
         dc.getDataSerie(0).setTipusSerie(SerieType.ref);
+        
+        //normalitzem intensitats a 100
+        dc.getDataSerie(0).normalizeIntensitiesToValue(100);
+        
+        //mirem si hi ha un nom als comentaris #name=XXX
+        List<String> com = dc.getCommentLines();
+        String name="";
+        for (String s:com) {
+            name = searchForName(s);
+            if (!name.isEmpty()) {
+                dc.getDataSerie(0).serieName=name;
+                break;
+            }
+        }
+        
+        
         //TODO:
         // 1) preguntar si es en t2 o d-spacing i posar-ho a x-units, ho podem detectar, normalment d-spacing decreix i tth creix
         // 2) en cas dsp demanar si es vol transformar
@@ -395,7 +404,7 @@ public final class DataFileUtils {
                 }
             }
         }catch (Exception ex) {
-            log.debug("Unable to detect X-units for REF serie");
+            log.warning("Unable to detect X-units for REF serie");
         }
         return dc;
     }
@@ -410,6 +419,7 @@ public final class DataFileUtils {
     	
     	//Sino mirem de detectar linies on hi hagi dos valors t2, intensitat separats per espai, coma, etc...
         boolean readed = true;
+        boolean firstLine=true;
         //creem un DataSerie_Pattern
         Data_Common dsP = new Data_Common();
         DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
@@ -421,6 +431,14 @@ public final class DataFileUtils {
             sf = new Scanner(datFile,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
+                if (firstLine) {
+                    firstLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (isComment(line)){
                     dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
@@ -436,10 +454,8 @@ public final class DataFileUtils {
 
                 //test csv:
                 String values[] = line.trim().split(",");
-                log.writeNameNumPairs("config", true, "values.length (comma)=", values.length);
                 if (values.length<2){
                     values = line.trim().split("\\s+");
-                    log.writeNameNumPairs("config", true, "values.length (space)=", values.length);
                     if (values.length<2){
                         continue;
                     }
@@ -451,7 +467,7 @@ public final class DataFileUtils {
                 try{
                     sdev = Double.parseDouble(values[2]);
                 }catch(Exception ex){
-                    log.fine("error parsing sdev");
+//                    log.fine("error parsing sdev");
                 }
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
@@ -508,13 +524,21 @@ public final class DataFileUtils {
         
         //FIRST CHECK ENCODING
         String enc = getEncodingToUse(datFile);
-        
         Scanner sf = null;
+
         try {
             sf = new Scanner(datFile,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
-                if (isComment(line)){
+                if (firstLine) {
+                    firstLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
+                if (isComment(line.trim())){
                     dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
                     if (wl>0){
@@ -543,16 +567,11 @@ public final class DataFileUtils {
                 try{
                     sdev = Double.parseDouble(values[2]);
                 }catch(Exception ex){
-                    log.fine("error parsing sdev");
+//                    log.fine("error parsing sdev");
                 }
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
-                if (firstLine){
-                    firstLine = false;
-                }
 
-                if (!sf.hasNextLine()){
-                }
             }
             if (ds.getNpoints()<=0)return null;
             ds.serieName=datFile.getName();
@@ -574,6 +593,7 @@ public final class DataFileUtils {
     
     private static Data_Common readGR(File datFile) {
         boolean readed = true;
+        boolean firstLine=true;
         //creem un DataSerie_Gr
         Data_Common dsGr = new Data_Common();
         DataSerie ds = new DataSerie(SerieType.gr,Xunits.G,dsGr);
@@ -587,7 +607,14 @@ public final class DataFileUtils {
             sf = new Scanner(datFile,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
-
+                if (firstLine) {
+                    firstLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (line.trim().startsWith("###")){
                     startData = true;
                     continue;
@@ -601,7 +628,7 @@ public final class DataFileUtils {
                             dsGr.setOriginalWavelength(Double.parseDouble(values[2]));
                             ds.setWavelength(Double.parseDouble(values[2]));
                         }catch(Exception e){
-                            log.debug("error parsing wave");
+                            log.warning("Error parsing wavelength");
                         }
                     }
                     continue;
@@ -643,7 +670,7 @@ public final class DataFileUtils {
         boolean pos = false;
         boolean startend = false; //if we have start/end or ListPositions
         boolean readed = true;
-
+        boolean firstLine = true;
         //creem un DataSerie_Pattern
         Data_Common dsP = new Data_Common();
         DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
@@ -663,6 +690,14 @@ public final class DataFileUtils {
             sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
+                if (firstLine) {
+                    firstLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (line.contains("<positions")){
                     pos = true;
                 }
@@ -705,14 +740,12 @@ public final class DataFileUtils {
             //check if we have to generate 2thetas
             if(startend){
                 int nrint = intensities.size();
-                log.debug("nrint="+nrint);
                 step = (t2f-t2i)/nrint;
                 double t2c = t2i;
                 while(t2c<=t2f){
                     t2ang.add(t2c);
                     t2c = t2c+step;
                 }
-                log.debug("nrt2ang="+t2ang.size());
             }
             
             //here we should have t2ang and intensities full and same size, populate dps
@@ -739,6 +772,7 @@ public final class DataFileUtils {
     
     private static Data_Common readFF(File f){
         boolean firstLine = true;
+        boolean firstAbsLine = true;
         boolean readed = true;
         
         //creem un DataSerie_Pattern
@@ -759,6 +793,14 @@ public final class DataFileUtils {
             sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
+                if (firstAbsLine) {
+                    firstAbsLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (isComment(line)){
                     dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
@@ -795,14 +837,11 @@ public final class DataFileUtils {
             }
             
             //now the 2thetas
-            int nrint = intensities.size();
-            log.debug("nrint="+nrint);
             double t2c = t2i;
             while(t2c<=t2f){
                 t2ang.add(t2c);
                 t2c = t2c+step;
             }
-            log.debug("nrt2ang="+t2ang.size());
             
             //here we should have t2ang and intensities full and same size, populate dps
             int size = FastMath.min(t2ang.size(), intensities.size());
@@ -834,10 +873,19 @@ public final class DataFileUtils {
         double inten = 0.00f;
         double sdev = -100.00f;
         Scanner sf = null;
+        boolean firstAbsLine = true;
         try {
             sf = new Scanner(f);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
+                if (firstAbsLine) {
+                    firstAbsLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (isComment(line)){
                     continue;
                 }
@@ -888,7 +936,7 @@ public final class DataFileUtils {
         double t2p = 0;
         double step = 0;
         double t2i = 0;
-        
+        boolean firstAbsLine=true;
         boolean readed = true;
         
         //creem un DataSerie_Pattern
@@ -903,6 +951,14 @@ public final class DataFileUtils {
             sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
+                if (firstAbsLine) {
+                    firstAbsLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (isComment(line)){
                     dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
@@ -941,8 +997,7 @@ public final class DataFileUtils {
                             t2p = t2p + step;
                         }
                     }catch(Exception readex){
-                        if (D1Dplot_global.isDebug())readex.printStackTrace();
-                        log.debug("Error reading GSA file");
+                        log.warning("Error reading GSA file");
                         readed=false;
                         break;
                     }
@@ -968,6 +1023,7 @@ public final class DataFileUtils {
     
     private static Data_Common readD1P(File f){
         boolean readed = true;
+        boolean firstAbsLine=true;
         
         //creem un DataSerie_PRF
         Data_Common dsPRF = new Data_Common();
@@ -988,6 +1044,14 @@ public final class DataFileUtils {
             sf = new Scanner(f,enc);
             while (sf.hasNextLine()){
                 line = sf.nextLine();
+                if (firstAbsLine) {
+                    firstAbsLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (isComment(line))continue;
                 
                 if (FileUtils.containsIgnoreCase(line, "name")) {
@@ -1112,6 +1176,7 @@ public final class DataFileUtils {
 
     private static Data_Common readPRF(File f){
         boolean readed = true;
+        boolean firstAbsLine=true;
         boolean startData = false;
         boolean starthkl = false;
         double previous2t = -100.0;
@@ -1135,7 +1200,14 @@ public final class DataFileUtils {
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
                 linecount = linecount +1;
-                
+                if (firstAbsLine) {
+                    firstAbsLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (linecount == 2){
                     String values[] = line.trim().split("\\s+");
                     dsPRF.setOriginalWavelength(Double.parseDouble(values[2]));
@@ -1161,14 +1233,27 @@ public final class DataFileUtils {
                 if (starthkl){
                     int ini = line.indexOf("(");
                     int fin = line.indexOf(")");
-                    log.debug(line.substring(ini+1, fin));
-                    String shkl[] = line.substring(ini+1, fin).trim().split("\\s+");
-                    int h = Integer.parseInt(shkl[0]);
-                    int k = Integer.parseInt(shkl[1]);
-                    int l = Integer.parseInt(shkl[2]);
+                    //Sep2019 canvi a FORMATTED ja que donava errors quan hi havia hkl tipus: -2-10 3
+                    //perque fullprof ho escriu com a formatted string i3
+                    
+//                    String shkl[] = line.substring(ini+1, fin).trim().split("\\s+");
+//                    int h = Integer.parseInt(shkl[0]);
+//                    int k = Integer.parseInt(shkl[1]);
+//                    int l = Integer.parseInt(shkl[2]);
+                    
+                    String shkl_1 = line.substring(ini+1, fin);
+                    //( -2-10  3)
+                    // 012345678
+                    int h = Integer.parseInt(shkl_1.substring(0,3).trim());
+//                    log.debug(Integer.toString(h));
+                    int k = Integer.parseInt(shkl_1.substring(3,6).trim());
+//                    log.debug(Integer.toString(k));
+                    int l = Integer.parseInt(shkl_1.substring(6,9).trim());
+//                    log.debug(Integer.toString(l));
+                    
                     HKLrefl hkl = new HKLrefl(h,k,l,dsObs.getWavelength(),t2i);
                     //the y offset (more than one phase)
-                    shkl = line.substring(0,ini).trim().split("\\s+");
+                    String shkl[] = line.substring(0,ini).trim().split("\\s+");
                     double yoff = Double.parseDouble(shkl[shkl.length-1].trim());
                     hkls.add(new DataPoint_hkl(t2i,yoff,0.,hkl));
                 }else{
@@ -1184,7 +1269,6 @@ public final class DataFileUtils {
                         if (values.length>6) {                            //has hkl
                             int ini = line.indexOf("(");
                             int fin = line.indexOf(")");
-                            log.debug(line.substring(ini+1, fin));
                             String shkl[] = line.substring(ini+1, fin).trim().split("\\s+");
                             int h = Integer.parseInt(shkl[0]);
                             int k = Integer.parseInt(shkl[1]);
@@ -1403,14 +1487,10 @@ public final class DataFileUtils {
                     readNext=true;
                 }
                 if (line.trim().isEmpty())continue;
-                log.debug(line);
                 if (line.trim().startsWith("PL")) { //new plottable
                     line = sf.nextLine();
-                    log.debug(line);
                     String[] vals = line.trim().split("\\s+");
-//                    nplottable = Integer.parseInt(vals[0]);
                     String fname = String.join(" ", Arrays.asList(vals).subList(1, vals.length));
-                    log.debug(fname);
                     if (!fulldata) {
                         currentPlottable=DataFileUtils.readPatternFile(new File(fname.trim()));
                     }else {
@@ -1424,7 +1504,6 @@ public final class DataFileUtils {
                 if (line.trim().startsWith("DS")) { //new dataserie al currentPlottable
                     //llegim primer els "parametres"
                     line = sf.nextLine();
-                    log.debug(line);
                     String[] vals = line.trim().split("\\s+");
                     int nDS = Integer.parseInt(vals[0]);
                     SerieType styp = SerieType.getEnum(vals[1]);
@@ -1432,7 +1511,6 @@ public final class DataFileUtils {
                     String dsname = String.join(" ", Arrays.asList(vals).subList(2, vals.length));
                     //seguent linia (parametres)
                     line = sf.nextLine();
-                    log.debug(line);
                     vals = line.trim().split("\\s+");
                     
                     //ara..
@@ -1444,7 +1522,6 @@ public final class DataFileUtils {
                         StringBuilder sb = new StringBuilder();
                         while(sf.hasNextLine()) {
                             line = sf.nextLine();
-                            log.debug(line);
                             if (line.trim().startsWith("PL")||line.trim().startsWith("DS")||line.trim().startsWith("----")) {
                                 readNext=false; //solucio una mica cutre...
                                 break;
@@ -1487,6 +1564,7 @@ public final class DataFileUtils {
         return readed;
     }
     
+    
 //  #TITOL
 //  name=XXX
 //  cell=
@@ -1502,7 +1580,6 @@ public final class DataFileUtils {
 //  HKL name
 //  tth h k l
   public static File writeProfileFile(File d1File, DataSerie dsOBS, DataSerie dsCAL, List<DataSerie> dsHKL, boolean overwrite) {
-      log.debug(d1File.toString());
       if (d1File.exists()&&!overwrite)return null;
       if (d1File.exists()&&overwrite)d1File.delete();
       
@@ -1693,6 +1770,14 @@ public final class DataFileUtils {
             sf = new Scanner(datString);
             while (sf.hasNextLine()){
                 String line = sf.nextLine();
+                if (firstLine) {
+                    firstLine=false;
+                    if (!line.isEmpty()) {
+                        if ((int)line.charAt(0)==65279) { //BOM character
+                            line = line.substring(1);
+                        }
+                    }
+                }
                 if (isComment(line)){
                     dsP.addCommentLine(line);
                     double wl = searchForWavel(line);
@@ -1722,16 +1807,11 @@ public final class DataFileUtils {
                 try{
                     sdev = Double.parseDouble(values[2]);
                 }catch(Exception ex){
-                    log.fine("error parsing sdev");
+//                    log.fine("error parsing sdev");
                 }
 
                 ds.addPoint(new DataPoint(t2,inten,sdev));
-                if (firstLine){
-                    firstLine = false;
-                }
 
-                if (!sf.hasNextLine()){
-                }
             }
             if (ds.getNpoints()<=0)return null;
             ds.serieName=serieName;
@@ -1895,8 +1975,7 @@ public final class DataFileUtils {
                     out.println(towrite);
                     startIndex+=5;
                 }catch(Exception ex){
-                    ex.printStackTrace();
-                    log.debug("error writting gsa");
+                    log.warning("Error writting gsa");
                     written = false;
                     break;
                 }
@@ -2172,7 +2251,7 @@ public final class DataFileUtils {
                     }
                 }
             }catch(Exception ex){
-                log.debug("error parsing element after wave tag");
+                log.warning("Error parsing element after wavelength keyword");
             }
             
             //provem amb signe igual
@@ -2192,7 +2271,7 @@ public final class DataFileUtils {
                     }
                 }
             }catch(Exception ex){
-                log.debug("error parsing element after wave*= tag");
+                log.warning("Error parsing element after wave*= keyword");
             }
         }
         
@@ -2200,6 +2279,24 @@ public final class DataFileUtils {
         return wl;
     }
 
+    private static String searchForName(String s){
+        String name = "";
+        if (FileUtils.containsIgnoreCase(s, "name")){
+            //provem amb signe igual
+            try{
+                String[] vals = s.split("=");
+                for (int i=0;i<vals.length;i++){
+                    if (FileUtils.containsIgnoreCase(vals[i], "name")){
+                        name = vals[i+1];
+                    }
+                }
+            }catch(Exception ex){
+                log.warning("Error parsing element after wave*= keyword");
+            }
+        }
+        return name;
+    }
+    
 	private static boolean isComment(String ln){
 	    if (ln.trim().startsWith("#"))return true;
 	    if (ln.trim().startsWith("!"))return true;

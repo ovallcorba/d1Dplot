@@ -18,7 +18,12 @@ public interface Plottable_point extends Comparable<Plottable_point>{
     public double getSdy();
     public void setX(double x);
     public void setY(double y);
+    public void addY(double y);
     public void setSdy(double sdy);
     public Plottable_point getCorrectedDataPoint(double incX, double incY, double factorY, boolean addYbkg);
     public String getInfo(); //with useful info of the point (e.g. hkl)
+//    @Override
+//    boolean equals(Object obj);
+    
+    
 }

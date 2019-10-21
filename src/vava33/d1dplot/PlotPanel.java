@@ -75,6 +75,7 @@ import javax.swing.JSplitPane;
 import javax.swing.border.LineBorder;
 import java.awt.Dimension;
 import javax.swing.JComboBox;
+import javax.swing.border.EmptyBorder;
 
 public class PlotPanel {
 
@@ -85,10 +86,10 @@ public class PlotPanel {
     private static final Color Dark_frg = Color.WHITE;
     private static final Color Light_bkg = Color.WHITE;
     private static final Color Light_frg = Color.BLACK;
-//    private static final Color Light_Legend_bkg = Color.LIGHT_GRAY.brighter();
     private static final Color Light_Legend_line = Color.BLACK;
-//    private static final Color Dark_Legend_bkg = Color.DARK_GRAY.darker();
     private static final Color Dark_Legend_line = Color.WHITE;
+    private static final Color Light_Legend_bkg = Color.WHITE;
+    private static final Color Dark_Legend_bkg = Color.BLACK;
     
     //PARAMETRES VISUALS amb els valors per defecte 
     private boolean lightTheme = true;
@@ -96,7 +97,6 @@ public class PlotPanel {
     private int gapAxisBottom = 0; //35
     private int gapAxisRight = 0; //12
     private int gapAxisLeft = 0; //80
-//    private int padding2px = 2; //was general padding 10...
     private int padding5px = 5;
     private String xlabel = "2"+D1Dplot_global.theta+" (º)";
     private String ylabel = "Intensity";
@@ -138,8 +138,6 @@ public class PlotPanel {
     private double xMax = 60;
     private double yMin = 0;
     private double yMax = 100000;
-//    private double incX = 10;
-//    private double incY = 10000;
     private double scalefitX = -1;
     private double scalefitY = -1;
     private double xrangeMin = -1; //rangs dels eixos X i Y en 2theta/counts per calcular scalefitX,Y
@@ -171,6 +169,7 @@ public class PlotPanel {
     boolean autoPosLegend = true;
     int legendX = -99;
     int legendY = -99;
+    private boolean legend_opaque = true;
     private boolean hkllabels = true;
     private boolean showGridY = false;
     private boolean showGridX = false;
@@ -182,6 +181,7 @@ public class PlotPanel {
     boolean deletingPeaks = false;
     boolean showDBCompound = false;
     boolean showDBCompoundIntensity = false;
+    boolean splitDBCompound = false;
     boolean showIndexSolution = false;
     boolean applyScaleFactorT2 = false;
     float scaleFactorT2ang = 30;
@@ -257,6 +257,9 @@ public class PlotPanel {
     private JCheckBox chckbxBkgIntensityprf;
     private JCheckBox chckbxHklLabels;
     private JButton btnReassigncolors;
+    private JCheckBox chckbxDbCompoundIntensity;
+    private JCheckBox chckbxSplit;
+    private JCheckBox chckbxOpaque;
     
 	/**
      * Create the panel.
@@ -306,7 +309,7 @@ public class PlotPanel {
 //        splitPane.setLeftComponent(graphPanel);
         plotPanelContainer = new JPanel();
         splitPane.setLeftComponent(plotPanelContainer); //for design
-        plotPanelContainer.setLayout(new MigLayout("insets 0, gap 1px", "[grow]", "[grow][]"));
+        plotPanelContainer.setLayout(new MigLayout("insets 0", "[grow]", "[grow][]"));
         plotPanelContainer.add(graphPanel, "cell 0 0,grow");
         
         panelStatusCursorInfo = new JPanel();
@@ -352,18 +355,18 @@ public class PlotPanel {
         panelStatusCursorInfo.add(btnShowhideOpts, "cell 6 0");
         
         buttons_panel = new JPanel();
-        buttons_panel.setPreferredSize(new Dimension(250, 300));
+        buttons_panel.setPreferredSize(new Dimension(245, 300));
         buttons_panel.setMinimumSize(new Dimension(5, 100));
         splitPane.setRightComponent(buttons_panel);
-        buttons_panel.setBorder(null);
-        buttons_panel.setLayout(new MigLayout("insets 2", "[grow]", "[grow]"));
+        buttons_panel.setLayout(new MigLayout("insets 0", "[grow]", "[grow]"));
         
         scrollPane = new JScrollPane();
+        scrollPane.setViewportBorder(new EmptyBorder(0, 0, 0, 0));
         buttons_panel.add(scrollPane, "cell 0 0,grow");
         
         statusPanel = new JPanel();
         scrollPane.setViewportView(statusPanel);
-        statusPanel.setLayout(new MigLayout("insets 2", "[][grow]", "[][][][][][][]"));
+        statusPanel.setLayout(new MigLayout("insets 0", "[][grow]", "[][][][][][][]"));
         
         lblXTitle = new JLabel("X title");
         statusPanel.add(lblXTitle, "cell 0 0,alignx trailing");
@@ -404,9 +407,9 @@ public class PlotPanel {
         statusPanel.add(comboTheme, "cell 1 2,growx");
         
         panel_2 = new JPanel();
-        panel_2.setBorder(new TitledBorder(null, "Legend", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        panel_2.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Legend", TitledBorder.LEADING, TitledBorder.TOP, null, null));
         statusPanel.add(panel_2, "cell 0 3 2 1,grow");
-        panel_2.setLayout(new MigLayout("insets 1", "[grow][grow]", "[][]"));
+        panel_2.setLayout(new MigLayout("insets 2", "[][grow][grow]", "[][]"));
         
         chckbxShow = new JCheckBox("Show");
         chckbxShow.addItemListener(new ItemListener() {
@@ -416,23 +419,32 @@ public class PlotPanel {
         });
         panel_2.add(chckbxShow, "cell 0 0,alignx left");
         
-        chckbxAutopos = new JCheckBox("AutoPos");
-        chckbxAutopos.addItemListener(new ItemListener() {
-            public void itemStateChanged(ItemEvent e) {
-                do_chckbxAutopos_itemStateChanged(e);
-            }
-        });
-        panel_2.add(chckbxAutopos, "cell 1 0,alignx left");
-        
         txtXlegend = new JTextField();
         txtXlegend.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_txtXlegend_actionPerformed(e);
             }
         });
+        
+        chckbxAutopos = new JCheckBox("Auto");
+        chckbxAutopos.setToolTipText("Automatic Position");
+        chckbxAutopos.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxAutopos_itemStateChanged(e);
+            }
+        });
+        
+        chckbxOpaque = new JCheckBox("Opaque");
+        chckbxOpaque.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxOpaque_itemStateChanged(e);
+            }
+        });
+        panel_2.add(chckbxOpaque, "cell 1 0 2 1");
+        panel_2.add(chckbxAutopos, "cell 0 1,alignx left");
         txtXlegend.setText("Xlegend");
-        panel_2.add(txtXlegend, "cell 0 1,growx");
-        txtXlegend.setColumns(3);
+        panel_2.add(txtXlegend, "cell 1 1,growx");
+        txtXlegend.setColumns(2);
         
         txtYlegend = new JTextField();
         txtYlegend.addActionListener(new ActionListener() {
@@ -441,13 +453,13 @@ public class PlotPanel {
             }
         });
         txtYlegend.setText("Ylegend");
-        panel_2.add(txtYlegend, "cell 1 1,growx");
-        txtYlegend.setColumns(3);
+        panel_2.add(txtYlegend, "cell 2 1,growx");
+        txtYlegend.setColumns(2);
         
         panel_3 = new JPanel();
-        panel_3.setBorder(new TitledBorder(null, "Zone scale", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        panel_3.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Zone scale", TitledBorder.LEADING, TitledBorder.TOP, null, null));
         statusPanel.add(panel_3, "cell 0 4 2 1,grow");
-        panel_3.setLayout(new MigLayout("insets 1", "[][][grow][][grow]", "[]"));
+        panel_3.setLayout(new MigLayout("insets 2", "[][][grow][][grow]", "[]"));
         
         chckbxApply = new JCheckBox("");
         chckbxApply.addItemListener(new ItemListener() {
@@ -485,8 +497,8 @@ public class PlotPanel {
         
         panel_1 = new JPanel();
         statusPanel.add(panel_1, "cell 0 5 2 1,growx");
-        panel_1.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "X,Y window", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
-        panel_1.setLayout(new MigLayout("insets 1", "[][grow][grow][grow]", "[][][][][]"));
+        panel_1.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "X,Y window", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        panel_1.setLayout(new MigLayout("insets 2", "[][grow][grow][grow]", "[][][][][][]"));
         
         txtXminwin = new JTextField();
         txtXminwin.addActionListener(new ActionListener() {
@@ -581,10 +593,26 @@ public class PlotPanel {
         });
         panel_1.add(chckbxHklLabels, "cell 2 4 2 1");
         
+        chckbxDbCompoundIntensity = new JCheckBox("DB ref intensity");
+        chckbxDbCompoundIntensity.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxDbCompoundIntensity_itemStateChanged(e);
+            }
+        });
+        panel_1.add(chckbxDbCompoundIntensity, "cell 0 5 3 1");
+        
+        chckbxSplit = new JCheckBox("Split");
+        chckbxSplit.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                do_chckbxSplit_itemStateChanged(e);
+            }
+        });
+        panel_1.add(chckbxSplit, "cell 3 5");
+        
         panel = new JPanel();
         statusPanel.add(panel, "cell 0 6 2 1,growx");
-        panel.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Axes divisions", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
-        panel.setLayout(new MigLayout("insets 1", "[][grow][][grow]", "[][][][]"));
+        panel.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Axes divisions", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        panel.setLayout(new MigLayout("insets 2", "[][grow][][grow]", "[][][][]"));
         
         lblInix = new JLabel("iniX");
         lblInix.setToolTipText("initial value X axis");
@@ -757,14 +785,12 @@ public class PlotPanel {
                     case KeyEvent.KEY_PRESSED:
                         if (ke.getKeyCode() == KeyEvent.VK_SHIFT) {
                             shiftPressed = true;
-                            logdebug("now shift is PRESSED");
                         }
                         break;
 
                     case KeyEvent.KEY_RELEASED:
                         if (ke.getKeyCode() == KeyEvent.VK_SHIFT) {
                             shiftPressed = false;
-                            logdebug("now shift is NOT pressed");
                         }
                         break;
                     }
@@ -824,7 +850,8 @@ public class PlotPanel {
         this.chckbxHklLabels.setSelected(this.hkllabels);
         this.chckbxFixedAxis.setSelected(this.fixAxes);
         this.chckbxNegativeYLabels.setSelected(this.negativeYAxisLabels);
-        
+        this.chckbxDbCompoundIntensity.setSelected(this.showDBCompoundIntensity);
+        this.chckbxOpaque.setSelected(this.legend_opaque);
     }
     
 	public JPanel getPlotPanel() {
@@ -910,7 +937,7 @@ public class PlotPanel {
 		        }
 		    }
 		}catch(Exception ex) {
-			if (isDebug())ex.printStackTrace();
+			log.warning("Error getting first plotted serie");
 		}
 		return null; //or first non plotted? --> return this.dataToPlot.get(0).getDataSerie();
 	}
@@ -927,7 +954,7 @@ public class PlotPanel {
 	            }
 	        }
 	    }catch(Exception ex) {
-	        if (isDebug())ex.printStackTrace();
+            log.warning("Error getting first plotted element");
 	    }
 	    return null; //or first non plotted? --> return this.dataToPlot.get(0).getDataSerie();
 	}
@@ -1156,8 +1183,6 @@ public class PlotPanel {
         this.div_incYSec=incrPrincipals/nDivisionsSecund;
                 
         this.txtYdiv.setText(FileUtils.dfX_3.format(this.div_incYPrim));
-        
-        if(isDebug())log.writeNameNumPairs("config", true, "div_incXPrim, div_incXSec, div_incYPrim, div_incYSec",div_incXPrim, div_incXSec, div_incYPrim, div_incYSec);
     }
 
     
@@ -1373,15 +1398,16 @@ public class PlotPanel {
     }
     
     
-    private void logdebug(String s){
-        if (D1Dplot_global.isDebug()){
-            log.debug(s);
-        }
-    }
+//    private void logdebug(String s){
+//        if (D1Dplot_global.isDebug()){
+//            log.debug(s);
+//        }
+//    }
     
-    private boolean isDebug(){
-        return D1Dplot_global.isDebug();
-    }
+//    private boolean isDebug(){
+//        return D1Dplot_global.isDebug();
+//    }
+    
     private void do_graphPanel_mouseDragged(MouseEvent e) {
 	
 	    Point2D.Double currentPoint = new Point2D.Double(e.getPoint().x, e.getPoint().y);
@@ -1405,13 +1431,11 @@ public class PlotPanel {
 	        
 	        if (FastMath.abs(incX)>FastMath.abs(incY)){
 	            //fem scrolling
-	            boolean direction = (incX < 0);
-	            logdebug("incY"+incY+" zoomIn"+Boolean.toString(direction));
+//	            boolean direction = (incX < 0);
 	            this.scrollX(-incX);
 	        }else{
 	            //fem unzoom
 	            boolean zoomIn = (incY < 0);
-	            logdebug("incY"+incY+" zoomIn"+Boolean.toString(zoomIn));
 	            this.zoomX(zoomIn, FastMath.abs(incY));
 	        }
 	    }
@@ -1513,15 +1537,12 @@ public class PlotPanel {
                         if (dhkl.size()>0){
                             Iterator<Plottable_point> itrhkl = dhkl.iterator();
                             StringBuilder shkl = new StringBuilder();
-//                            shkl.append("<html>");
                             shkl.append("hkl(s)= ");
-//                            shkl.append("<br>");
                             int nhkls = 0;                      //limitem a numero de reflexions
                             int maxREFS = 15;
                             boolean maxReached = false;
                             while (itrhkl.hasNext()){
                                 Plottable_point hkl = itrhkl.next();
-//                                shkl.append(hkl.getInfo()).append("<br>"); //TODO test canvi de ; a salt linia 27/08/2019
                                 shkl.append(hkl.getInfo()).append("; ");
                                 nhkls++;
                                 if (nhkls>=maxREFS) {
@@ -1529,16 +1550,9 @@ public class PlotPanel {
                                     break;
                                 }
                             }
-//                            shkl.append("</html>");
-                            
-                            //TODO: mirar que si es molt llarga posar punts suspensius i llestos...
                             String toprinthkl = shkl.substring(0, shkl.length()-2);
                             if (maxReached) toprinthkl=toprinthkl.concat(" (... and more)");
-//                            if (toprinthkl.length()> 150) { //mitjana 10caracters per reflexio, limitem a 15 reflexions... 
-//                                toprinthkl=toprinthkl.substring(0, 150).concat("...");
-//                            }
                             lblHkl.setText(toprinthkl);
-//                            lblHkl.setText(shkl.toString());
                         }else {
                             lblHkl.setText("");
                         }
@@ -1546,15 +1560,8 @@ public class PlotPanel {
 	                    lblHkl.setText("");
 	                }
 	            }
-	        }else{
-	//            lblTthInten.setText("");
-	//            lblDsp.setText("");
-	//            lblHkl.setText("");
 	        }
 	    }
-
-//DOC. per afegir salts linia a labels:	
-//	myLabel.setText("<html><body>with<br>linebreak</body></html>");
 
 	// Identificar el bot� i segons quin sigui moure o fer zoom
 	    private void do_graphPanel_mousePressed(MouseEvent arg0) {
@@ -1562,18 +1569,15 @@ public class PlotPanel {
 	        this.dragPoint = new Point2D.Double(arg0.getPoint().x, arg0.getPoint().y);
 	
 	        if (arg0.getButton() == MOURE) {
-	            logdebug("Mouse button="+Integer.toString(MOURE));
 	            this.clickPoint = new Point2D.Double(arg0.getPoint().x, arg0.getPoint().y);
 	            this.mouseDrag = true;
 	            this.mouseMove = true;
 	        }
 	        if (arg0.getButton() == ZOOM_BORRAR) {
-	            logdebug("Mouse button="+Integer.toString(ZOOM_BORRAR));
 	            this.mouseDrag = true;
 	            this.mouseZoom = true;
 	        }
 	        if (arg0.getButton() == CLICAR) {
-	            logdebug("Mouse button="+Integer.toString(CLICAR));
 	            //abans d'aplicar el moure mirem si s'està fent alguna cosa
 	            if(this.selectingBkgPoints){
 	                Plottable_point dp = this.getDataPointDPFromFramePoint(this.dragPoint);
@@ -1582,13 +1586,8 @@ public class PlotPanel {
 	                Plottable_point dp = this.getDataPointDPFromFramePoint(this.dragPoint);
 	                Plottable_point toDelete = this.bkgEstimP.getClosestDP(dp,-1,-1,plotwithbkg);
                     if (toDelete!=null){
-                        if(isDebug())log.writeNameNums("config", true, "toDelete X,Y",toDelete.getX(),toDelete.getY());
-                        logdebug("bkgEstimPoints N = "+this.bkgEstimP.getNpoints());
                         this.bkgEstimP.removePoint(toDelete);
-                        logdebug("bkgEstimPoints N = "+this.bkgEstimP.getNpoints());
-                    }else{
-                        logdebug("toDelete is null");
-                    }   
+                    }  
 	                
 	            }else if(this.selectingPeaks){
 	                if(isOneSerieSelected()){
@@ -1631,7 +1630,6 @@ public class PlotPanel {
 	private void do_graphPanel_mouseReleased(MouseEvent e) {
 
 	        if (e.getButton() == MOURE){
-	            logdebug("Mouse button="+Integer.toString(MOURE));
 	            this.mouseDrag = false;
 	            this.mouseMove = false;
 	            Point2D.Double currentPoint = new Point2D.Double(e.getPoint().x, e.getPoint().y);
@@ -1640,18 +1638,15 @@ public class PlotPanel {
 	            }
 	        }
 	        if (e.getButton() == ZOOM_BORRAR){
-	            logdebug("Mouse button="+Integer.toString(ZOOM_BORRAR));
 	            this.mouseDrag = false;
 	            this.mouseZoom = false;            
 	        }
 	        if (e.getButton() == CLICAR){
-	            logdebug("Mouse button="+Integer.toString(CLICAR));
 	            this.mouseBox=false;
 	        }
 	        if (!arePlottables())return;
 	        
 	        if (e.getButton() == CLICAR) {
-	            logdebug("Mouse button="+Integer.toString(CLICAR));
 	            //comprovem que no s'estigui fent una altra cosa          
 	            if(this.selectingBkgPoints||this.deletingBkgPoints)return;
 	            if(this.selectingPeaks||this.deletingPeaks)return;
@@ -1662,40 +1657,24 @@ public class PlotPanel {
 	            
 	            Point2D.Double dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(e.getPoint().x, e.getPoint().y));
 	            Point2D.Double dataPointInicial = this.getDataPointFromFramePoint(dragPoint);
-	            if(isDebug()){
-	                if (dataPointFinal!=null)log.writeNameNums("CONFIG", true, "dataPointFinal", dataPointFinal.x,dataPointFinal.y);
-	                log.writeNameNums("CONFIG", true, "e.getPoint", e.getPoint().x, e.getPoint().y);
-	                if (dataPointInicial!=null)log.writeNameNums("CONFIG", true, "dataPointInicial", dataPointInicial.x,dataPointInicial.y);
-	                log.writeNameNums("CONFIG", true, "dragPoint", dragPoint.x, dragPoint.y);
-	            }
 	            
-	            if (dataPointFinal == null && dataPointInicial==null){
-	                logdebug("els dos punts a fora!");
+	            if (dataPointFinal == null && dataPointInicial==null){//els dos punts a fora
 	                return;
 	            }
 	            
 	            if (dataPointFinal == null){
-	                logdebug("dataPoint final is null");
 	                dataPointFinal = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(e.getPoint().x),checkFrameYValue(e.getPoint().y)));
-	
-	              if (dataPointFinal!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointFinal (after)", dataPointFinal.x,dataPointFinal.y);
-	                
-	                
 	            }
 	            if (dataPointInicial==null){
-	                logdebug("dataPoint inicial is null");
 	                dataPointInicial = this.getDataPointFromFramePoint(new Point2D.Double(checkFrameXValue(dragPoint.x),checkFrameYValue(dragPoint.y)));
-	                if (dataPointInicial!=null && isDebug())log.writeNameNums("CONFIG", true, "dataPointInicial (after)", dataPointInicial.x,dataPointInicial.y);
 	            }
 	            
-	            if (dataPointFinal == null || dataPointInicial==null){
-	                logdebug("algun punt final encara a fora!");
+	            if (dataPointFinal == null || dataPointInicial==null){//algun punt final encara a fora!
 	                return;
 	            }
 	
 	            double xrmin = FastMath.min(dataPointFinal.x, dataPointInicial.x);
 	            double xrmax = FastMath.max(dataPointFinal.x, dataPointInicial.x);
-	            if(isDebug())log.writeNameNums("config", true, "xrangeMin xrangeMax", xrmin,xrmax);
 	            this.xrangeMin=xrmin;
 	            this.xrangeMax=xrmax; //NOTODO caldria actualitzar txtboxes? -- ho fa fillwindowsvalues a repaint
 	            this.calcScaleFitX();
@@ -1703,7 +1682,6 @@ public class PlotPanel {
 	            if (this.sqSelect){
 	                double yrmin = FastMath.min(dataPointFinal.y, dataPointInicial.y);
 	                double yrmax = FastMath.max(dataPointFinal.y, dataPointInicial.y);
-	                if(isDebug())log.writeNameNums("config", true, "yrangeMin yrangeMax", yrmin,yrmax);
 	                this.yrangeMin=yrmin;
 	                this.yrangeMax=yrmax;
 	                this.calcScaleFitY();
@@ -1805,10 +1783,8 @@ public class PlotPanel {
     private void do_comboTheme_itemStateChanged(ItemEvent e) {
         if(e.getStateChange() == ItemEvent.DESELECTED)return;
         if (comboTheme.getSelectedItem().toString().equalsIgnoreCase("Light")){
-            logdebug("light theme");
             setLightTheme(true);
         }else{
-            logdebug("Dark theme");
             setLightTheme(false);
         }
 
@@ -1845,7 +1821,7 @@ public class PlotPanel {
             setLegendX(lx);
             txtXlegend.setText(Integer.toString(getLegendX()));
         }catch(Exception ex){
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
+            log.warning("Error reading legend X position");
         }
     }
     private void do_txtYlegend_actionPerformed(ActionEvent e) {
@@ -1854,7 +1830,7 @@ public class PlotPanel {
             setLegendY(ly);
             txtYlegend.setText(Integer.toString(getLegendY()));
         }catch(Exception ex){
-            if (D1Dplot_global.isDebug())ex.printStackTrace();
+            log.warning("Error reading legend Y position");
         }
     }
     private void do_chckbxApply_itemStateChanged(ItemEvent e) {
@@ -1905,7 +1881,18 @@ public class PlotPanel {
     private void do_chckbxNegativeYLabels_itemStateChanged(ItemEvent e) {
         setNegativeYAxisLabels(chckbxNegativeYLabels.isSelected());
     }
-
+    private void do_chckbxDbCompoundIntensity_itemStateChanged(ItemEvent e) {
+        setShowDBCompoundIntensity(chckbxDbCompoundIntensity.isSelected());
+    }
+    private void do_chckbxSplit_itemStateChanged(ItemEvent e) {
+        this.splitDBCompound=chckbxSplit.isSelected();
+        this.actualitzaPlot();
+    }
+    private void do_chckbxOpaque_itemStateChanged(ItemEvent e) {
+        this.legend_opaque=chckbxOpaque.isSelected();
+        this.actualitzaPlot();
+    }
+    
     public String getVisualParametersToSave() {
       //guardar axis info, zoom, bounds, etc...
         String theme = Boolean.toString(this.isLightTheme());
@@ -1966,7 +1953,7 @@ public class PlotPanel {
             this.negativeYAxisLabels=Boolean.parseBoolean(vals1[9]);
             this.chckbxFixedAxis.setSelected(Boolean.parseBoolean(vals1[10]));
         }catch(Exception e) {
-            e.printStackTrace();
+            log.warning("Error recovering visual parameters (1)");
         }
 
         try {
@@ -1979,7 +1966,7 @@ public class PlotPanel {
             this.scalefitX=Double.parseDouble(vals2[6]);
             this.scalefitY=Double.parseDouble(vals2[7]);
         }catch(Exception e) {
-            e.printStackTrace();
+            log.warning("Error recovering visual parameters (2)");
         }
         
         try {
@@ -1994,7 +1981,7 @@ public class PlotPanel {
             this.ylabel=ylabel;
             
         }catch(Exception e) {
-            e.printStackTrace();
+            log.warning("Error recovering visual parameters (3)");
         }
         
         fillWindowValuesDiv();
@@ -2446,6 +2433,7 @@ public class PlotPanel {
             }
         }
 
+        int nrefseries = 0; //for plotting as phase ID split
         
         protected void pinta(Graphics2D g2, double scale) {
             if (!this.saveTransp){
@@ -2477,7 +2465,7 @@ public class PlotPanel {
 
             //1st draw axes (and optionally grid)
             this.drawAxes(g2,showGridY,showGridX);
-
+            nrefseries=0;
             for (Plottable p:dataToPlot) {
                 for (DataSerie ds:p.getDataSeries()) {
                     if (!ds.plotThis)continue;
@@ -2488,6 +2476,7 @@ public class PlotPanel {
                         break; 
                     case ref:
                         drawREF(g2,ds,ds.color);
+                        nrefseries++;
                         break; 
                     case peaks:
                         //nomes els mostrem si el plottable està seleccionat? o sempre?
@@ -2502,7 +2491,7 @@ public class PlotPanel {
             
             if(applyScaleFactorT2) {
                 BasicStroke stroke = new BasicStroke(1.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL, 0, new float[]{2,4}, 0);
-                drawVerticalLine(g2, getFrameXFromDataPointX(scaleFactorT2ang), 100, "x"+FileUtils.dfX_1.format(scaleFactorT2fact), Color.GRAY, stroke);
+                drawVerticalLine(g2, getFrameXFromDataPointX(scaleFactorT2ang), 100, 0,"x"+FileUtils.dfX_1.format(scaleFactorT2fact), Color.GRAY, stroke);
             }
             
             if (showPeakThreshold){
@@ -2650,7 +2639,7 @@ public class PlotPanel {
                 
                 if (verticalYlabel){
                     ylabelY = (float)(panelH - gapAxisBottom)/2. + ylabelWidth/2; //may2019 fix
-                    ylabelX = (ylabelHeight/2.f)+padding5px; //TODO PROBABLEMENT NO HE DE DIVIDIR ENTRE 2 ara que no tinc general padding
+                    ylabelX = (ylabelHeight/2.f)+padding5px;
                     AffineTransform orig = g1.getTransform();
                     g1.rotate(-Math.PI/2,ylabelX,ylabelY);
                     yLabelTextLayout.draw(g1, (float)ylabelX,(float)ylabelY);
@@ -2690,7 +2679,7 @@ public class PlotPanel {
             double xlabelX = (panelW - gapAxisLeft - gapAxisRight)/2.f - xlabelWidth/2.f + gapAxisLeft;
             xLabelTextLayout.draw(g1, (float)xlabelX,(float)xlabelY);
 
-            //al haver canviat gaps fem calc scalefit (TODO: revisar si tot es comporta bé)
+            //al haver canviat gaps fem calc scalefit
             calcScaleFitX();
             calcScaleFitY();
             
@@ -2723,7 +2712,6 @@ public class PlotPanel {
             while (xval <= xrangeMax){
                 if (xval >= xrangeMin){ //la pintem nomes si estem dins el rang, sino numés icrementem el num de divisions
                     double xvalPix = getFrameXFromDataPointX(xval);
-                    log.writeNameNumPairs("FINE", true, "xval,idiv,ndiv", xval,idiv,ndiv);
                     if (idiv%ndiv==0) {
                         //primaria: linia llarga + label
                         Line2D.Double l = new Line2D.Double(xvalPix,yiniPrim,xvalPix,yfinPrim);
@@ -2977,7 +2965,7 @@ public class PlotPanel {
 
                 //ara dibuixem la linia
                 g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
-
+                
             }
         }
         
@@ -2986,7 +2974,7 @@ public class PlotPanel {
         private void drawREF(Graphics2D g1, DataSerie serie, Color col){
             for (int i = 0; i < serie.getNpoints(); i++){
 
-                serie.lineWidth=1.2f;
+//                serie.lineWidth=1.2f; //TODO revisar perque vaig fer aixo...
                 BasicStroke stroke = new BasicStroke(serie.lineWidth);
                 switch (FastMath.round(serie.markerSize)) {
                     case 1:
@@ -3005,30 +2993,62 @@ public class PlotPanel {
                 }
 
                 //despres del canvi a private de seriePoints
-                Plottable_point pp = serie.getPointWithCorrections(i,plotwithbkg);
+//                Plottable_point pp = serie.getPointWithCorrections(i,plotwithbkg); //ja aplica l'escala --PROBLEMA tambe aplica Yoffset... i la lia
+                Plottable_point pp = serie.getPointWithCorrections(i, serie.getZerrOff(), 0, serie.getScale(), plotwithbkg);
+                
                 double tth = pp.getX();
                 double inten = 100;
-                if(showDBCompoundIntensity)inten = pp.getY(); //normalitzada a 100
+//                double scale = 1.0;
+                if(showDBCompoundIntensity) {
+                    inten = pp.getY(); //normalitzada a 100
+//                    scale = serie.getScale();
+                }
                 
                 double fx = getFrameXFromDataPointX(tth);
+                //check if yoff
+                int yOffPix=(int) serie.getYOff();
+//                if (serie.getYOff()>0) {
+//                    yOffPix=(int) getFrameYFromDataPointY(serie.getYOff());
+//                }
+                //FAREM QUE EN AQUEST CAS EL Yoff sigui en pixels directament
                 
-                drawVerticalLine(g1,fx,inten,"",col,stroke);
+//                log.writeNameNumPairs("config", true, "tth,fx,inten,scale,yOffPix", tth,fx,inten,scale,yOffPix);
+                log.writeNameNumPairs("config", true, "tth,fx,inten,yOffPix", tth,fx,inten,yOffPix);
                 
+//                drawVerticalLine(g1,fx,inten,yOffPix,scale,"",col,stroke);
+                drawVerticalLine(g1,fx,inten,yOffPix,"",col,stroke);
+                
+                if(splitDBCompound) {
+                    //fem una altra linia vertical des de sota de tot d'uns 10 pixels
+                    drawVerticalLine(g1,fx,-10,10*nrefseries,"",col,new BasicStroke(serie.lineWidth));
+                }
             }
         }
         
         //label to put next to line at the top,
         //frameX is the pixel in X of the vertical line
         //percentage of vertical space occupied (from bottom to top)
-        private void drawVerticalLine(Graphics2D g1, double frameX, double percent, String label, Color col, BasicStroke stroke) {
+        //Sep2019 afegit Yofset de la serie
+        // if percent<0 it will be considered number of pixels from bottom
+        private void drawVerticalLine(Graphics2D g1, double frameX, double percent, int yOffset, String label, Color col, BasicStroke stroke) {
             if (!isFramePointInsideXGraphArea(frameX)) return;
+            if (percent==0)return;
             g1.setColor(col);
             g1.setStroke(stroke);
             int ytop = gapAxisTop+padding5px;
-            int ybot = panelH-gapAxisBottom-padding5px;
+            int ybot = panelH-gapAxisBottom-padding5px-yOffset; //al ser en pixels aplico directament Yoffset
+//            if (yOffset!=0)ybot=yOffset;
             int dist = FastMath.abs(ybot-ytop); //faig abs per si de cas...
+//            int dist = (int) (FastMath.abs(ybot-ytop)*scale); //faig abs per si de cas...
             Point2D.Double ptop = new Point2D.Double(frameX, ybot - dist * (percent/100.)); //100% es com tenir Ytop
             Point2D.Double pbot = new Point2D.Double(frameX, ybot);
+            if (percent<0) {
+                ptop=new Point2D.Double(frameX, ybot + percent); //considero pixels (sumo perque es negatiu... com restar)
+            }
+            
+            log.writeNameNumPairs("config", true, "ytop,ybot,dist,ybot - dist * (percent/100.)", ytop,ybot,dist,ybot - dist * (percent/100.));
+
+            
             //linia de dalt a baix
             g1.draw(new Line2D.Double(ptop.x,ptop.y,pbot.x,pbot.y));
             
@@ -3102,6 +3122,15 @@ public class PlotPanel {
 //            }
 //            g1.fillRect(legendX,legendY,rectWidth,rectHeight);
             
+            if (legend_opaque) {
+                if (lightTheme){
+                    g1.setColor(Light_Legend_bkg);    
+                }else{
+                    g1.setColor(Dark_Legend_bkg);
+                }    
+                g1.fillRect(legendX,legendY,rectWidth,rectHeight);
+            }
+            
             if (lightTheme){
                 g1.setColor(Light_Legend_line);    
             }else{
@@ -3168,8 +3197,6 @@ public class PlotPanel {
                     }
                 }
             } catch (Exception e) {
-                if(isDebug())e.printStackTrace();
-                logdebug("error writting legend");
                 legendX = legendX - 10;
                 repaint();
             }
@@ -3207,4 +3234,6 @@ public class PlotPanel {
             return w_h;
         }
     }
+
+
 }
