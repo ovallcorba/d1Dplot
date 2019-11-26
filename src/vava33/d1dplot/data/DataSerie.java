@@ -126,6 +126,13 @@ public class DataSerie {
         this.seriePoints.get(index).setSdy(sdy);
     }
     
+    public void resetYtoZeroAllPoints() {
+        for (int i=0;i<this.getNpoints();i++){
+            this.setYToDataPoint(i, 0, 0);
+        }
+
+    }
+    
     public DataSerie getSubDataSerie(double t2i, double t2f){
         DataSerie newds = new DataSerie(this.getTipusSerie(),this.xUnits,this.parent);
         for (int i=0;i<this.getNpoints();i++){

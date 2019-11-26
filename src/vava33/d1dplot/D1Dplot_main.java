@@ -40,6 +40,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import javax.imageio.ImageIO;
+import javax.swing.ButtonGroup;
 import javax.swing.DefaultCellEditor;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -54,6 +55,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
@@ -646,10 +648,15 @@ public class D1Dplot_main {
         mnHelp.add(mntmCheckForUpdates);
 
         inicia();
+        hideThingsDebug();
     }
 
     //=========================================================
 
+    private void hideThingsDebug() {
+        mntmDajust.setVisible(false);
+    }
+    
     private void inicia(){
 
         if (D1Dplot_global.isLoggingTA())VavaLogger.setTArea(tAOut);
@@ -954,78 +961,113 @@ public class D1Dplot_main {
             log.info(datFile.toString()+" written!");
         }
 
-        boolean applyToAll=false;
-        boolean owrite = false;
-        //es pot millorar el naming (keep original, o donar un nou i numerar batch, etc...)
-        if (dss.size()>1) {
-            //batch save
-            SupportedWriteExtensions[] possibilities = SupportedWriteExtensions.values();
-            SupportedWriteExtensions format = (SupportedWriteExtensions) JOptionPane
-                    .showInputDialog(null, "Output format:", "(Batch) Save Files",
-                            JOptionPane.PLAIN_MESSAGE, null, possibilities,
-                            possibilities[0]);
-            if (format == null) {
-                log.warning("No format selected");
-                return;
-            }
+        //191108 - Preguntar batch save individual files or multipleDatFile
+        JRadioButton rdbtnBatch = new JRadioButton("batch");
+        rdbtnBatch.setSelected(true);
+        ButtonGroup btnGroup = new ButtonGroup();
+        btnGroup.add(rdbtnBatch);
+        JRadioButton rdbtnAll = new JRadioButton("all_in_one");
+        btnGroup.add(rdbtnAll);
 
-            //output folder
-            File dir = FileUtils.fchooserOpenDir(this.getMainFrame(), D1Dplot_global.getWorkdirFile(), "Destination folder");
-            if (dir==null) {
-                log.warning("No output folder selected");
-                return;
-            }
+        final String message0 = "Batch save individual files or a single multiple data file?";
+        final Object[] params0 = { message0, rdbtnBatch, rdbtnAll};
+        final int n0 = JOptionPane.showConfirmDialog(null, params0, "Save multiple patterns",
+                JOptionPane.OK_CANCEL_OPTION);
+        if (n0==JOptionPane.CANCEL_OPTION) {
+            log.info("Save cancelled");
+            return;
+        }
+        boolean batch = true;
+        if (rdbtnAll.isSelected()) batch = false;
+        
+        if (batch) {
+            boolean applyToAll=false;
+            boolean owrite = false;
+            //es pot millorar el naming (keep original, o donar un nou i numerar batch, etc...)
+            if (dss.size()>1) {
+                //batch save
+                SupportedWriteExtensions[] possibilities = SupportedWriteExtensions.values();
+                SupportedWriteExtensions format = (SupportedWriteExtensions) JOptionPane
+                        .showInputDialog(null, "Output format:", "(Batch) Save Files",
+                                JOptionPane.PLAIN_MESSAGE, null, possibilities,
+                                possibilities[0]);
+                if (format == null) {
+                    log.warning("No format selected");
+                    return;
+                }
 
-            String ext = format.toString();
-            int i = 0;
-            boolean nameGiven = false;
-            String baseName = "";
-            for (DataSerie ds: dss) {
-                String fname = "";
-                if (ds.getParent().getFile()==null) {
-                    //ask for a name
-                    if (!nameGiven) {
-                        fname = FileUtils.DialogAskForString(this.getMainFrame(),"BaseFileName=", "Enter filename", ds.serieName);
-                        if (fname==null) {
-                            fname = ds.serieName;
-                            if (fname.isEmpty()) {
-                                fname = "saved_from_d1dplot_"+i;
+                //output folder
+                File dir = FileUtils.fchooserOpenDir(this.getMainFrame(), D1Dplot_global.getWorkdirFile(), "Destination folder");
+                if (dir==null) {
+                    log.warning("No output folder selected");
+                    return;
+                }
+
+                String ext = format.toString();
+                int i = 0;
+                boolean nameGiven = false;
+                String baseName = "";
+                for (DataSerie ds: dss) {
+                    String fname = "";
+                    if (ds.getParent().getFile()==null) {
+                        //ask for a name
+                        if (!nameGiven) {
+                            fname = FileUtils.DialogAskForString(this.getMainFrame(),"BaseFileName=", "Enter filename", ds.serieName);
+                            if (fname==null) {
+                                fname = ds.serieName;
+                                if (fname.isEmpty()) {
+                                    fname = "saved_from_d1dplot_"+i;
+                                }
+                            }else {
+                                nameGiven=true;
+                                baseName = fname;
                             }
                         }else {
-                            nameGiven=true;
-                            baseName = fname;
+                            fname = baseName+"_"+i;
                         }
                     }else {
-                        fname = baseName+"_"+i;
+                        fname = FileUtils.getFNameNoExt(ds.getParent().getFile().getName());
                     }
-                }else {
-                    fname = FileUtils.getFNameNoExt(ds.getParent().getFile().getName());
-                }
-                //here I should have  a filename;
-                File f = new File(dir+D1Dplot_global.fileSeparator+fname);
-                f = FileUtils.canviExtensio(f, ext);
-                //i salvem
-                if (f.exists()) {
-                    //ask overwrite and apply to all
-                    if (!applyToAll) {
-                        final JCheckBox checkbox = new JCheckBox("Apply to all");
-                        final String message = "Overwrite " + f.getName() + "?";
-                        final Object[] params = { message, checkbox };
-                        final int n = JOptionPane.showConfirmDialog(null, params, "Overwrite existing file",
-                                JOptionPane.YES_NO_OPTION);
-                        applyToAll = checkbox.isSelected();
-                        if (n == JOptionPane.YES_OPTION) {
-                            owrite = true;
-                        } else {
-                            owrite = false;
+                    //here I should have  a filename;
+                    File f = new File(dir+D1Dplot_global.fileSeparator+fname);
+                    f = FileUtils.canviExtensio(f, ext);
+                    //i salvem
+                    if (f.exists()) {
+                        //ask overwrite and apply to all
+                        if (!applyToAll) {
+                            final JCheckBox checkbox = new JCheckBox("Apply to all");
+                            final String message = "Overwrite " + f.getName() + "?";
+                            final Object[] params = { message, checkbox };
+                            final int n = JOptionPane.showConfirmDialog(null, params, "Overwrite existing file",
+                                    JOptionPane.YES_NO_OPTION);
+                            applyToAll = checkbox.isSelected();
+                            if (n == JOptionPane.YES_OPTION) {
+                                owrite = true;
+                            } else {
+                                owrite = false;
+                            }
                         }
+                        if (!owrite)
+                            continue;
                     }
-                    if (!owrite)
-                        continue;
+                    f = DataFileUtils.writePatternFile(f, ds, owrite, panel_plot.isPlotwithbkg()); 
+                    log.info(f.toString()+" written!");
+                    i++;
                 }
-                f = DataFileUtils.writePatternFile(f, ds, owrite, panel_plot.isPlotwithbkg()); 
-                log.info(f.toString()+" written!");
-                i++;
+            }
+        }else {//single dat (MDT)
+            FileNameExtensionFilter[] mfilt = new FileNameExtensionFilter[1];
+            mfilt[0]= new FileNameExtensionFilter("Multiple dat","mdat","MDAT");
+            File datFile = FileUtils.fchooserSaveAsk(mainFrame,new File(getWorkdir()), mfilt, "mdat");
+            if (datFile == null){
+                log.warning("No data file selected");
+                return;
+            }
+            File f = DataFileUtils.writeMDAT(dss, datFile, true, false);
+            if (f!=null) {
+                log.info(f.toString()+" written!");    
+            }else {
+                log.warning("error writting file");
             }
         }
     }
@@ -1587,6 +1629,7 @@ public class D1Dplot_main {
                 boolean transp = FileUtils.YesNoDialog(this.getMainFrame(), "Create PNG with transparent background?", "PNG transparent background");
                 panel_plot.getGraphPanel().setTransp(transp);
                 this.savePNG(fpng,factor);
+                panel_plot.getGraphPanel().setTransp(false);//TODO revisar
             }
         }
     }

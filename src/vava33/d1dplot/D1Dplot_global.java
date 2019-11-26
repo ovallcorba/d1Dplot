@@ -31,7 +31,7 @@ import com.vava33.jutils.VavaLogger;
 public final class D1Dplot_global {
 
     public static final int version = 1909; //nomes canviare la versio global quan faci un per distribuir
-    public static final int build_date = 191001; //aquesta si que la canviare sempre
+    public static final int build_date = 191108; //aquesta si que la canviare sempre
     public static final String welcomeMSG = "d1Dplot v"+version+" ("+build_date+") by O.Vallcorba\n\n"
     		+ " This is a DEVELOPMENT version and contains errors. Please USE WITH CAUTION.\n"
     		+ " Report of errors or comments about the program are appreciated.\n";
@@ -59,7 +59,7 @@ public final class D1Dplot_global {
     
     private static D1Dplot_main d1DMainFrame;
     
-    private static final boolean overrideLogLevelConfigFile = true;
+    private static final boolean overrideLogLevelConfigFile = false;
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     
@@ -67,7 +67,7 @@ public final class D1Dplot_global {
     private static boolean loggingConsole = true; //console
     private static boolean loggingFile = false; //file
     private static boolean loggingTA = true; //textArea -- NO ESCRIT AL FITXER DE CONFIGURACIO JA QUE VOLEM SEMPRE ACTIVAT
-    private static String loglevel = "debug"; //info, config, etc...
+    private static String loglevel = "info"; //info, config, etc...
     private static String workdir = System.getProperty("user.dir");
     private static boolean keepMainWinSize = false;
     
