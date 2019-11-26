@@ -49,8 +49,6 @@ public final class DataFileUtils {
     private static final String className = "DataFileUtils";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);    
     
-    private static String[] charsets = {"","UTF-8","ISO8859-1","Windows-1251","Shift JIS","Windows-1252"};
-    
     private static class FileFormat{
     	private String[] extensions;
     	private String description;
@@ -425,7 +423,7 @@ public final class DataFileUtils {
         DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
 
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(datFile);
+        String enc = FileUtils.getEncodingToUse(datFile);
         Scanner sf = null;
         try {
             sf = new Scanner(datFile,enc);
@@ -489,30 +487,7 @@ public final class DataFileUtils {
         }
     }
 
-    
-    private static String getEncodingToUse(File f) {
-      //FIRST CHECK ENCODING
-        Scanner sf=null;
-        charsets[0] = Charset.defaultCharset().name();
-        int charsetToUse = 0;
-        for (int i=0;i<charsets.length;i++) {
-            try {
-                sf = new Scanner(f,charsets[i]);
-                if (sf.hasNextLine()) {
-                    charsetToUse=i;
-                    break;
-                }
-                
-            } catch (Exception e1) {
-                e1.printStackTrace();
-            }finally {
-                sf.close();
-            }
-        }
-        return charsets[charsetToUse];
-    }
-    
-    
+   
     //only 1 serie
     private static Data_Common readDAT(File datFile) { 
         boolean firstLine = true;
@@ -523,7 +498,7 @@ public final class DataFileUtils {
         DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
         
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(datFile);
+        String enc = FileUtils.getEncodingToUse(datFile);
         Scanner sf = null;
 
         try {
@@ -599,7 +574,7 @@ public final class DataFileUtils {
         DataSerie ds = new DataSerie(SerieType.gr,Xunits.G,dsGr);
         
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(datFile);
+        String enc = FileUtils.getEncodingToUse(datFile);
         
         boolean startData = false;
         Scanner sf = null;
@@ -683,7 +658,7 @@ public final class DataFileUtils {
         double step=0;
         
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(f);
+        String enc = FileUtils.getEncodingToUse(f);
         
         Scanner sf = null;
         try {
@@ -786,7 +761,7 @@ public final class DataFileUtils {
         double step=0;
         
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(f);
+        String enc = FileUtils.getEncodingToUse(f);
         
         Scanner sf = null;
         try {
@@ -944,7 +919,7 @@ public final class DataFileUtils {
         DataSerie ds = new DataSerie(SerieType.dat,Xunits.tth,dsP);
         
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(f);
+        String enc = FileUtils.getEncodingToUse(f);
         
         Scanner sf = null;
         try {
@@ -1032,7 +1007,7 @@ public final class DataFileUtils {
         DataSerie dsDif = new DataSerie(SerieType.diff,Xunits.tth,dsPRF);
         
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(f);
+        String enc = FileUtils.getEncodingToUse(f);
         
         double wave = -1.0;
         double zero = 0.0;
@@ -1192,7 +1167,7 @@ public final class DataFileUtils {
         ArrayList<DataPoint_hkl> hkls = new ArrayList<DataPoint_hkl>();
         
         //FIRST CHECK ENCODING
-        String enc = getEncodingToUse(f);
+        String enc = FileUtils.getEncodingToUse(f);
         
         Scanner sf = null;
         try {
@@ -1679,6 +1654,65 @@ public final class DataFileUtils {
         }
         return written;
     }
+    
+    public static File writeMDAT(List<DataSerie> dss, File outf, boolean overwrite, boolean addYbkg){
+        if (outf.exists()&&!overwrite)return null;
+        if (outf.exists()&&overwrite)outf.delete();
+        
+        PrintWriter out = null;
+        try {
+            out = new PrintWriter(new BufferedWriter(new FileWriter(outf,true)));            
+            //primer escribim tantes linies de comentari com noms de series (o fitxers)
+            for (int ids=0;ids<dss.size();ids++) {
+                out.println(String.format("# %2d %s %s", ids, dss.get(ids).serieName, dss.get(ids).getParent().getFile().getName()));
+            }
+            if (FastMath.abs(dss.get(0).getWavelength()-dss.get(0).getOriginalWavelength())>0.01){
+                out.println("# wavelength="+FileUtils.dfX_4.format(dss.get(0).getWavelength())+" (originalWL="+FileUtils.dfX_4.format(dss.get(0).getOriginalWavelength())+")");                
+            }
+            if (FastMath.abs(dss.get(0).getZerrOff())>0.01f){
+                out.println("# zeroOffsetApplied="+FileUtils.dfX_3.format(dss.get(0).getZerrOff()));
+            }
+            //ara les dades, 1a columna 2theta i la resta intensitats
+            //cal fer rebinning de totes igualar a la primera (que es la que mana)
+            DataSerie ds0 = dss.get(0);
+            ArrayList<DataSerie> dsRebin = new ArrayList<DataSerie>();
+            dsRebin.add(ds0);
+            for (int ids=1;ids<dss.size();ids++) {
+                DataSerie dsi = dss.get(ids);
+                if ((PattOps.haveSameNrOfPointsDS(ds0, dsi))&&(PattOps.haveCoincidentPointsDS(dss.get(0), dsi))) {
+                    dsRebin.add(dsi);
+                }else {
+                    dsRebin.add(PattOps.rebinDS(ds0, dsi));
+                }
+            }
+            
+            for (int ipp=0; ipp<ds0.getNpoints();ipp++){
+                Plottable_point pp = ds0.getPointWithCorrections(ipp,addYbkg);    
+                StringBuilder line = new StringBuilder();
+                line.append(String.format(" %10.7e %10.7e",pp.getX(),pp.getY()));
+                //ara la resta de dataseries
+                for (int ids=1;ids<dss.size();ids++) {
+                    DataSerie dsi = dss.get(ids);
+//                    if ((PattOps.haveSameNrOfPointsDS(ds0, dsi))&&(PattOps.haveCoincidentPointsDS(dss.get(0), dsi))) {
+//                        pp=dsi.getPointWithCorrections(ipp, addYbkg);
+//                    }else {
+//                        pp = PattOps.rebinDS(ds0, dsi).getPointWithCorrections(ipp, addYbkg);
+//                    }
+                    pp=dsi.getPointWithCorrections(ipp, addYbkg);
+                    line.append(String.format(" %10.7e",pp.getY()));
+                }
+                out.println(line.toString());
+                log.info(line.toString());
+            }
+            
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }finally {
+            if(out!=null)out.close();
+        }
+        return outf;
+    }
+
     
     private static boolean writeDAT_ALBA(DataSerie ds, File outf, boolean overwrite, boolean addYbkg){
         if (outf.exists()&&!overwrite)return false;
