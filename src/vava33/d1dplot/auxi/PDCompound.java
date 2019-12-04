@@ -17,12 +17,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.cellsymm.HKLrefl;
 import com.vava33.d1dplot.data.DataPoint_hkl;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.SerieType;
 import com.vava33.d1dplot.data.Xunits;
 
 public class PDCompound implements Comparable<PDCompound>{
@@ -211,9 +211,9 @@ public class PDCompound implements Comparable<PDCompound>{
     public DataSerie getPDCompoundAsREFDataSerie() {
         DataSerie ds = new DataSerie(SerieType.ref,Xunits.dsp, null);
         for (HKLrefl pdr:this.getPeaks()) {
-            ds.addPoint(new DataPoint_hkl(pdr.getDsp(),pdr.getYcalc(),0,pdr));
+            ds.addPoint(new DataPoint_hkl(pdr.getDsp(),pdr.getYcalc(),0,pdr,ds));
         }
-        ds.serieName=this.getCompName().get(0);
+        ds.setName(this.getCompName().get(0));
         return ds;
     }
     

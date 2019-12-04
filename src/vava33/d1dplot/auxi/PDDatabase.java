@@ -30,10 +30,10 @@ import javax.swing.SwingWorker;
 
 import org.apache.commons.math3.util.FastMath;
 
+import com.vava33.BasicPlotPanel.core.Plottable_point;
 import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Plottable_point;
 import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
@@ -43,7 +43,7 @@ public final class PDDatabase {
 
     //Full DB
     private static int nCompounds = 0;  //number of compounds in the DB
-    private static String localDB = System.getProperty("user.dir") + D1Dplot_global.fileSeparator + "default.db";  // local DB default file
+    private static String localDB = System.getProperty("user.dir") + FileUtils.fileSeparator + "default.db";  // local DB default file
     private static String currentDB;
     private static List<PDCompound> DBcompList = new ArrayList<PDCompound>();  
     private static List<PDSearchResult> DBsearchresults = new ArrayList<PDSearchResult>();
@@ -512,7 +512,7 @@ public final class PDDatabase {
             //generem les llistes de dspacing i intensitats a partir dels punts seleccionats a un pattern2D i un mindsp
             //(ho hem passat aquí perque es costos, sobretot l'extraccio d'intensitats)
         	
-        	if(dataserie.getNpoints()<=0) {
+        	if(dataserie.getNPoints()<=0) {
         		log.warning("no peaks selected");
         		return -1;
         	}
@@ -524,8 +524,8 @@ public final class PDDatabase {
 //            dspDS.copySeriePoints(dataserie);
 //            dspDS.copySeriePeaks(dataserie);
             
-            for (int i=0; i<dspDS.getNpoints(); i++) {
-            	Plottable_point pk = dspDS.getPointWithCorrections(i,false);
+            for (int i=0; i<dspDS.getNPoints(); i++) {
+            	Plottable_point pk = dspDS.getCorrectedPoint(i,false);
             	float dsp = (float) pk.getX();
             	float inten = (float) pk.getY();
                 if (dsp > mindsp){

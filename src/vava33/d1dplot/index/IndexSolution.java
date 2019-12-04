@@ -12,13 +12,14 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.commons.math3.util.FastMath;
 
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.HKLrefl;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.data.DataPoint_hkl;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.SerieType;
 import com.vava33.d1dplot.data.Xunits;
+import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
 public abstract class IndexSolution {
@@ -40,9 +41,9 @@ public abstract class IndexSolution {
     public DataSerie getAsHKL_dsp_dataserie() {
         DataSerie ds = new DataSerie(SerieType.hkl,Xunits.dsp, null);
         for (HKLrefl pdr:this.getRefinedCell().generateHKLsAsymetricUnitCrystalFamily(this.getIndexMethod().Qmax, true,true,true,true,true)) {
-            ds.addPoint(new DataPoint_hkl(pdr.getDsp(),pdr.getYcalc(),0,pdr));
+            ds.addPoint(new DataPoint_hkl(pdr.getDsp(),pdr.getYcalc(),0,pdr,ds));
         }
-        ds.serieName=this.getRefinedCell().toStringCellParamOnly();
+        ds.setName(this.getRefinedCell().toStringCellParamOnly());
         return ds;
     }
     
@@ -50,7 +51,7 @@ public abstract class IndexSolution {
         if (!this.m20Calc)this.calcM20();        
         
         StringBuilder sb = new StringBuilder();
-        String LS = D1Dplot_global.lineSeparator;
+        String LS = FileUtils.lineSeparator;
         sb.append(this.getRefinedCell().toStringCellParamOnly()+LS);
         
         n20=0;

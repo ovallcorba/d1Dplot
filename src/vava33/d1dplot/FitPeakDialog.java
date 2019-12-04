@@ -18,40 +18,18 @@ import javax.swing.JDialog;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
-import com.vava33.d1dplot.auxi.PattOps;
-import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.d1dplot.auxi.PseudoVoigt;
-import com.vava33.d1dplot.auxi.PseudoVoigt.Gaussian;
-import com.vava33.d1dplot.auxi.PseudoVoigt.Lorentzian;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Data_Common;
-import com.vava33.d1dplot.data.Plottable;
-import com.vava33.d1dplot.data.Plottable_point;
-import com.vava33.d1dplot.data.SerieType;
-import com.vava33.d1dplot.data.Xunits;
-import com.vava33.jutils.FileUtils;
+import com.vava33.d1dplot.data.DataSet;
 import com.vava33.jutils.VavaLogger;
 
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
-import java.awt.Font;
-
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
-
-import org.apache.commons.math3.analysis.MultivariateFunction;
-import org.apache.commons.math3.fitting.leastsquares.GaussNewtonOptimizer;
-import org.apache.commons.math3.fitting.leastsquares.LeastSquaresOptimizer;
-import org.apache.commons.math3.optim.InitialGuess;
-import org.apache.commons.math3.optim.MaxEval;
-import org.apache.commons.math3.optim.PointValuePair;
-import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
-import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.NelderMeadSimplex;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
-import org.apache.commons.math3.util.FastMath;
 
 import javax.swing.border.LineBorder;
 
@@ -62,12 +40,8 @@ import javax.swing.ListSelectionModel;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
-import java.awt.event.ItemListener;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.awt.event.ItemEvent;
-import javax.swing.JCheckBox;
 import javax.swing.JTable;
 import javax.swing.JScrollPane;
 import javax.swing.JRadioButton;
@@ -75,7 +49,8 @@ import javax.swing.JRadioButton;
 public class FitPeakDialog {
 
 	private JDialog fitPkDialog;
-    private PlotPanel plotpanel;
+    XRDPlot1DPanel plotpanel;
+    D1Dplot_data dades;
     
     private static final String className = "FitPeakDialog";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
@@ -92,11 +67,12 @@ public class FitPeakDialog {
     /**
      * Create the dialog.
      */
-    public FitPeakDialog(PlotPanel p) {
+    public FitPeakDialog(XRDPlot1DPanel p,D1Dplot_data d) {
         this.fitPkDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Fit Peak(s) **EXPERIMENTAL**",false);
         fitPkDialog.setTitle("Fit Peak(s) ** IN DEVELOPMENT **");
         log.info("Fit Peak(s) is IN DEVELOPMENT. It contains errors and MAY CRASH THE PROGRAM!"); 
         this.plotpanel = p;
+        this.dades=d;
         this.contentPanel = new JPanel();
         fitPkDialog.setIconImage(D1Dplot_global.getIcon());
         fitPkDialog.setBounds(100, 100, 814, 227);
@@ -294,23 +270,27 @@ public class FitPeakDialog {
             pvs.add(new PseudoVoigt(mean,fwhm,eta,ymax,ibkg,mbkg));
         }
         
-        double[] xminmax = plotpanel.getXrangesMinMax();
-        double step = plotpanel.getFirstSelectedPlottable().getMainSerie().calcStep();
+        double[] xminmax = plotpanel.getWindowValues();
+        DataSet selectedSet = dades.getFirstSelectedDataSet();
+        if (selectedSet==null)return;
+        DataSerie mainSerie = selectedSet.getMainSerie();
+        if (mainSerie==null)return;
+        double step = mainSerie.calcStep();
         double xval = xminmax[0];
-        List<Plottable_point> calc = new ArrayList<Plottable_point>();
+//        List<Plottable_point> calc = new ArrayList<Plottable_point>();
+//        DataSerie dscalc = new DataSerie(dades.getMainSerieOfSelectedPlottable(),calc,dades.getMainSerieOfSelectedPlottable().getxUnits());
+        DataSerie dscalc = new DataSerie(mainSerie,SerieType.cal,false);
         while (xval<xminmax[1]) {
-            DataPoint dp = new DataPoint(xval,0,0);
+            DataPoint dp = new DataPoint(xval,0,0,dscalc);
             for(PseudoVoigt pv:pvs) {
                 dp.setY(dp.getY()+pv.eval(xval,false)); //TODO el fons nomes s'hauria d'afegir un cpo
             }
             dp.setY(dp.getY()+pvs.get(0).getBkgValue(xval));
-            calc.add(dp);
+            dscalc.addPoint(dp);
             xval = xval + step;
         }
-        DataSerie dscalc = new DataSerie(plotpanel.getFirstSelectedPlottable().getMainSerie(),calc,plotpanel.getFirstSelectedPlottable().getMainSerie().getxUnits());
-        dscalc.setTipusSerie(SerieType.cal);
-        plotpanel.getFirstSelectedPlottable().addDataSerie(dscalc);
-        D1Dplot_global.getD1Dmain().updateData(false, true);
+        dades.addDataSerie(dscalc, selectedSet, true, true, true);
+        
     }
     
     private void clearTable() {
@@ -330,15 +310,15 @@ public class FitPeakDialog {
          */
         DataSerie peaks = null;
         try {
-            peaks = plotpanel.getFirstSelectedPlottable().getDataSeriesByType(SerieType.peaks).get(0);
+            peaks = dades.getSelectedSeriesByType(SerieType.peaks).get(0);
         }catch(Exception ex) {
             log.info("Please, select the peaks first (peak search) and create a peaks serie");
             return;
         }
         if (peaks==null)return;
-        
-        final DataSerie dsZone = plotpanel.getFirstSelectedPlottable().getMainSerie().getSubDataSerie(plotpanel.getXrangesMinMax()[0],plotpanel.getXrangesMinMax()[1]);
-        final DataSerie peaksZone = peaks.getSubDataSerie(plotpanel.getXrangesMinMax()[0],plotpanel.getXrangesMinMax()[1]);
+        double[] xminmax = plotpanel.getWindowValues();
+        final DataSerie dsZone = dades.getMainSerieOfSelectedPlottable().getSubDataSerie(xminmax[0],xminmax[1]);
+        final DataSerie peaksZone = peaks.getSubDataSerie(xminmax[0],xminmax[1]);
         
 //        for (int i=0;i<peaks.getNpoints();i++) {
 //            double xval = peaks.getPointWithCorrections(i, false).getX();

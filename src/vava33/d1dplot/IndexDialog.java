@@ -41,14 +41,14 @@ import javax.swing.table.AbstractTableModel;
 
 import org.apache.commons.math3.util.FastMath;
 
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.SpaceGroup;
 import com.vava33.cellsymm.CellSymm_global.CrystalCentering;
 import com.vava33.cellsymm.CellSymm_global.CrystalFamily;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Data_Common;
-import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.data.DataSet;
 import com.vava33.d1dplot.index.IndexDichotomy;
 import com.vava33.d1dplot.index.IndexGrid;
 import com.vava33.d1dplot.index.IndexSolution;
@@ -79,7 +79,8 @@ public class IndexDialog {
 	
     private JPanel contentPanel;
 	private JDialog indexDialog;
-    private PlotPanel plotpanel;
+    XRDPlot1DPanel plotpanel;
+    D1Dplot_data dades;
     
     private JTextField txtNpeaks;
     private JTextField txtAmax;
@@ -188,8 +189,9 @@ public class IndexDialog {
     private JButton btnGuessSg;
     private JSplitPane splitPane;
     
-	public IndexDialog(JFrame parent, PlotPanel p) {
+	public IndexDialog(JFrame parent, XRDPlot1DPanel p, D1Dplot_data d) {
         this.plotpanel=p;
+        this.dades=d;
         this.contentPanel = new JPanel();
         this.indexDialog = new JDialog(parent,"Indexing ** IN DEVELOPMENT **",false);
         log.info("Indexing module is IN DEVELOPMENT. It does NOT work properly and contain ERRORS that can CRASH THE PROGRAM");
@@ -629,7 +631,7 @@ public class IndexDialog {
 	
     private void inicia(){
         DataSerie ds = getPeaksSerieToUse();
-        if(ds!=null)if (this.npeaks>ds.getNpoints())this.npeaks=ds.getNpoints();
+        if(ds!=null)if (this.npeaks>ds.getNPoints())this.npeaks=ds.getNPoints();
         txtNpeaks.setText(String.valueOf(this.npeaks));        
         txtAmax.setText(FileUtils.dfX_3.format(this.amax));
         txtBmax.setText(FileUtils.dfX_3.format(this.bmax));
@@ -706,8 +708,8 @@ public class IndexDialog {
     private DataSerie getPeaksSerieToUse() {
         DataSerie ds = null;
         try {
-            ds = plotpanel.getFirstSelectedPlottable().getFirstDataSerieByType(SerieType.peaks);
-            ds.sortSeriePoints(); //la ordenem
+            ds = dades.getSelectedSeriesByType(SerieType.peaks).get(0);
+            ds.sortPoints(); //la ordenem
         }catch(Exception ex) {
             log.info("no Peaks found");
         }
@@ -733,11 +735,11 @@ public class IndexDialog {
     }
     
     private void do_btnManual_actionPerformed(ActionEvent e) {
-        if (manualIndexDialog==null) manualIndexDialog = new IndexManual(this);
+        if (manualIndexDialog==null) manualIndexDialog = new IndexManual(this,plotpanel,dades);
         manualIndexDialog.visible(true);
     }
     
-    public PlotPanel getPlotPanel() {
+    public XRDPlot1DPanel getPlotPanel() {
         return this.plotpanel;
     }
     
@@ -1045,7 +1047,7 @@ public class IndexDialog {
             return null;
         }
         DataSerie hklds = is.getAsHKL_dsp_dataserie();
-        DataSerie first = this.plotpanel.getFirstPlottedSerie();     
+        DataSerie first = dades.getFirstPlottedDataSerie();     
         hklds.setWavelength(first.getWavelength());
         if (first!=null) {
             boolean ok = hklds.convertDStoXunits(first.getxUnits()); //ja pregunta per la wavelength si es necessari
@@ -1059,10 +1061,9 @@ public class IndexDialog {
     
     private void do_btnAddAsDataserie_actionPerformed(ActionEvent e) {
         DataSerie hklds = this.getSelectedAsHKLDataSerieWithUnitsFirstPlotted();
-        Data_Common dc = new Data_Common(hklds.getWavelength());
+        DataSet dc = new DataSet(hklds.getWavelength());
         dc.addDataSerie(hklds);
-        plotpanel.addPlottable(dc);
-        D1Dplot_global.getD1Dmain().updateData(false,false); //TODO no m'agrada massa això...
+        dades.addDataSet(dc, true, true);
     }
     
     private void do_btnStop_actionPerformed(ActionEvent e) {

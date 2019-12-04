@@ -36,9 +36,9 @@ import java.awt.event.ItemEvent;
 
 import javax.swing.ButtonGroup;
 
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.SerieType;
 import com.vava33.jutils.VavaLogger;
 
 import javax.swing.JSeparator;
@@ -54,9 +54,12 @@ public class BackgroundDialog {
     private static final int def_degree = 12;
 
     private JDialog bkgDialog;
-    private PlotPanel plotpanel;
-    private D1Dplot_main main;
+//    private PlotPanel plotpanel;
+//    private D1Dplot_main main;
 
+    XRDPlot1DPanel plotpanel;
+    D1Dplot_data dades;
+    
     private static final String className = "BKG_dialog";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
 
@@ -92,12 +95,13 @@ public class BackgroundDialog {
     /**
      * Create the dialog.
      */
-    public BackgroundDialog(PlotPanel p,D1Dplot_main m) {
-    	this.bkgDialog = new JDialog(m.getMainFrame(),"Background Estimation",false);
+    public BackgroundDialog(XRDPlot1DPanel p,D1Dplot_data m) {
+    	this.bkgDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Background Estimation",false);
         this.contentPanel = new JPanel();
         bkgDialog.setIconImage(D1Dplot_global.getIcon());
         this.plotpanel=p;
-        this.main = m;
+        this.dades=m;
+//        this.main = m;
         bkgDialog.setBounds(100, 100, 481, 646);
         bkgDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -369,44 +373,38 @@ public class BackgroundDialog {
         lbltinf.setEnabled(false);
         lbltsup.setEnabled(false);
         table.setEnabled(false);
-        plotpanel.showEstimPointsBackground=true;
+        plotpanel.setShowEstimPointsBackground(true);
         plotpanel.actualitzaPlot();
         if (!isOneSerieSelected())return;
-        txtTini_1.setText(String.format("%.5f", plotpanel.getFirstSelectedSerie().getMinX()));
+        txtTini_1.setText(String.format("%.5f", dades.getFirstSelectedDataSerie().getMinX()));
 //        plotpanel.bkgEstimP.clearPoints();
     }
     
     private boolean isOneSerieSelected(){
-	    if (plotpanel.getSelectedSeries().isEmpty()){
-	        log.info("select a serie first");
-	        return false;
-	    }
-	    if (plotpanel.getSelectedSeries().size()>1){
-	        log.info("select ONE serie only");
-	        return false;
-	    }
-	    return true;
+	    return dades.isOneSerieSelected();
 	}
 
 	private void updatePlotPanelMain(DataSerie dsactive, DataSerie fonsCalc, DataSerie puntsFons){
 	        
 	        if (dsactive==null){
-	            if (D1Dplot_global.isDebug())log.debug("Please select the serie");
+	            log.info("Please select the serie");
 	            return;
 	        }
 	        
 	        if (fonsCalc!=null){
-	            if (fonsCalc.getNpoints()>=0){
-	                fonsCalc.serieName=dsactive.serieName+" (Background)";
+	            if (fonsCalc.getNPoints()>=0){
+	                fonsCalc.setName(dsactive.getName()+" (Background)");
 	                dsactive.getParent().replaceDataSerie(fonsCalc, SerieType.bkg, true);
 	            }
 	        }
 	        if (puntsFons!=null){
-	            if (puntsFons.getNpoints()!=0){
-	                plotpanel.bkgEstimP.setSeriePoints(puntsFons); //TODO amb copy petava
+	            if (puntsFons.getNPoints()!=0){
+	                
+	                plotpanel.bkgEstimP=puntsFons; //TODO amb copy petava
 	            }
 	        }
-	        main.updateData(false, true);
+	        dades.updateFullTable();
+	        plotpanel.actualitzaPlot();
 	    }
 
 	private void do_chckbxMulti_itemStateChanged(ItemEvent e) {
@@ -438,8 +436,7 @@ public class BackgroundDialog {
                 row[1]=Double.parseDouble(txtTsup.getText());
                 row[2]=Integer.parseInt(txtNveins.getText());
             }catch(Exception ex){
-                ex.printStackTrace();
-                log.info("error reading parameters");
+                log.warning("Error reading bkg parameters");
             }
             ((DefaultTableModel)table.getModel()).addRow(row);
         }else{
@@ -456,9 +453,9 @@ public class BackgroundDialog {
     
     //returns the dat of the selected plottable OR if not possible, the first selected serie (independentment del tipus) intentem primer el dat, sino altres
     private DataSerie getDStoApplyBKG() {
-        DataSerie dsactive = plotpanel.getFirstSelectedSerie();
-        if (dsactive.getTipusSerie()!=SerieType.dat) dsactive = plotpanel.getFirstSelectedPlottable().getFirstDataSerieByType(SerieType.dat);
-        if (dsactive==null)dsactive = plotpanel.getFirstSelectedSerie();
+        DataSerie dsactive = dades.getFirstSelectedDataSerie();
+        if (dsactive.getSerieType()!=SerieType.dat) dsactive = dades.getSelectedSeriesByType(SerieType.dat).get(0);
+        if (dsactive==null)dsactive = dades.getFirstSelectedDataSerie();
         return dsactive;
     }
     
@@ -472,13 +469,13 @@ public class BackgroundDialog {
             //check the point number corresponding to this t2i
             if (t2i<dsactive.getMinX()){
                 t2i=dsactive.getMinX();
-                log.debug("t2i="+t2i);
+//                log.debug("t2i="+t2i);
             }
             DataSerie fonsCalc = PattOps.bkg_Bruchner(dsactive, niter, nveins, rdbtnNormal.isSelected(),t2i,chckbxMulti.isSelected(),((DefaultTableModel)table.getModel()));
             
             this.updatePlotPanelMain(dsactive,fonsCalc,null);
         }catch(Exception ex){
-            ex.printStackTrace();
+            log.warning("Error during background iterations");
         }
     }
     
@@ -495,13 +492,13 @@ public class BackgroundDialog {
             degree = Integer.parseInt(txtDeg.getText());
             npoints = Integer.parseInt(txtNbkgpoints.getText());
         }catch(Exception ex){
-            ex.printStackTrace();
+            log.warning("Error parsing polynomial values");
             txtDeg.setText(String.valueOf(degree));
             txtNbkgpoints.setText(String.valueOf(npoints));
         }
         DataSerie puntsFons = plotpanel.bkgEstimP;
         if (puntsFons==null)puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent());
-        if (puntsFons.getNpoints()==0){
+        if (puntsFons.getNPoints()==0){
             puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent()); //per si de cas s'ha canviat de pattern
             puntsFons = PattOps.findBkgPoints(dsactive, npoints);
         }
@@ -520,18 +517,18 @@ public class BackgroundDialog {
         try{
             npoints = Integer.parseInt(txtNbkgpoints.getText());
         }catch(Exception ex){
-            ex.printStackTrace();
+            log.warning("Error parsing number of points");
             txtNbkgpoints.setText(String.valueOf(npoints));
         }
 
         DataSerie puntsFons = plotpanel.bkgEstimP; //TODO aqui es on falla... hauria de copiar no?
         if (puntsFons==null)puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent());
-        if (puntsFons.getNpoints()==0){
+        if (puntsFons.getNPoints()==0){
             puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent());
             puntsFons = PattOps.findBkgPoints(dsactive, npoints);
         }
         //ordenem puntsfonts
-        puntsFons.sortSeriePoints();
+        puntsFons.sortPoints();
         DataSerie fonsCalc = PattOps.bkg_FitSpline(dsactive, puntsFons);
         updatePlotPanelMain(dsactive,fonsCalc,puntsFons);
         
@@ -547,12 +544,12 @@ public class BackgroundDialog {
         try{
             npoints = Integer.parseInt(txtNbkgpoints.getText());
         }catch(Exception ex){
-            ex.printStackTrace();
+            log.warning("Error parsing number of points");
             txtNbkgpoints.setText(String.valueOf(npoints));
         }
         DataSerie puntsFons = plotpanel.bkgEstimP;
         if (puntsFons==null)puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent());
-        if (puntsFons.getNpoints()==0){
+        if (puntsFons.getNPoints()==0){
             puntsFons = new DataSerie(SerieType.bkgEstimP,dsactive.getxUnits(),dsactive.getParent());
             puntsFons = PattOps.findBkgPoints(dsactive, npoints);
         }
@@ -560,9 +557,11 @@ public class BackgroundDialog {
     }
     
     private void do_btnRemoveAllBkg_actionPerformed(ActionEvent e) {
-        plotpanel.getFirstSelectedPlottable().removeDataSeries(plotpanel.getFirstSelectedPlottable().getDataSeriesByType(SerieType.bkg));
+        if (!isOneSerieSelected())return;
+        dades.getFirstSelectedDataSerie().getParent().removeDataSeriesByType(SerieType.bkg);
         plotpanel.bkgEstimP.clearPoints();
-        main.updateData(false, true);
+        dades.updateFullTable();
+        plotpanel.actualitzaPlot();
     }
     
     private void do_okButton_actionPerformed(ActionEvent e) {
@@ -601,7 +600,7 @@ public class BackgroundDialog {
         this.btnRemovePoints.setText("Remove Points");
         plotpanel.setDeletingBkgPoints(false);
         plotpanel.setSelectingBkgPoints(false);
-        plotpanel.showEstimPointsBackground=false;
+        plotpanel.setShowEstimPointsBackground(false);
         plotpanel.actualitzaPlot();
         bkgDialog.dispose();
     }

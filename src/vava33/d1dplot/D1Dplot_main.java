@@ -28,33 +28,25 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.ButtonGroup;
-import javax.swing.DefaultCellEditor;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JColorChooser;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
@@ -62,33 +54,21 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
-import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.table.DefaultTableModel;
-
 import net.miginfocom.swing.MigLayout;
 
+import com.vava33.BasicPlotPanel.core.Plottable_point;
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.d1dplot.auxi.ArgumentLauncher;
-import com.vava33.d1dplot.auxi.ColorEditor;
-import com.vava33.d1dplot.auxi.ColorRenderer;
 import com.vava33.d1dplot.auxi.DataFileUtils;
 import com.vava33.d1dplot.auxi.PattOps;
-import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
-import com.vava33.d1dplot.auxi.PatternsTableModel;
 import com.vava33.d1dplot.auxi.DataFileUtils.SupportedReadExtensions;
 import com.vava33.d1dplot.auxi.DataFileUtils.SupportedWriteExtensions;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Data_Common;
-import com.vava33.d1dplot.data.Plottable;
-import com.vava33.d1dplot.data.Plottable_point;
-import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.data.DataSet;
 import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.LogJTextArea;
@@ -107,6 +87,7 @@ public class D1Dplot_main {
     private static int def_Height=768;
     private static String LandF = "system";
 
+    private boolean firstTime = true;
     private BackgroundDialog bkgDiag;
     private DajustDialog dajustDiag;
     private FindPeaksDialog FindPksDiag;
@@ -115,12 +96,13 @@ public class D1Dplot_main {
     private Plot2DPanel p2;
     private AboutDialog aboutDiag;
     private FitPeakDialog fitPksDiag;
-    private boolean firstTime = true;
-
-    private JFrame mainFrame;
     private JTable table_files;
+    private JFrame mainFrame;
     private LogJTextArea tAOut;
-    private PlotPanel panel_plot;
+
+    private XRDPlotPanelFrontEnd plotPanel;
+    private D1Dplot_data XRDdata;
+
     private JTabbedPane tabbedPanel_bottom;
     private JMenuBar menuBar;
     private JMenu mnFile;
@@ -200,7 +182,7 @@ public class D1Dplot_main {
                 try {
                     D1Dplot_main frame = new D1Dplot_main();
                     D1Dplot_global.setMainFrame(frame); //this is NEW març 2019
-                    D1Dplot_global.printAllOptions("config",frame.getPanel_plot().createOptionsObject());
+                    D1Dplot_global.printAllOptions("config",frame.plotPanel.createOptionsObject());
                     ArgumentLauncher.readArguments(frame, args);
                     if (ArgumentLauncher.isLaunchGraphics()){
                         frame.showMainFrame();
@@ -218,12 +200,19 @@ public class D1Dplot_main {
      * Create the application.
      */
     public D1Dplot_main() {
-        initialize();
+        //1 dades
+        XRDdata = new D1Dplot_data();
+        XRDPlot1DPanel pp = new XRDPlot1DPanel(XRDdata);
+        //2 plot1Dpanel and (3-frontend)
+        plotPanel = new XRDPlotPanelFrontEnd(D1Dplot_global.getReadedOpt(),pp);
+        initGUI();
+        inicia();
+        hideThingsDebug();
     }
 
     public void showMainFrame(){
         mainFrame.setVisible(true);
-        this.getPanel_plot().showHideButtonsPanel();//amagara el menu lateral
+        this.plotPanel.showHideButtonsPanel();//amagara el menu lateral
     }
     public void disposeMainFrame(){
         mainFrame.dispose();
@@ -232,7 +221,7 @@ public class D1Dplot_main {
     /**
      * Initialize the contents of the frame.
      */
-    private void initialize() {
+    private void initGUI() {
         mainFrame = new JFrame();
         mainFrame.addWindowListener(new WindowAdapter() {
             @Override
@@ -265,109 +254,14 @@ public class D1Dplot_main {
             comboStypeTable.addItem(s.name());
         }
 
-        //MENU CLICK DRETA
-        final JPopupMenu popupMenu = new JPopupMenu();
-        JMenuItem editValues = new JMenuItem("Edit Selected Values");
-        editValues.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                editMultipleValuesTable(e);
-            }
-        });
-        popupMenu.add(editValues);
-        JMenuItem removeExtName = new JMenuItem("Remove .ext from name");
-        removeExtName.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                removeExtensionFromNames(e);
-            }
-        });
-        popupMenu.add(removeExtName);
-
-        JMenuItem convertWL = new JMenuItem("Convert to WL");
-        convertWL.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                convertToWL(e);
-            }
-        });
-        popupMenu.add(convertWL);
-
-        JMenuItem changeXU = new JMenuItem("Change X units");
-        changeXU.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                changeXunits(e);
-            }
-        });
-        popupMenu.add(changeXU);        
-
-        JMenuItem sumPatts = new JMenuItem("Sum selected patterns");
-        sumPatts.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                sumPatterns(e);
-            }
-        });
-        popupMenu.add(sumPatts);
-
-        table_files = new JTable(new PatternsTableModel());
-        table_files.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        table_files.setColumnSelectionAllowed(true);
-        table_files.setCellSelectionEnabled(true);
-
-        //Create the scroll pane and add the table to it.
-        JScrollPane scrollPane = new JScrollPane(table_files);
-
-        table_files.setDefaultRenderer(String.class, new PatternsTableCellRenderer());
-        table_files.setDefaultRenderer(Integer.class, new PatternsTableCellRenderer());
-        table_files.setDefaultRenderer(Float.class, new PatternsTableCellRenderer());
-        table_files.setDefaultRenderer(Double.class, new PatternsTableCellRenderer());
-
-        //Set up renderer and editor for the Favorite Color column.
-        table_files.setDefaultRenderer(Color.class,
-                new ColorRenderer(true));
-        table_files.setDefaultEditor(Color.class,
-                new ColorEditor());
-
-        table_files.getModel().addTableModelListener(new TableModelListener(){
-            public void tableChanged(TableModelEvent e) {
-                applicarModificacioTaula(e.getColumn(),e.getFirstRow(),e.getLastRow());
-            }
-        });
-        table_files.getColumn(PatternsTableModel.columns.XUnits.toString()).setCellEditor(new DefaultCellEditor(comboXunitsTable));
-        table_files.getColumn(PatternsTableModel.columns.Type.toString()).setCellEditor(new DefaultCellEditor(comboStypeTable));
-        table_files.setComponentPopupMenu(popupMenu);
-
-        table_files.getSelectionModel().addListSelectionListener(new ListSelectionListener(){
-            @Override
-            public void valueChanged(ListSelectionEvent arg0) {
-                aplicarselecciotaula(arg0);
-            }
-        });
-
-        table_files.getTableHeader().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent mouseEvent) {
-                int index = table_files.getTableHeader().columnAtPoint(mouseEvent.getPoint());
-                if (index >= 0) {
-                    if (table_files.getRowCount()>0){
-                        table_files.setRowSelectionInterval(0, table_files.getRowCount()-1);
-                        table_files.setColumnSelectionInterval(index, index);
-                    }
-                }
-            };
-        });
-
-
         panel_DS = new JPanel();
         tabbedPanel_bottom.addTab("Data", null, panel_DS, null);
         panel_DS.setLayout(new MigLayout("insets 0", "[grow][]", "[grow]"));
 
-        new JLabel("New label");
+        //Creem la taula
+        table_files = XRDdata.getTablePatterns();
+//      //Create the scroll pane and add the table to it.
+        JScrollPane scrollPane = new JScrollPane(table_files);
         panel_DS.add(scrollPane, "cell 0 0,grow");
         
         panel_1 = new JPanel();
@@ -431,8 +325,7 @@ public class D1Dplot_main {
         tAOut = new LogJTextArea();
         scrollPane_2.setViewportView(tAOut);
 
-        panel_plot = new PlotPanel(D1Dplot_global.getReadedOpt());
-        splitPane.setLeftComponent(panel_plot.getPlotPanel());
+        splitPane.setLeftComponent(plotPanel);
 
         menuBar = new JMenuBar();
         mainFrame.setJMenuBar(menuBar);
@@ -646,9 +539,6 @@ public class D1Dplot_main {
             }
         });
         mnHelp.add(mntmCheckForUpdates);
-
-        inicia();
-        hideThingsDebug();
     }
 
     //=========================================================
@@ -673,7 +563,8 @@ public class D1Dplot_main {
 
         //split and divider loc
         tabbedPanel_bottom.setMinimumSize(new Dimension(0, 5));
-        tabbedPanel_bottom.setPreferredSize(new Dimension(900, 120));
+        tabbedPanel_bottom.setPreferredSize(new Dimension(900, 150));
+//        plotPanel.setPreferredSize(new Dimension(900,100));
         splitPane.resetToPreferredSizes();
 
         this.tAOut.setMidaLletra(tAoutFsize);
@@ -708,15 +599,6 @@ public class D1Dplot_main {
         Image DUP = new ImageIcon(D1Dplot_main.class.getResource("/com/vava33/d1dplot/img/duplicate.png")).getImage().getScaledInstance(-100, iconwidth, java.awt.Image.SCALE_SMOOTH);
         btnDupli.setText("");
         btnDupli.setIcon(new ImageIcon(DUP));	        
-
-        //columnes mides
-
-        PatternsTableModel model = (PatternsTableModel) table_files.getModel();
-        for (int i=0; i<table_files.getColumnCount(); i++){
-            table_files.getColumnModel().getColumn(i).setPreferredWidth(model.getColumnPrefSize(i));
-            table_files.getColumnModel().getColumn(i).setMaxWidth(model.getColumnMaxSize(i));
-            table_files.getColumnModel().getColumn(i).setMinWidth(model.getColumnMinSize(i));
-        }
 
         //botons taula
         buttonAdd.setPreferredSize(new Dimension(40,28));
@@ -763,11 +645,10 @@ public class D1Dplot_main {
             log.warning("No data file selected");
             return;
         }
+        D1Dplot_global.setWorkdir(datFile[0]);
         for (int i=0; i<datFile.length;i++){
             readDataFile(datFile[i]);    
         }
-        this.updateData(true,true);
-
         //per panell log
         if(firstTime) {
             tabbedPanel_bottom.setSelectedIndex(0);
@@ -780,69 +661,20 @@ public class D1Dplot_main {
     }
 
     //creem aquest per l'argument launcher
-    public Plottable readDataFile(File datfile){
-        Plottable s = DataFileUtils.readPatternFile(datfile); 
-        panel_plot.addPlottable(s);
-        D1Dplot_global.setWorkdir(datfile);
+    public DataSet readDataFile(File datfile){
+        DataSet s = DataFileUtils.readPatternFile(datfile); 
+        XRDdata.addDataSet(s, true, true);
+        XRDdata.selectLastAdded();
+//        D1Dplot_global.setWorkdir(datfile);
         return s;
     }
     
-    public Plottable readDataFile(File datfile, SupportedReadExtensions fmt){
-        Plottable s = DataFileUtils.readPatternFile(datfile,fmt); 
-        panel_plot.addPlottable(s);
-        D1Dplot_global.setWorkdir(datfile);
+    public DataSet readDataFile(File datfile, SupportedReadExtensions fmt){
+        DataSet s = DataFileUtils.readPatternFile(datfile,fmt); 
+        XRDdata.addDataSet(s, true, true);
+        XRDdata.selectLastAdded();
+//        D1Dplot_global.setWorkdir(datfile);
         return s;
-    }
-
-    public void updateData(boolean fitgraph, boolean actualitzaPlot){
-        //check the current selection
-        int selRow = -1;
-        if (table_files.getRowCount()>0 && table_files.getSelectedRow()>=0){
-            selRow = table_files.getSelectedRow();
-        }
-
-        updateTable();
-
-        //seleccionem l'anterior o be la ultima afegida
-        if (selRow >= 0 && table_files.getRowCount()>selRow){
-            table_files.setRowSelectionInterval(selRow,selRow);
-        }else{
-            if (table_files.getRowCount()>0){
-                table_files.setRowSelectionInterval(table_files.getRowCount()-1, table_files.getRowCount()-1);    
-            }
-        }
-
-        if(fitgraph)panel_plot.fitGraph();
-        if(actualitzaPlot)panel_plot.actualitzaPlot();
-
-    }
-
-    protected void updateTable(){
-        DefaultTableModel model = (DefaultTableModel) table_files.getModel();
-        model.setRowCount(0);
-        boolean first = true;
-        for (int i=0;i<panel_plot.getNplottables();i++) {
-            Plottable p = panel_plot.getPlottable(i);
-
-            int np=panel_plot.indexOfPlottableData(p);
-            for (DataSerie d: p.getDataSeries()) {
-                if(d.isEmpty())continue;
-                int nd = p.indexOfDS(d);
-                if (first && !panel_plot.isCustomXtitle()){
-                    //posem be les unitats a l'eix X?
-                    if (d.getxUnits()==Xunits.tth){
-                        panel_plot.setXlabel("2"+D1Dplot_global.theta+" (º)");
-                    }else{
-                        panel_plot.setXlabel(d.getxUnits().getName());
-                    }
-                    first=false;
-                }
-                String fnam = d.serieName;
-                this.addRowToTable(np, nd, fnam, d.color, d.getScale(), d.getZerrOff(), d.getWavelength(), d.getxUnits().getName(), d.getYOff(), d.markerSize, d.lineWidth, d.showErrBars, d.plotThis,d.getTipusSerie().name());
-                nd++; //no caldria numerarles... o fins i tot es podria fixar segons el tipus (obligar plottable a donar num de serie)
-            }
-            np++;
-        }
     }
 
     private void closeDataFile(){
@@ -851,37 +683,17 @@ public class D1Dplot_main {
             return;
         }
         if (table_files.getRowCount()<=0)return;
-
-        int[] selRows = table_files.getSelectedRows();
-        List<DataSerie> toDelete = new ArrayList<DataSerie>();
-
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-
-            toDelete.add(panel_plot.getPlottable(npat).getDataSeries().get(nser));
-        }
-
-        Iterator<DataSerie> itrds = toDelete.iterator();
-        while (itrds.hasNext()){
-            DataSerie ds = itrds.next();
-            ds.getParent().removeDataSerie(ds);
-            if (ds.getParent().getNSeries()==0) panel_plot.removePlottable(ds.getParent());
-        }
-        updateData(false,false);//el remove ja actualiza el plot
-        return;
-
+        XRDdata.removeSelectedSeries();
     }
 
     private void saveDataProf() {
-        if (table_files.getRowCount()<=0)return;
+        if (!XRDdata.arePlottables())return;
 
         //PRIMER INTENTEM FER-HO AUTOMATIC SI TOT ÉS CORRECTE
-        List<DataSerie> dsOBS = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.dat);
-        if (dsOBS.isEmpty()) dsOBS = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.obs);
-        List<DataSerie> dsCAL = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.cal);
-        List<DataSerie> dsHKL = this.getPanel_plot().getFirstSelectedPlottable().getDataSeriesByType(SerieType.hkl);
+        List<DataSerie> dsOBS = XRDdata.getSelectedSeriesByType(SerieType.dat);
+        if (dsOBS.isEmpty()) dsOBS = XRDdata.getSelectedSeriesByType(SerieType.obs);
+        List<DataSerie> dsCAL = XRDdata.getSelectedSeriesByType(SerieType.cal);
+        List<DataSerie> dsHKL = XRDdata.getSelectedSeriesByType(SerieType.hkl);
 
         int nobs = dsOBS.size();
         int ncal = dsCAL.size();
@@ -897,11 +709,11 @@ public class D1Dplot_main {
             dsOBS.clear();
             dsCAL.clear();
             dsHKL.clear();
-            for(int i=0;i<this.getPanel_plot().getNplottables();i++) {
-                dsOBS.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.dat));
-                dsOBS.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.obs));
-                dsCAL.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.cal));
-                dsHKL.addAll(this.getPanel_plot().getPlottable(i).getDataSeriesByType(SerieType.hkl));
+            for(int i=0;i<XRDdata.getNPlottables();i++) {
+                dsOBS.addAll(XRDdata.getAllSeriesByType(SerieType.dat));
+                dsOBS.addAll(XRDdata.getAllSeriesByType(SerieType.obs));
+                dsCAL.addAll(XRDdata.getAllSeriesByType(SerieType.cal));
+                dsHKL.addAll(XRDdata.getAllSeriesByType(SerieType.hkl));
             }
             nobs = dsOBS.size();
             ncal = dsCAL.size();
@@ -914,7 +726,7 @@ public class D1Dplot_main {
                 dsCAL.clear();
                 dsHKL.clear();
                 //FINALMENT com a ultima opcio obrirem un dialeg on s'hauran de seleccionar les dataseries	    
-                SavePRFdialog prfdiag = new SavePRFdialog(this.getPanel_plot());
+                SavePRFdialog prfdiag = new SavePRFdialog(XRDdata);
                 prfdiag.visible(true);
                 if (prfdiag.getOBS()!=null)dsOBS.add(prfdiag.getOBS());
                 if (prfdiag.getCALC()!=null)dsCAL.add(prfdiag.getCALC());
@@ -927,10 +739,11 @@ public class D1Dplot_main {
         }
         if (saveIt) {
             FileNameExtensionFilter[] filt = new FileNameExtensionFilter[1];
-            filt[0] = new FileNameExtensionFilter("d1Dplot project","d1p");
+            filt[0] = new FileNameExtensionFilter("d1Dplot profile","d1p");
             File f = FileUtils.fchooserSaveAsk(this.mainFrame, D1Dplot_global.getWorkdirFile(), filt, "d1p", "Save obs/calc/hkl matching");
             if (f!=null) {
                 DataFileUtils.writeProfileFile(f, dsOBS.get(0),dsCAL.get(0),dsHKL, true);
+                D1Dplot_global.setWorkdir(f);
             }
         }else {
             log.info("error saving obs/calc/hkl matching");
@@ -938,9 +751,9 @@ public class D1Dplot_main {
     }
 
     private void saveDataFile(){
-        if (table_files.getRowCount()<=0)return;
+        if (!XRDdata.arePlottables())return;
 
-        List<DataSerie> dss = panel_plot.getSelectedSeries();
+        List<DataSerie> dss = XRDdata.getSelectedPlottables();
 
         if (dss.isEmpty()) {
             log.warning("Select on the table the pattern(s) you want to save");
@@ -957,7 +770,8 @@ public class D1Dplot_main {
                 return;
             }
 
-            datFile = DataFileUtils.writePatternFile(datFile, dss.get(0), true, panel_plot.isPlotwithbkg());
+            datFile = DataFileUtils.writePatternFile(datFile, dss.get(0), true, plotPanel.getGraphPanel().isPlotwithbkg());
+            D1Dplot_global.setWorkdir(datFile);
             log.info(datFile.toString()+" written!");
         }
 
@@ -1002,7 +816,7 @@ public class D1Dplot_main {
                     log.warning("No output folder selected");
                     return;
                 }
-
+                D1Dplot_global.setWorkdir(dir);
                 String ext = format.toString();
                 int i = 0;
                 boolean nameGiven = false;
@@ -1012,9 +826,9 @@ public class D1Dplot_main {
                     if (ds.getParent().getFile()==null) {
                         //ask for a name
                         if (!nameGiven) {
-                            fname = FileUtils.DialogAskForString(this.getMainFrame(),"BaseFileName=", "Enter filename", ds.serieName);
+                            fname = FileUtils.DialogAskForString(this.getMainFrame(),"BaseFileName=", "Enter filename", ds.getName());
                             if (fname==null) {
-                                fname = ds.serieName;
+                                fname = ds.getName();
                                 if (fname.isEmpty()) {
                                     fname = "saved_from_d1dplot_"+i;
                                 }
@@ -1029,7 +843,7 @@ public class D1Dplot_main {
                         fname = FileUtils.getFNameNoExt(ds.getParent().getFile().getName());
                     }
                     //here I should have  a filename;
-                    File f = new File(dir+D1Dplot_global.fileSeparator+fname);
+                    File f = new File(dir+FileUtils.fileSeparator+fname);
                     f = FileUtils.canviExtensio(f, ext);
                     //i salvem
                     if (f.exists()) {
@@ -1050,7 +864,7 @@ public class D1Dplot_main {
                         if (!owrite)
                             continue;
                     }
-                    f = DataFileUtils.writePatternFile(f, ds, owrite, panel_plot.isPlotwithbkg()); 
+                    f = DataFileUtils.writePatternFile(f, ds, owrite, plotPanel.getGraphPanel().isPlotwithbkg()); 
                     log.info(f.toString()+" written!");
                     i++;
                 }
@@ -1064,6 +878,7 @@ public class D1Dplot_main {
                 return;
             }
             File f = DataFileUtils.writeMDAT(dss, datFile, true, false);
+            D1Dplot_global.setWorkdir(f);
             if (f!=null) {
                 log.info(f.toString()+" written!");    
             }else {
@@ -1085,7 +900,7 @@ public class D1Dplot_main {
         org.apache.batik.svggen.SVGGraphics2D svgGenerator = new org.apache.batik.svggen.SVGGraphics2D(document);
 
         // Ask the test to render into the SVG Graphics2D implementation.
-        panel_plot.getGraphPanel().pinta(svgGenerator,1);
+        plotPanel.getGraphPanel().pinta(svgGenerator,1);
 
         // Finally, stream out SVG to the standard output using
         // UTF-8 encoding.
@@ -1101,387 +916,14 @@ public class D1Dplot_main {
     }
 
     private void savePNG(File fpng, float factor){
-        if (!panel_plot.arePlottables())return;
+        if (!XRDdata.arePlottables())return;
         try {
-            ImageIO.write(panel_plot.getGraphPanel().pintaPatterns(factor), "png", fpng);
+            ImageIO.write(plotPanel.getGraphPanel().pintaPatterns(factor), "png", fpng);
         } catch (Exception ex) {
             log.warning(fpng.toString()+" error writting png file");
             return;
         }
         log.info(fpng.toString()+" written!");
-    }
-
-    private void sumPatterns(ActionEvent e){
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-
-        int[] selRows = table_files.getSelectedRows();
-
-        StringBuilder sb = new StringBuilder();
-        StringBuilder sbNames = new StringBuilder();
-
-        DataSerie[] dss = new DataSerie[selRows.length];
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            //primer agafem el pattern i serie seleccionades
-            int pattern = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int serie = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            dss[i] = panel_plot.getPlottable(pattern).getDataSeries().get(serie);
-            sb.append(String.format("P%dS%d ", pattern,serie));
-            sbNames.append(dss[i].serieName+" ");
-        }
-
-        //comprovar punts, sino rebinning de les series que faci falta, la primera serie mana
-        for (int i=1; i<dss.length; i++){
-            boolean coin = PattOps.haveCoincidentPointsDS(dss[0], dss[i]);
-            if (!coin){
-                dss[i] = PattOps.rebinDS(dss[0], dss[i]);
-            }
-        }
-
-        //sumem
-        DataSerie suma = PattOps.addDataSeriesCoincidentPoints(dss);
-        suma.serieName = String.format("Sum of %s",sb.toString().trim());
-        Data_Common patt = new Data_Common(panel_plot.getFirstSelectedSerie().getWavelength());
-        patt.addCommentLines(dss[0].getCommentLines()); //comments of 1st serie
-        patt.addCommentLine("#Sum of: "+sbNames.toString().trim());
-        patt.setOriginalWavelength(dss[0].getOriginalWavelength());
-        patt.addDataSerie(suma);
-        panel_plot.addPlottable(patt);
-        this.updateData(false,false); 
-
-    }
-
-    private void changeXunits(ActionEvent e){
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-
-        String[] comboValues = new String[Xunits.values().length];
-        int i = 0;
-        for (Xunits a :Xunits.values()){
-            comboValues[i] = a.getName();
-            i = i+1;
-        }
-        String s = (String)JOptionPane.showInputDialog(
-                mainFrame,
-                "Change to X-units (new serie will be generated)",
-                "Change X-units",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                comboValues,
-                comboValues[0]);
-
-        if ((s != null) && (s.length() > 0)) {
-
-            Xunits destUnits = null;
-            if (Xunits.getEnum(s)!=null){
-                destUnits=Xunits.getEnum(s);
-            }
-            if (destUnits==null){
-                log.warning("Choose a valid x-units value");
-                return;
-            }
-
-            if (destUnits==Xunits.G){
-                log.warning("Conversion to G not supported");
-                return;
-            }
-
-            int[] selRows = table_files.getSelectedRows();
-
-            for (i=0; i<=selRows.length-1;i++){
-                int selRow = selRows[i];
-                //primer agafem el pattern i serie seleccionades
-                int pattern = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-                int serie = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-
-                Plottable patt = panel_plot.getPlottable(pattern);
-                DataSerie ds = patt.getDataSeries().get(serie);
-
-                if (ds.getxUnits()==Xunits.G){
-                    log.warning("Conversion from G not supported");
-                    return;
-                }
-
-                if (ds.getWavelength()<0){
-                    log.warning(String.format("Pattern %d serie %d has no wavelength assigned, skipping", pattern,serie));
-                    continue;
-                }
-
-                //CONVERTIM
-                log.info(String.format("Conversion from %s to %s",ds.getxUnits(), destUnits));
-                ds.convertDStoXunits(destUnits);
-            }
-            this.updateData(false,true); //cal update panel_plot perque hem modificat una dataserie ja afegida
-        }
-    }
-
-    private void convertToWL(ActionEvent e){
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-
-        String s = (String)JOptionPane.showInputDialog(
-                mainFrame,
-                "New wavelength=",
-                "Covnert pattern to new wavelength",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                null,
-                "");
-
-        if ((s != null) && (s.length() > 0)) {
-            double newWL = -1;
-            try{
-                newWL = Double.parseDouble(s);
-            }catch(Exception ex){
-                log.warning("Error parsing wavelength");
-                return;
-            }
-            if (newWL<0){
-                log.warning("Invalid wavelength entered");
-                return;
-            }
-
-            int[] selRows = table_files.getSelectedRows();
-
-            for (int i=0; i<=selRows.length-1;i++){
-                int selRow = selRows[i];
-                //primer agafem el pattern i serie seleccionades
-                int pattern = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-                int serie = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-
-                Plottable patt = panel_plot.getPlottable(pattern);
-                DataSerie ds = patt.getDataSeries().get(serie);
-
-                if (ds.getWavelength()<0){
-                    log.warning(String.format("Pattern %d serie %d has no wavelength assigned, skipping", pattern,serie));
-                    continue;
-                }
-
-                ds.convertDStoWavelength(newWL);
-
-            }
-            this.updateData(false,true);
-        }
-
-
-
-
-    }
-    private void removeExtensionFromNames(ActionEvent e){
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-        //prova amb selected rows:
-        int[] selRows = table_files.getSelectedRows();
-        if (selRows.length==0)return;
-        for (int i=0; i<selRows.length;i++){
-            int selRow = selRows[i];
-            int indexP = (Integer) table_files.getModel().getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int indexDS = (Integer) table_files.getModel().getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            DataSerie ds = panel_plot.getPlottable(indexP).getDataSeries().get(indexDS);
-            ds.serieName=FileUtils.getFNameNoExt(ds.serieName);            
-        }
-        this.updateTable();
-    }
-    
-    private void editMultipleValuesTable(ActionEvent e){
-
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-
-        int[] selRows = table_files.getSelectedRows();
-        int selCol = table_files.getSelectedColumn();
-        PatternsTableModel.columns colName = FileUtils.searchEnum(PatternsTableModel.columns.class,table_files.getColumnName(selCol));
-
-        Color newColor = null;
-        String s = null;
-        if (colName == PatternsTableModel.columns.Color){
-            newColor = JColorChooser.showDialog(
-                    mainFrame,
-                    "Choose Color",
-                    Color.BLACK);
-            s = "changing color column";
-            if(newColor == null){
-                log.warning("Select a valid color");
-                return;
-            }
-        }else{
-            s = (String)JOptionPane.showInputDialog(
-                    mainFrame,
-                    "New value=",
-                    "Change values column-wise",
-                    JOptionPane.PLAIN_MESSAGE,
-                    null,
-                    null,
-                    "");
-        }
-
-
-        //If a string was returned, say so.
-        if ((s != null) && (s.length() > 0)) {
-            //edit all the selected cells
-            //prova amb selected rows:
-            for (int i=0; i<=selRows.length-1;i++){
-                int selRow = selRows[i];
-                switch (colName){
-                case Color:
-                    table_files.setValueAt(newColor, selRow, selCol);
-                    break;
-                case ErrBars:
-                    log.info("Column not editable");
-                    break;
-                case Filename:
-                    table_files.setValueAt(s, selRow, selCol);
-                    break;
-                case Line:
-                    table_files.setValueAt(Float.parseFloat(s), selRow, selCol);
-                    break;
-                case Marker:
-                    table_files.setValueAt(Float.parseFloat(s), selRow, selCol);
-                    break;
-                case Scale:
-                    table_files.setValueAt(Float.parseFloat(s), selRow, selCol);
-                    break;
-                case Show:
-                    log.info("Column not editable");
-                    break;
-                case Wavel:
-                    table_files.setValueAt(Double.parseDouble(s), selRow, selCol);
-                    break;
-                case XUnits:
-                    log.info("Column not editable");
-                    break;
-                case YOffset:
-                    table_files.setValueAt(Double.parseDouble(s), selRow, selCol);
-                    break;
-                case ZerOff:
-                    table_files.setValueAt(Double.parseDouble(s), selRow, selCol);
-                    break;
-                case nP:
-                    log.info("Column not editable");
-                    break;
-                case nS:
-                    log.info("Column not editable");
-                    break;
-                case Type:
-                    log.info("Column not editable");
-                    break;
-                default:
-                    log.info("Column not identified");
-                    break;
-                }
-            }
-            return;
-        }
-    }
-
-    private void aplicarselecciotaula(ListSelectionEvent arg0){
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-        //prova amb selected rows:
-        int[] selRows = table_files.getSelectedRows();
-        if (selRows.length==0)return;
-        panel_plot.getSelectedSeries().clear();
-        for (int i=0; i<selRows.length;i++){
-            int selRow = selRows[i];
-            int indexP = (Integer) table_files.getModel().getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int indexDS = (Integer) table_files.getModel().getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            panel_plot.getSelectedSeries().add(panel_plot.getPlottable(indexP).getDataSeries().get(indexDS));    
-        }
-    }
-
-    private void applicarModificacioTaula(int columna, int filaIni, int filaFin){
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-
-        for (int i=filaIni; i<=filaFin;i++){
-            int indexP = (Integer) table_files.getModel().getValueAt(i, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int indexDS = (Integer) table_files.getModel().getValueAt(i, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-
-            if (indexP<0 || indexDS<0){
-                return;
-            }
-
-            Plottable selPatt = panel_plot.getPlottable(indexP);
-            PatternsTableModel.columns colName = FileUtils.searchEnum(PatternsTableModel.columns.class,table_files.getColumnName(columna));
-            switch(colName){ //        Filename, Color, Scale, ZerOff, Wavel, marker, line, errBars
-            case Color:
-                selPatt.getDataSerie(indexDS).color=(Color) table_files.getValueAt(i, columna);
-                break;
-            case Scale:
-                selPatt.getDataSerie(indexDS).setScale((Float) table_files.getValueAt(i, columna));
-                break;
-            case ZerOff:
-                selPatt.getDataSerie(indexDS).setZerrOff((Double) table_files.getValueAt(i, columna));
-                break;
-            case Wavel:
-                selPatt.getDataSerie(indexDS).setWavelength((Double) table_files.getValueAt(i, columna));
-                break;
-            case XUnits:
-                String xunits = (String) table_files.getValueAt(i, columna);
-                //                    for (Xunits x: Xunits.values()){
-                if (Xunits.getEnum(xunits)!=null){
-                    selPatt.getDataSerie(indexDS).setxUnits(Xunits.getEnum(xunits));
-                    if (i==0){
-                        panel_plot.setXlabel(Xunits.getEnum(xunits).getName());
-                    }
-                    break;
-                }
-                //                    }
-                break;
-            case Type:
-                //dialog preguntant si estem segurs?
-                SerieType stype = SerieType.getEnum((String) table_files.getValueAt(i, columna));
-                if (stype==null)break;
-                SerieType currStype = selPatt.getDataSerie(indexDS).getTipusSerie();
-                if (stype!=currStype) { //aixi si responem no un cop no ens ho torna a repetir infiniatment
-                    final boolean doit = FileUtils.YesNoDialog(this.mainFrame, "Are you sure you want to change dataserie Type?");
-                    if (doit) {
-                        selPatt.getDataSerie(indexDS).setTipusSerie(stype);
-                        break;
-                    }else {
-                        //we put back the old value
-                        table_files.setValueAt(selPatt.getDataSerie(indexDS).getTipusSerie().name(), i, columna);
-                    }
-                }
-                break;
-            case YOffset:
-                selPatt.getDataSerie(indexDS).setYOff((Double) table_files.getValueAt(i, columna));
-                break;
-            case Marker:
-                selPatt.getDataSerie(indexDS).markerSize=(Float) table_files.getValueAt(i, columna);
-                break;
-            case Line:
-                selPatt.getDataSerie(indexDS).lineWidth=(Float) table_files.getValueAt(i, columna);
-                break;
-            case ErrBars:
-                selPatt.getDataSerie(indexDS).showErrBars=(Boolean) table_files.getValueAt(i, columna);
-                break;
-            case Show:
-                selPatt.getDataSerie(indexDS).plotThis=(Boolean) table_files.getValueAt(i, columna);
-                break;
-            case Filename:
-                selPatt.getDataSerie(indexDS).serieName=(String) table_files.getValueAt(i, columna);
-                break;
-            default:
-                break;
-            }
-        }
-        this.updateData(false,true);
-    }
-
-    private int getColumnByName(JTable table, String name) {
-        for (int i = 0; i < table.getColumnCount(); ++i)
-            if (table.getColumnName(i).equalsIgnoreCase(name))
-                return i;
-        return -1;
-    }
-
-    //nP, nS, Filename, Color, Scale, ZerOff, Wavel, Marker, Line, ErrBars, Show,
-    private void addRowToTable(int nP, int nS, String fname, Color c, float scale, double zoff, double wavel, String xunits, double yoffset, float markersize, float linewidth, boolean errbars, boolean show, String stype){
-        DefaultTableModel model = (DefaultTableModel) table_files.getModel();
-        Object[] row = {nP,nS,fname,c,scale,zoff,wavel,xunits,yoffset,markersize,linewidth,errbars,show,stype};
-        model.addRow(row);
     }
 
     private void do_mainFrame_windowClosing(WindowEvent e) {
@@ -1490,7 +932,7 @@ public class D1Dplot_main {
             D1Dplot_global.def_Width=this.getMainFrame().getWidth();
         }
 
-        D1Dplot_global.writeParFile(panel_plot.createOptionsObject());
+        D1Dplot_global.writeParFile(plotPanel.createOptionsObject());
         mainFrame.dispose();
         System.exit(0);
     }
@@ -1512,81 +954,32 @@ public class D1Dplot_main {
     }
 
     //duplicarem les series afegint totes les seleccionades a un mateix plottable
+    //TODO passar a d1Dplot_data
     private void do_buttonDupli_actionPerformed(ActionEvent e) {
-        if(panel_plot.getSelectedSeries().isEmpty()) {
+        if(XRDdata.getSelectedPlottables().isEmpty()) {
             log.warning("Select which pattern(s) to duplicate by selecting the corresponding row(s)");
             return;
         }
-        Data_Common dc = new Data_Common(panel_plot.getFirstSelectedSerie().getWavelength());
-        for (DataSerie ds:panel_plot.getSelectedSeries()) {
-            dc.addDataSerie(new DataSerie(ds,ds.getTipusSerie(),true)); //dupliquem serie
-        }
-        panel_plot.addPlottable(dc);
-        this.updateTable();
+        XRDdata.duplicateSelected();
     }
 
     //IT MOVES PATTERNS ONLY
     private void do_buttonUp_actionPerformed(ActionEvent e) {
-        if (table_files.getSelectedRow()<0){
+        if (!XRDdata.arePlottables())return;
+        if(XRDdata.getSelectedPlottables().isEmpty()) {
             log.warning("Select which pattern(s) to move by selecting the corresponding row(s)");
             return;
         }
-        if (table_files.getRowCount()<=0)return;
-
-        //prova de moure series
-        int[] selRows = table_files.getSelectedRows();
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int nser = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            if (nser==0){
-                //moure el pattern
-                try{
-                    panel_plot.swapPlottables(npat, npat-1);
-                    table_files.setRowSelectionInterval(selRow-1, selRow-1);
-                }catch(Exception ex){
-//                    logdebug("moving pattern... index not existing");
-                }
-                continue;
-            }else{
-                //movem la serie dins del pattern
-                try{
-                    Collections.swap(panel_plot.getPlottable(npat).getDataSeries(), nser, nser-1);
-                    table_files.setRowSelectionInterval(selRow-1, selRow-1);
-                }catch(Exception ex){
-//                    logdebug("moving serie... index not existing");
-                }
-
-            }
-        }
-        updateData(false,true);
-        return;
-
+        XRDdata.moveSelectedPlottablesUp();
     }
 
     private void do_buttonDown_actionPerformed(ActionEvent e) {
-        if (table_files.getSelectedRow()<0){
+        if (!XRDdata.arePlottables())return;
+        if(XRDdata.getSelectedPlottables().isEmpty()) {
             log.warning("Select which pattern(s) to move by selecting the corresponding row(s)");
             return;
         }
-        if (table_files.getRowCount()<=0)return;
-
-        //prova de moure series
-        int[] selRows = table_files.getSelectedRows();
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            int npat = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            try{
-                panel_plot.swapPlottables(npat, npat+1);
-                table_files.setRowSelectionInterval(selRow+1, selRow+1);
-            }catch(Exception ex){
-//                logdebug("moving pattern... index not existing");
-            }
-            continue;
-        }
-
-        updateData(false,true);
-        return;
+        XRDdata.moveSelectedPlottablesDown();
     }
 
     private void do_mntmSaveAs_actionPerformed(ActionEvent arg0) {
@@ -1599,15 +992,14 @@ public class D1Dplot_main {
     }
 
     private void do_mntmCloseAll_actionPerformed(ActionEvent e) {
-        panel_plot.removeAllPlottables();
-        this.updateData(false,false);
+        XRDdata.removeAllDataSeries();
     }
 
     private void do_mntmExportAsPng_actionPerformed(ActionEvent e) {
         File fpng = FileUtils.fchooserSaveAsk(mainFrame, new File(D1Dplot_global.getWorkdir()), null, "png");
         if (fpng!=null){
-            int w = panel_plot.getGraphPanel().getSize().width;
-            int h = panel_plot.getGraphPanel().getSize().height;
+            int w = plotPanel.getGraphPanel().getSize().width;
+            int h = plotPanel.getGraphPanel().getSize().height;
             String s = (String)JOptionPane.showInputDialog(
                     mainFrame,
                     "Current plot size (Width x Heigth) is "+Integer.toString(w)+" x "+Integer.toString(h)+"pixels\n"
@@ -1627,9 +1019,10 @@ public class D1Dplot_main {
                 }
                 //preguntar si volem fons transparent o no
                 boolean transp = FileUtils.YesNoDialog(this.getMainFrame(), "Create PNG with transparent background?", "PNG transparent background");
-                panel_plot.getGraphPanel().setTransp(transp);
+                plotPanel.getGraphPanel().setTransp(transp);
                 this.savePNG(fpng,factor);
-                panel_plot.getGraphPanel().setTransp(false);//TODO revisar
+                plotPanel.getGraphPanel().setTransp(false);
+                D1Dplot_global.setWorkdir(fpng);
             }
         }
     }
@@ -1638,149 +1031,112 @@ public class D1Dplot_main {
         File fsvg = FileUtils.fchooserSaveNoAsk(mainFrame, new File(D1Dplot_global.getWorkdir()), null,"svg");
         if (fsvg!=null){
             this.saveSVG(fsvg);
+            D1Dplot_global.setWorkdir(fsvg);
         }
-    }
-    
-    private void do_mntmFindPeaks_1_actionPerformed(ActionEvent e) {
-        if (FindPksDiag == null) {
-            FindPksDiag = new FindPeaksDialog(this,this.panel_plot);
-        }
-        FindPksDiag.visible(true);
-    }
-    
-    private void do_mntmFitPeaks_actionPerformed(ActionEvent e) {
-        if (fitPksDiag == null) {
-            fitPksDiag = new FitPeakDialog(this.panel_plot);
-        }
-        fitPksDiag.visible(true);
-    }
-    
-    private void do_mntmCalcBackground_actionPerformed(ActionEvent e) {
-        if (bkgDiag == null) {
-            bkgDiag = new BackgroundDialog(this.panel_plot,this);
-        }
-        bkgDiag.visible(true);
     }
 
-    private void do_mntmSubtractPatterns_actionPerformed(ActionEvent e) {
-        if (subDiag == null) {
-            subDiag = new SubtractDialog(this.panel_plot);
-        }
-        subDiag.visible(true);
-    }
-
-    private void do_mntmDajust_actionPerformed(ActionEvent e) {
-        if (dajustDiag == null) {
-            dajustDiag = new DajustDialog(this.panel_plot,this);
-        }
-        dajustDiag.setVisible(true);
-    }
-    
     private void do_btnReload_actionPerformed(ActionEvent e) {
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-        int[] selRows = table_files.getSelectedRows();
-
-        //reloading plottables as they are the ones related to files
-        int oldPattern = -1;
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            //primer agafem el pattern i serie seleccionades
-            int pattern = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            if (pattern==oldPattern)continue;
-            //es un nou plottable
-            oldPattern = pattern;
-            panel_plot.replacePlottable(pattern, DataFileUtils.readPatternFile(panel_plot.getPlottable(pattern).getFile())); //això ja actualitza el plot
+        if (!XRDdata.arePlottables())return;
+        if(XRDdata.getSelectedPlottables().isEmpty()) {
+            log.warning("Select which pattern(s) to reload by selecting the corresponding row(s)");
+            return;
         }
-        this.updateData(false,false);
+        XRDdata.reloadSelectedDataSets();
+
     }
 
     private void do_mntm2Dplot_actionPerformed(ActionEvent e) {
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-        int[] selRows = table_files.getSelectedRows();
-        if (selRows.length<=1){
+//        if (table_files.getSelectedRow()<0)return;
+//        if (table_files.getRowCount()<=0)return;
+//        int[] selRows = table_files.getSelectedRows();
+//        if (selRows.length<=1){
+        
+        if (!XRDdata.arePlottables())return;
+        if (XRDdata.getNSelectedPlottables()<=1){
             log.info("Please, select more than one pattern to create the 2D plot");
             FileUtils.InfoDialog(mainFrame,"Select more than one pattern", "2D plot selected patterns");
             return;
         }
-        
-        DataSerie[] dss = new DataSerie[selRows.length];
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            //primer agafem el pattern i serie seleccionades
-            int pattern = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            int serie = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-            Plottable patt = panel_plot.getPlottable(pattern);
-            dss[i] = patt.getDataSerie(serie);
-        }
+
 
         //CAL COMPROVAR QUE TOTS ELS PATTERNS COINCIDEIXEN; SINO REBINNING I ZONA COINCIDENT
         //Primer comprovar punts, sino rebinning de les series que faci falta, la primera serie mana
-        for (int i=1; i<dss.length; i++){
-            boolean coin = PattOps.haveCoincidentPointsDS(dss[0], dss[i]);
+        for (int i=1; i<XRDdata.getSelectedPlottables().size(); i++){
+            boolean coin = PattOps.haveCoincidentPointsDS(XRDdata.getSelectedPlottables().get(0), XRDdata.getSelectedPlottables().get(i));
             if (!coin){
-                dss[i] = PattOps.rebinDS(dss[0], dss[i]);
+                DataSerie dsToRebin = XRDdata.getSelectedPlottables().get(i);
+                dsToRebin = PattOps.rebinDS(XRDdata.getSelectedPlottables().get(0), XRDdata.getSelectedPlottables().get(i));
+                XRDdata.getSelectedPlottables().set(i, dsToRebin);
                 log.info("Rebinning serie "+i);
             }
         }
 
+        
         //Pero ara encara pot ser que la serie inicial tingués més punts que les altres i això faria que peti,
         //hem de SELECCIONAR el rang coincident
         int tol = 30;
         //aqui fer un for per totes les dataseries
-        double[] t2is = new double[dss.length];
-        double[] t2fs = new double[dss.length];
-        for (int i=0; i<dss.length;i++){
-            t2is[i]=dss[i].getPointWithCorrections(0,panel_plot.isPlotwithbkg()).getX();
-            t2fs[i]=dss[i].getPointWithCorrections(dss[i].getNpoints()-1,panel_plot.isPlotwithbkg()).getX();
+        double[] t2is = new double[XRDdata.getSelectedPlottables().size()];
+        double[] t2fs = new double[XRDdata.getSelectedPlottables().size()];
+        for (int i=0; i<XRDdata.getSelectedPlottables().size();i++){
+            t2is[i]=XRDdata.getSelectedPlottables().get(i).getCorrectedPoint(0,plotPanel.getGraphPanel().isPlotwithbkg()).getX();
+            t2fs[i]=XRDdata.getSelectedPlottables().get(i).getCorrectedPoint(XRDdata.getSelectedPlottables().get(i).getNPoints()-1,plotPanel.getGraphPanel().isPlotwithbkg()).getX();
         }
         double t2i = PattOps.findMax(t2is);
         double t2f = PattOps.findMin(t2fs);
 
-        Plottable_point[] dpini = new DataPoint[dss.length];
-        Plottable_point[] dpfin = new DataPoint[dss.length];
-        int[] iinidp = new int[dss.length];
-        int[] ifindp = new int[dss.length];
-        int[] rangedp = new int[dss.length];
+        Plottable_point[] dpini = new DataPoint[XRDdata.getSelectedPlottables().size()];
+        Plottable_point[] dpfin = new DataPoint[XRDdata.getSelectedPlottables().size()];
+        int[] iinidp = new int[XRDdata.getSelectedPlottables().size()];
+        int[] ifindp = new int[XRDdata.getSelectedPlottables().size()];
+        int[] rangedp = new int[XRDdata.getSelectedPlottables().size()];
 
-        for (int i=0; i<dss.length;i++){
-            dpini[i] = dss[i].getClosestDP_xonly(t2i, tol);
-            dpfin[i] = dss[i].getClosestDP_xonly(t2f, tol);
-            iinidp[i] = dss[i].getIndexOfDP(dpini[i]);
-            ifindp[i] = dss[i].getIndexOfDP(dpfin[i]);
+        for (int i=0; i<XRDdata.getSelectedPlottables().size();i++){
+            dpini[i] = XRDdata.getSelectedPlottables().get(i).getClosestPointX(t2i, tol);
+            dpfin[i] = XRDdata.getSelectedPlottables().get(i).getClosestPointX(t2f, tol);
+            iinidp[i] = XRDdata.getSelectedPlottables().get(i).getIndexOfDP(dpini[i]);
+            ifindp[i] = XRDdata.getSelectedPlottables().get(i).getIndexOfDP(dpfin[i]);
             rangedp[i] = ifindp[i] - iinidp[i];
         }
 
         //check ranges
         int totRange = 0;
-        for (int i=0;i<dss.length;i++){
+        for (int i=0;i<XRDdata.getSelectedPlottables().size();i++){
             totRange = totRange + rangedp[i];
         }
-        if (totRange/dss.length != rangedp[0]){
+        if (totRange/XRDdata.getSelectedPlottables().size() != rangedp[0]){
             log.warning("Inconsitency on nr of points in the coincident range");
         }
 
         //apliquem NOMES SI ES INCONSISTENT
-        for (int i=0; i<dss.length; i++){
+        for (int i=0; i<XRDdata.getSelectedPlottables().size(); i++){
             if (t2is[i]!=t2i || t2fs[i]!=t2f){
-                dss[i] = dss[i].getSubDataSerie(t2i, t2f);
+                DataSerie ds = XRDdata.getSelectedPlottables().get(i);
+                ds = XRDdata.getSelectedPlottables().get(i).getSubDataSerie(t2i, t2f);
+                XRDdata.getSelectedPlottables().set(i, ds);
             }
         }
 
-        p2 = new Plot2DPanel(this.getMainFrame());
+        p2 = new Plot2DPanel(this.getMainFrame(),plotPanel.getGraphPanel());
         List<DataSerie> adss = new ArrayList<DataSerie>();
-        for (int i=0; i<dss.length; i++){
-            adss.add(dss[i]);
+        for (int i=0; i<XRDdata.getSelectedPlottables().size(); i++){
+            adss.add(XRDdata.getSelectedPlottables().get(i));
         }
         p2.setImagePatts(adss);
     }
 
     private void do_mntmSequentialyOffset_actionPerformed(ActionEvent arg0) {
-        if (table_files.getSelectedRow()<0)return;
-        if (table_files.getRowCount()<=0)return;
-        int[] selRows = table_files.getSelectedRows();
+//        if (table_files.getSelectedRow()<0)return;
+//        if (table_files.getRowCount()<=0)return;
+//        int[] selRows = table_files.getSelectedRows();
 
+        if (!XRDdata.arePlottables())return;
+        if (XRDdata.getNSelectedPlottables()<=1){
+            log.info("Please, select more than one pattern to apply Y offset");
+            FileUtils.InfoDialog(mainFrame,"Select more than one pattern", "Apply Y offset");
+            return;
+        }
+        
         String s = (String)JOptionPane.showInputDialog(
                 null,
                 "Y offset increment between patterns",
@@ -1798,51 +1154,36 @@ public class D1Dplot_main {
                 return;
             }
         }
-        boolean firstLine = true;
-        double yoffIni = 0;
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            if (firstLine==true){
-                yoffIni= (Double) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.YOffset.toString()));
-                firstLine = false;
-                continue;
-            }
+        double yoffIni = XRDdata.getSelectedPlottables().get(0).getYOffset();
+        for (int i=1; i<=XRDdata.getSelectedPlottables().size()-1;i++){
             //ara ja tenim les linies que hem d'aplicar offset
-            table_files.setValueAt(yoffIni+yoff*i, selRow, this.getColumnByName(table_files, PatternsTableModel.columns.YOffset.toString()));
+            XRDdata.getSelectedPlottables().get(i).setYOffset(yoffIni+yoff*i);
         }
-        this.updateData(false,true);
+        XRDdata.updateFullTable();
+        plotPanel.getGraphPanel().actualitzaPlot();
 
     }
 
-    private void do_mntmAbout_actionPerformed(ActionEvent e) {
-        if (aboutDiag==null){
-            aboutDiag = new AboutDialog(this.getMainFrame());    
-        }
-        aboutDiag.visible(true);
-    }
+    
     private void do_mntmConvertToWavelength_actionPerformed(ActionEvent e) {
-        this.convertToWL(e);
+        XRDdata.convertToWL(e);
     }
     private void do_mntmChangeXUnits_actionPerformed(ActionEvent e) {
-        this.changeXunits(e);
+        XRDdata.changeXunits(e);
     }
     private void do_mntmSumSelected_actionPerformed(ActionEvent e) {
-        this.sumPatterns(e);
+        XRDdata.sumPatterns(e);
     }
 
     private void do_mntmRebinning_actionPerformed(ActionEvent arg0) {
-        if (table_files.getRowCount()<=0)return;
-        if (table_files.getSelectedRow()<0)return;
-        int[] selRows = table_files.getSelectedRows();
+        if (!XRDdata.arePlottables())return;
+        if (!XRDdata.areSelectedPlottables())return;
 
-        int pattern = (Integer) table_files.getValueAt(selRows[0], this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-        int serie = (Integer) table_files.getValueAt(selRows[0], this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-
-        String st2i = FileUtils.dfX_4.format(panel_plot.getPlottable(pattern).getDataSerie(serie).getPointWithCorrections(0,panel_plot.isPlotwithbkg()).getX());
-        String st2f = FileUtils.dfX_4.format(panel_plot.getPlottable(pattern).getDataSerie(serie).getPointWithCorrections(panel_plot.getPlottable(pattern).getDataSerie(serie).getNpoints()-1,panel_plot.isPlotwithbkg()).getX());
-        String sstep = FileUtils.dfX_5.format(panel_plot.getPlottable(pattern).getDataSerie(serie).calcStep());
-
-
+        DataSerie firstDS = XRDdata.getFirstSelectedDataSerie();
+        String st2i = FileUtils.dfX_4.format(firstDS.getCorrectedPoint(0, plotPanel.getGraphPanel().isPlotwithbkg()).getX());
+        String st2f = FileUtils.dfX_4.format(firstDS.getCorrectedPoint(firstDS.getNPoints()-1,plotPanel.getGraphPanel().isPlotwithbkg()).getX());
+        String sstep = FileUtils.dfX_5.format(firstDS.calcStep());
+        
         String s = (String)JOptionPane.showInputDialog(
                 null,
                 "Rebinning of selected patterns\n especify T2I STEP T2F",
@@ -1873,31 +1214,23 @@ public class D1Dplot_main {
         List<Plottable_point> puntsdummy = new ArrayList<Plottable_point>();
         double t2 = t2i;
         while (t2<=t2f){
-            puntsdummy.add(new DataPoint(t2,0,0));
+            puntsdummy.add(new DataPoint(t2,0,0,null));
             t2 = t2+step;
         }
-        DataSerie dummy = new DataSerie(panel_plot.getPlottable(pattern).getDataSerie(serie),puntsdummy,panel_plot.getPlottable(pattern).getDataSerie(serie).getxUnits());
+        DataSerie dummy = new DataSerie(firstDS,puntsdummy,firstDS.getxUnits());
         
-        for (int i=0; i<=selRows.length-1;i++){
-            int selRow = selRows[i];
-            pattern = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nP.toString()));
-            serie = (Integer) table_files.getValueAt(selRow, this.getColumnByName(table_files, PatternsTableModel.columns.nS.toString()));
-
-            DataSerie newds = PattOps.rebinDS(dummy, panel_plot.getPlottable(pattern).getDataSerie(serie));
-            newds.serieName=panel_plot.getPlottable(pattern).getDataSerie(serie).serieName+" (rebinned)";
-            Data_Common dsp = new Data_Common(newds.getWavelength());
+        //now for all selected
+        for (DataSerie ds:XRDdata.getSelectedPlottables()) {
+            DataSerie newds = PattOps.rebinDS(dummy, ds);
+            newds.setName(ds.getName()+" (rebinned)");
+            DataSet dsp = new DataSet(newds.getWavelength());
             dsp.addDataSerie(newds);
-            panel_plot.addPlottable(dsp);
+            XRDdata.addDataSet(dsp, true, false); //actualitzarem al final
         }
-        this.updateData(false,false);
+        plotPanel.getGraphPanel().actualitzaPlot();
+
     }
 
-    private void do_mntmUsersGuide_actionPerformed(ActionEvent e) {
-        if (aboutDiag==null){
-            aboutDiag = new AboutDialog(this.getMainFrame());    
-        }
-        aboutDiag.do_btnUsersGuide_actionPerformed(e);
-    }
 
 
     private void do_mntmSaveProject_actionPerformed(ActionEvent e) {
@@ -1907,7 +1240,8 @@ public class D1Dplot_main {
         if (f!=null) {
             //ask if write full data or relative paths only
             boolean fulldata = FileUtils.YesNoDialog(this.getMainFrame(), "Include data in the file?");
-            DataFileUtils.writeProject(f, true, this.getPanel_plot(),fulldata);
+            DataFileUtils.writeProject(f, true, this.plotPanel,this.XRDdata, fulldata);
+            D1Dplot_global.setWorkdir(f);
         }
     }
     private void do_mntmOpenProject_actionPerformed(ActionEvent e) {
@@ -1915,9 +1249,10 @@ public class D1Dplot_main {
         filt[0] = new FileNameExtensionFilter("d1Dplot project","d1d");
         File f = FileUtils.fchooserOpen(this.mainFrame, D1Dplot_global.getWorkdirFile(), filt, 0);
         if (f!=null) {
-            DataFileUtils.readProject(f, this.getPanel_plot(),this);
+            DataFileUtils.readProject(f, this.plotPanel, this.XRDdata, this);
+            D1Dplot_global.setWorkdir(f);
         }
-        this.updateData(false,true);
+//        this.updateData(false,true);
         
     }
     
@@ -1927,11 +1262,61 @@ public class D1Dplot_main {
 
     private void do_mntmDB_actionPerformed(ActionEvent e) {
         if (DBDiag == null) {
-            DBDiag = new Database(this.getPanel_plot());
+            DBDiag = new Database(this.plotPanel.getGraphPanel(),this.XRDdata);
         }
         DBDiag.visible(true);
     }
 
+    private void do_mntmFindPeaks_1_actionPerformed(ActionEvent e) {
+        if (FindPksDiag == null) {
+            FindPksDiag = new FindPeaksDialog(this.plotPanel.getGraphPanel(),this.XRDdata);
+        }
+        FindPksDiag.visible(true);
+    }
+    
+    private void do_mntmFitPeaks_actionPerformed(ActionEvent e) {
+        if (fitPksDiag == null) {
+            fitPksDiag = new FitPeakDialog(this.plotPanel.getGraphPanel(),this.XRDdata);
+        }
+        fitPksDiag.visible(true);
+    }
+    
+    private void do_mntmCalcBackground_actionPerformed(ActionEvent e) {
+        if (bkgDiag == null) {
+            bkgDiag = new BackgroundDialog(this.plotPanel.getGraphPanel(),this.XRDdata);
+        }
+        bkgDiag.visible(true);
+    }
+
+    private void do_mntmSubtractPatterns_actionPerformed(ActionEvent e) {
+        if (subDiag == null) {
+            subDiag = new SubtractDialog(this.plotPanel.getGraphPanel(),this.XRDdata);
+        }
+        subDiag.visible(true);
+    }
+
+    private void do_mntmDajust_actionPerformed(ActionEvent e) {
+        if (dajustDiag == null) {
+            dajustDiag = new DajustDialog(this.plotPanel.getGraphPanel(),this.XRDdata);
+        }
+        dajustDiag.setVisible(true);
+    }
+    
+
+    private void do_mntmAbout_actionPerformed(ActionEvent e) {
+        if (aboutDiag==null){
+            aboutDiag = new AboutDialog(this.getMainFrame());    
+        }
+        aboutDiag.visible(true);
+    }
+
+    private void do_mntmUsersGuide_actionPerformed(ActionEvent e) {
+        if (aboutDiag==null){
+            aboutDiag = new AboutDialog(this.getMainFrame());    
+        }
+        aboutDiag.do_btnUsersGuide_actionPerformed(e);
+    }
+    
     public JFrame getMainFrame() {
         return mainFrame;
     }
@@ -1963,13 +1348,13 @@ public class D1Dplot_main {
     private String getWorkdir(){
         return D1Dplot_global.getWorkdir();
     }
-
-    public PlotPanel getPanel_plot() {
-        return panel_plot;
+    
+    //TODO revisar perque Abans era fitGraph, actualitzaPlot
+    public void updateData(boolean updateTable, boolean updateGraph, boolean fitGraph) {
+        if (updateTable)XRDdata.updateFullTable();
+        if (updateGraph)plotPanel.getGraphPanel().actualitzaPlot();
+        if (fitGraph)plotPanel.getGraphPanel().fitGraph();
     }
-
-    public void setPanel_plot(PlotPanel panel_plot) {
-        this.panel_plot = panel_plot;
-    }
-
+    
+    
 }

@@ -46,6 +46,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.cellsymm.HKLrefl;
@@ -55,8 +56,7 @@ import com.vava33.d1dplot.auxi.PDCompound;
 import com.vava33.d1dplot.auxi.PDDatabase;
 import com.vava33.d1dplot.auxi.PDSearchResult;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Data_Common;
-import com.vava33.d1dplot.data.SerieType;
+import com.vava33.d1dplot.data.DataSet;
 import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.Cif_file;
 import com.vava33.jutils.FileUtils;
@@ -136,13 +136,15 @@ public class Database  {
     private JButton btnImportHkl;
 //    private PDCompound currCompound;
     private JSplitPane splitPane_1;
-    
-    private PlotPanel plotpanel;
     private JCheckBox chckbxIntensity;
+    
+    XRDPlot1DPanel plotpanel;
+    D1Dplot_data dades;
+    
     /**
      * Create the dialog.
      */
-    public Database(PlotPanel plotp) {
+    public Database(XRDPlot1DPanel plotp,D1Dplot_data data) {
     	DBdialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Compound DB",false);
     	this.contentPanel=new JPanel();
     	DBdialog.addWindowListener(new WindowAdapter() {
@@ -152,6 +154,7 @@ public class Database  {
             }
         });
         this.setPlotpanel(plotp);
+        this.dades=data;
         
         DBdialog.setIconImage(D1Dplot_global.getIcon());
         DBdialog.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -504,7 +507,7 @@ public class Database  {
     public void inicia(){
         lm = new DefaultListModel<Object>();
         listCompounds.setModel(lm);
-        chckbxIntensity.setSelected(plotpanel.showDBCompoundIntensity);
+        chckbxIntensity.setSelected(plotpanel.isShowDBCompoundIntensity());
         this.readDB(true);
     }
 
@@ -688,7 +691,7 @@ public class Database  {
         DataSerie ds = comp.getPDCompoundAsREFDataSerie();
         
         //ara mirem si podem convertir a les unitats de la primera dataserie 
-        DataSerie first = this.getPlotpanel().getFirstPlottedSerie();           
+        DataSerie first = dades.getFirstPlottedDataSerie();           
         if (first!=null) {
             if (first.getxUnits()==Xunits.tth) {
                 //necessitem la wavelength
@@ -775,7 +778,7 @@ public class Database  {
         pBarDB.setString("Searching DB");
         pBarDB.setStringPainted(true);
         
-        searchDBwk = new PDDatabase.searchDBWorker(this.getPlotpanel().getSelectedSeries().get(0),minDspacingToSearch);
+        searchDBwk = new PDDatabase.searchDBWorker(dades.getSelectedPlottables().get(0),minDspacingToSearch);
         searchDBwk.addPropertyChangeListener(new PropertyChangeListener() {
 
             @Override
@@ -810,8 +813,8 @@ public class Database  {
     
     //la faig nova passant PuntsCercles al swingworker
     protected void do_btnSearchByPeaks_actionPerformed(ActionEvent e) {
-    	if (!this.getPlotpanel().isOneSerieSelected())return; //ja envia missatge
-    	DataSerie pks = this.getPlotpanel().getFirstSelectedPlottable().getFirstDataSerieByType(SerieType.peaks);
+    	if (!dades.isOneSerieSelected())return; //ja envia missatge
+    	DataSerie pks = dades.getSelectedSeriesByType(SerieType.peaks).get(0);
     	if (pks.isEmpty()) {
             log.info("Please select the desired data and perform a peaksearch first");
             return;    	    
@@ -923,11 +926,11 @@ public class Database  {
         }
     }
 
-    public PlotPanel getPlotpanel() {
+    public XRDPlot1DPanel getPlotpanel() {
 		return plotpanel;
 	}
 
-	public void setPlotpanel(PlotPanel plotpanel) {
+	public void setPlotpanel(XRDPlot1DPanel plotpanel) {
 		this.plotpanel = plotpanel;
 	}
 
@@ -1207,7 +1210,7 @@ public class Database  {
 		if (pdc!=null) {
 		    DataSerie ref = pdc.getPDCompoundAsREFDataSerie();
 	        //ara mirem si podem convertir a les unitats de la primera dataserie plotejada
-            DataSerie first = this.getPlotpanel().getFirstPlottedSerie();       
+            DataSerie first = dades.getFirstPlottedDataSerie();       
             ref.setWavelength(first.getWavelength());
             if (first!=null) {
                 boolean ok = ref.convertDStoXunits(first.getxUnits()); //ja pregunta per la wavelength si es necessari
@@ -1216,11 +1219,10 @@ public class Database  {
                     return;                    
                 }
                 
-                Data_Common dc = new Data_Common(ref.getWavelength());
+                DataSet dc = new DataSet(ref.getWavelength());
                 dc.addDataSerie(ref);
-                plotpanel.addPlottable(dc);
+                dades.addDataSet(dc, true, true); //ja actualitza tot
             }
-			D1Dplot_global.getD1Dmain().updateData(false,false); //no m'agrada massa això...
 		}
 	}
 	

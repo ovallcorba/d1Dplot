@@ -10,8 +10,10 @@ package com.vava33.d1dplot.data;
  * 
  */
 
+import com.vava33.d1dplot.D1Dplot_global;
+
 public enum Xunits {
-    tth("2Theta"), dsp("d-spacing"), dspInv("1/dsp²"), Q("Q"), G("G(r)"); //Q is 4pi(sinT)/lambda
+    tth("2"+D1Dplot_global.theta+" (º)"), dsp("d-spacing"), dspInv("1/dsp²"), Q("Q"), G("G(r)"), none(" "); //Q is 4pi(sinT)/lambda
     private final String name;
     
     private Xunits(String s){
@@ -29,5 +31,4 @@ public enum Xunits {
         }
         return null;
     }
-
 }

@@ -7,7 +7,7 @@ package com.vava33.d1dplot;
  * 
  * @author Oriol Vallcorba
  * Licence: GPLv3
- *
+ *  
  **/
 
 import java.awt.Image;
@@ -25,6 +25,7 @@ import javax.swing.JFrame;
 import com.vava33.d1dplot.Database;
 import com.vava33.d1dplot.auxi.PDDatabase;
 import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.Options;
 import com.vava33.jutils.VavaLogger;
 
@@ -39,12 +40,12 @@ public final class D1Dplot_global {
     public static final String pubMSG = " If you find the program useful for your research please cite it. Thank you!\n";
     
     private static final String className = "d1Dplot_global";
-    public static final String fileSeparator = System.getProperty("file.separator");
-    public static final String lineSeparator = System.getProperty("line.separator");
-    public static final String userDir = System.getProperty("user.dir");
-    public static final String configFilePath = System.getProperty("user.dir") + fileSeparator + "d1dconfig.cfg";
-    public static final String usersGuidePath = System.getProperty("user.dir") + fileSeparator + "d1Dplot_userguide.pdf";
-    public static final String loggingFilePath = System.getProperty("user.dir") + fileSeparator + "log.txt";
+//    public static final String fileSeparator = System.getProperty("file.separator");
+//    public static final String lineSeparator = System.getProperty("line.separator");
+//    public static final String userDir = System.getProperty("user.dir");
+    public static final String configFilePath = FileUtils.userDir + FileUtils.fileSeparator + "d1dconfig.cfg";
+    public static final String usersGuidePath = FileUtils.userDir + FileUtils.fileSeparator + "d1Dplot_userguide.pdf";
+    public static final String loggingFilePath = FileUtils.userDir + FileUtils.fileSeparator + "log.txt";
     public static Boolean configFileReaded = null; //true=readed false=errorReading null=notFound
     
     //symbols and characters
@@ -67,7 +68,7 @@ public final class D1Dplot_global {
     private static boolean loggingConsole = true; //console
     private static boolean loggingFile = false; //file
     private static boolean loggingTA = true; //textArea -- NO ESCRIT AL FITXER DE CONFIGURACIO JA QUE VOLEM SEMPRE ACTIVAT
-    private static String loglevel = "info"; //info, config, etc...
+    private static String loglevel = "debug"; //info, config, etc...
     private static String workdir = System.getProperty("user.dir");
     private static boolean keepMainWinSize = false;
     

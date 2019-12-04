@@ -21,8 +21,7 @@ import javax.swing.border.EmptyBorder;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Data_Common;
-import com.vava33.d1dplot.data.Plottable;
+import com.vava33.d1dplot.data.DataSet;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -51,7 +50,8 @@ import javax.swing.JScrollPane;
 public class SubtractDialog {
 
 	private JDialog subtractDialog;
-    private PlotPanel plotpanel;
+    XRDPlot1DPanel plotpanel;
+    D1Dplot_data dades;
     
     private static final String className = "SubtractDialog";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
@@ -67,9 +67,10 @@ public class SubtractDialog {
     /**
      * Create the dialog.
      */
-    public SubtractDialog(PlotPanel p) {
+    public SubtractDialog(XRDPlot1DPanel p,D1Dplot_data d) {
         this.subtractDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Subtract Patterns",false);
         this.plotpanel = p;
+        this.dades=d;
         this.contentPanel = new JPanel();
         subtractDialog.setIconImage(D1Dplot_global.getIcon());
         subtractDialog.setBounds(100, 100, 814, 240);
@@ -223,13 +224,12 @@ public class SubtractDialog {
                     }
                 };
         mod.setRowCount(0);
-        for (int i=0;i<plotpanel.getNplottables();i++) {
-            Plottable p = plotpanel.getPlottable(i);
-            int np=plotpanel.indexOfPlottableData(p);
-            for (DataSerie d: p.getDataSeries()) {
+        for (int i=0;i<dades.getNDataSets();i++) {
+            DataSet dset = dades.getDataSet(i);
+            for (int j=0; j<dset.getDataSeries().size(); j++) {
+                DataSerie d = dset.getDataSerie(j);
                 if(d.isEmpty())continue;
-                int nd = p.indexOfDS(d);
-                Object[] row = {np,nd,d.serieName};
+                Object[] row = {i,j,d.getName()};
                 mod.addRow(row);
             }
         }
@@ -255,8 +255,8 @@ public class SubtractDialog {
         int np2 = (Integer) tableDS2.getValueAt(r2, 0);
         int nds1 = (Integer) tableDS1.getValueAt(r1, 1);
         int nds2 = (Integer) tableDS2.getValueAt(r2, 1);
-        DataSerie ds1 = plotpanel.getPlottable(np1).getDataSerie(nds1);
-        DataSerie ds2 = plotpanel.getPlottable(np2).getDataSerie(nds2);
+        DataSerie ds1 = dades.getDataSet(np1).getDataSerie(nds1);
+        DataSerie ds2 = dades.getDataSet(np2).getDataSerie(nds2);
 
         float factor = 1.0f;
         double fac_t2i = 0.0f;
@@ -286,8 +286,8 @@ public class SubtractDialog {
             boolean cont = FileUtils.YesNoDialog(subtractDialog, "No coincident points, rebinning required. Continue?");
             if (!cont)return;
             DataSerie ds2reb = PattOps.rebinDS(ds1, ds2);
-            log.info("Rebinning performed on serie "+ds2.serieName);
-            ds2reb.serieName="rebinned serie";
+            log.info("Rebinning performed on serie "+ds2.getName());
+            ds2reb.setName("rebinned serie");
             result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2reb, factor,fac_t2i,fac_t2f);
         }else{
             result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2, factor,fac_t2i,fac_t2f);
@@ -298,21 +298,20 @@ public class SubtractDialog {
         }
 
         //he posat a l'scale el factor utilitzat
-        float usedFactor = result.getScale();
+        double usedFactor = result.getScaleY();
         txtFactor.setText(FileUtils.dfX_2.format(usedFactor));
-        result.setScale(1);
+        result.setScaleY(1);
         
-        result.serieName=String.format("#Sub of: P%dS%d - %.2f*P%dS%d", np1,nds1,factor,np2,nds2);
-        Data_Common dc = new Data_Common(ds1.getWavelength()); //agafem la wavelength del dataserie per si s'ha actualitzat
+        result.setName(String.format("#Sub of: P%dS%d - %.2f*P%dS%d", np1,nds1,factor,np2,nds2));
+        DataSet dc = new DataSet(ds1.getWavelength()); //agafem la wavelength del dataserie per si s'ha actualitzat
         
         dc.addDataSerie(result);
         dc.addCommentLines(ds1.getCommentLines());
-        String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.serieName,factor,ds2.serieName);
+        String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.getName(),factor,ds2.getName());
         dc.addCommentLine(s);
         dc.setOriginalWavelength(ds1.getOriginalWavelength());
         dc.setWavelengthToAllSeries(ds1.getWavelength());
-        plotpanel.addPlottable(dc);
-        D1Dplot_global.getD1Dmain().updateData(false,false);
+        dades.addDataSet(dc, true, true);
     }
     
     private void do_chckbxAutoScale_itemStateChanged(ItemEvent arg0) {
@@ -322,7 +321,7 @@ public class SubtractDialog {
                 log.info("Please select patterns for the subtract operation");
                 return;
             }
-            DataSerie ds1 = plotpanel.getPlottable((Integer) tableDS1.getValueAt(r1, 0)).getDataSerie((Integer) tableDS1.getValueAt(r1, 1));
+            DataSerie ds1 = dades.getDataSet((Integer) tableDS1.getValueAt(r1, 0)).getDataSerie((Integer) tableDS1.getValueAt(r1, 1));
             txtFactor.setEnabled(false);
             txtTini.setText(Double.toString(ds1.getMinX()));
             txtTfin.setText(Double.toString(ds1.getMaxX()));

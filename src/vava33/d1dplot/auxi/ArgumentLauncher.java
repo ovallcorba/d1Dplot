@@ -17,15 +17,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
+import com.vava33.BasicPlotPanel.core.Plottable_point;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.D1Dplot_main;
 import com.vava33.d1dplot.auxi.DataFileUtils.SupportedReadExtensions;
 import com.vava33.d1dplot.auxi.DataFileUtils.SupportedWriteExtensions;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Data_Common;
-import com.vava33.d1dplot.data.Plottable;
-import com.vava33.d1dplot.data.Plottable_point;
+import com.vava33.d1dplot.data.DataSet;
 import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.ConsoleWritter;
 import com.vava33.jutils.FileUtils;
@@ -117,7 +116,7 @@ public final class ArgumentLauncher {
                 mf.readDataFile(f);    
             }
         }
-        mf.updateData(true,true);
+        mf.updateData(true,true,true);
         mf.showTableTab();
     }
     
@@ -321,7 +320,7 @@ public final class ArgumentLauncher {
         if (doconv) { 
             ConsoleWritter.stat("--> CONVERSION OPT");
             for (File f:fitxers) {
-                Plottable p = readPattern(f,inFormat,inXunits);
+                DataSet p = readPattern(f,inFormat,inXunits);
                 if (p==null) {
                     ConsoleWritter.statf("== Error reading %s, skipping...",f.getAbsolutePath());
                     continue;
@@ -329,7 +328,7 @@ public final class ArgumentLauncher {
                 
                 ConsoleWritter.stat("== Converting file "+f.getAbsolutePath());
                 File outf = FileUtils.canviNomFitxer(new File(p.getFile().getName()), FileUtils.getFNameNoExt(p.getFile().getName())+suffix);
-                outf = new File(f.getParent()+D1Dplot_global.fileSeparator+outf.getName());
+                outf = new File(f.getParent()+FileUtils.fileSeparator+outf.getName());
                 
                 //operacions addicionals
                 if (changeWave) p = changeWavelength(p,inWave,outWave); 
@@ -341,11 +340,11 @@ public final class ArgumentLauncher {
         
         if (dosum) {
             ConsoleWritter.stat("--> SUM OPT");
-            List<Plottable> patts = new ArrayList<Plottable>();
+            List<DataSet> patts = new ArrayList<DataSet>();
             StringBuilder sbNames = new StringBuilder();
             
             for (File f:fitxers) {
-                Plottable p = readPattern(f,inFormat,inXunits);
+                DataSet p = readPattern(f,inFormat,inXunits);
                 if (p==null) {
                     ConsoleWritter.statf("== Error reading %s, skipping...",f.getAbsolutePath());
                     continue;
@@ -376,8 +375,8 @@ public final class ArgumentLauncher {
             
             //sumem
             DataSerie suma = PattOps.addDataSeriesCoincidentPoints(dss);
-            suma.serieName=String.format("Sum of %s",sbNames.toString().trim());
-            Plottable patt = new Data_Common(dss[0].getWavelength()); //ja afegeix la serie
+            suma.setName(String.format("Sum of %s",sbNames.toString().trim()));
+            DataSet patt = new DataSet(dss[0].getWavelength()); //ja afegeix la serie
             patt.addCommentLines(dss[0].getParent().getCommentLines()); //comments of 1st serie
             patt.addCommentLine(("#Sum of: "+sbNames.toString().trim()));
             suma.setWavelength(patt.getOriginalWavelength());
@@ -392,7 +391,7 @@ public final class ArgumentLauncher {
 
         if (dodiff) {
             ConsoleWritter.stat("--> DIFF OPT");
-            Plottable fons = readPattern(fitxers.get(0),inFormat,inXunits);
+            DataSet fons = readPattern(fitxers.get(0),inFormat,inXunits);
             if (fons==null) {
                 ConsoleWritter.stat("Error reading background file. Aborting...");
                 return;
@@ -401,7 +400,7 @@ public final class ArgumentLauncher {
             fitxers.remove(0); //treiem el fons, ja esta llegit
             
             for (File f:fitxers) {
-                Plottable p = readPattern(f,inFormat,inXunits);
+                DataSet p = readPattern(f,inFormat,inXunits);
                 if (p==null) {
                     ConsoleWritter.statf("Error reading %s, skipping...",f.getAbsolutePath());
                     continue;
@@ -413,18 +412,18 @@ public final class ArgumentLauncher {
                 DataSerie ds1 = p.getDataSerie(0);
                 DataSerie ds2 = fons.getDataSerie(0); //EL FONS!
                 
-                if (ds1.getNpoints()!=ds2.getNpoints()){
+                if (ds1.getNPoints()!=ds2.getNPoints()){
                     ConsoleWritter.stat("Different number of points");
                 }
-                if (ds1.getPointWithCorrections(0,false).getX()!=ds2.getPointWithCorrections(0,false).getX()){
+                if (ds1.getCorrectedPoint(0,false).getX()!=ds2.getCorrectedPoint(0,false).getX()){
                     ConsoleWritter.stat("Different first point");
                 }
                 
                 DataSerie result = null;
                 if (!PattOps.haveCoincidentPointsDS(ds1, ds2)){
                     DataSerie ds2reb = PattOps.rebinDS(ds1, ds2);
-                    ConsoleWritter.stat("Rebinning performed on serie "+ds2.serieName);
-                    ds2reb.serieName=ds2.serieName;
+                    ConsoleWritter.stat("Rebinning performed on serie "+ds2.getName());
+                    ds2reb.setName(ds2.getName());
                     result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2reb, factor,fac_t2i,fac_t2f);
                 }else{
                     result = PattOps.subtractDataSeriesCoincidentPoints(ds1, ds2, factor,fac_t2i,fac_t2f);
@@ -434,9 +433,9 @@ public final class ArgumentLauncher {
                     continue;
                 }
 
-                String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.serieName,factor,ds2.serieName);
-                result.serieName=s;
-                Plottable patt = new Data_Common(ds1.getWavelength());
+                String s = String.format("#Subtracted pattern: %s - %.2f*%s",ds1.getName(),factor,ds2.getName());
+                result.setName(s);
+                DataSet patt = new DataSet(ds1.getWavelength());
                 patt.addCommentLines(ds1.getParent().getCommentLines());
                 patt.addCommentLine(s);
                 result.setWavelength(patt.getOriginalWavelength());
@@ -453,7 +452,7 @@ public final class ArgumentLauncher {
         if (dorebin) {
             ConsoleWritter.stat("--> REBIN OPT");
             for (File f:fitxers) {
-                Plottable p = readPattern(f,inFormat,inXunits);
+                DataSet p = readPattern(f,inFormat,inXunits);
                 if (p==null) {
                     ConsoleWritter.statf("Error reading %s, skipping...",f.getAbsolutePath());
                     continue;
@@ -465,13 +464,13 @@ public final class ArgumentLauncher {
                 List<Plottable_point> puntsdummy = new ArrayList<Plottable_point>();
                 double t2 = t2i;
                 while (t2<=t2f){
-                    puntsdummy.add(new DataPoint(t2,0,0));
+                    puntsdummy.add(new DataPoint(t2,0,0,null));
                     t2 = t2+step;
                 }
                 DataSerie dummy = new DataSerie(p.getDataSerie(0),puntsdummy,p.getDataSerie(0).getxUnits());                
                 DataSerie newds = PattOps.rebinDS(dummy, p.getDataSerie(0));
-                newds.serieName=p.getDataSerie(0).serieName+" (rebinned)";
-                Plottable patt = new Data_Common(p.getOriginalWavelength());
+                newds.setName(p.getDataSerie(0).getName()+" (rebinned)");
+                DataSet patt = new DataSet(p.getOriginalWavelength());
                 patt.addCommentLine(String.format("(rebinned to %.5f %.5f %.5f)",t2i,step,t2f));
                 newds.setWavelength(p.getDataSerie(0).getWavelength());
                 patt.addDataSerie(newds);
@@ -487,7 +486,7 @@ public final class ArgumentLauncher {
         }
     }
     
-    private static Plottable changeXunits(Plottable p, double inWave, Xunits outXunits) {
+    private static DataSet changeXunits(DataSet p, double inWave, Xunits outXunits) {
         if (!checkWL(p.getDataSerie(0),inWave)){
             ConsoleWritter.stat("Wavelength missing, skipping change of X units");
         }else {
@@ -498,7 +497,7 @@ public final class ArgumentLauncher {
         return p;
     }
     
-    private static Plottable changeWavelength(Plottable p, double inWave, double outWave) {
+    private static DataSet changeWavelength(DataSet p, double inWave, double outWave) {
         if (!checkWL(p.getDataSerie(0),inWave)){
             ConsoleWritter.stat("Original wavelength missing, skipping wavelength conversion");
         }else {
@@ -509,8 +508,8 @@ public final class ArgumentLauncher {
         return p;
     }
     
-    private static Plottable readPattern(File f, SupportedReadExtensions inFormat, Xunits inXunits) {
-        Plottable p = null;
+    private static DataSet readPattern(File f, SupportedReadExtensions inFormat, Xunits inXunits) {
+        DataSet p = null;
         if (inFormat==null) {
             p = mf.readDataFile(f);
         }else {
@@ -571,7 +570,7 @@ public final class ArgumentLauncher {
         return true;
     }
 
-    private static void writePlottableMainSerie(File outfile, Plottable p, SupportedWriteExtensions format){
+    private static void writePlottableMainSerie(File outfile, DataSet p, SupportedWriteExtensions format){
         File out = FileUtils.canviExtensio(outfile,format.name()); //aqui forcem extensio
         File written = DataFileUtils.writePatternFile(out,p.getMainSerie(),format, true,false);
         

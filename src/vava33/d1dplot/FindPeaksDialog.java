@@ -21,9 +21,9 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JCheckBox;
 
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.d1dplot.auxi.DataFileUtils;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.SerieType;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -48,8 +48,8 @@ import java.awt.event.KeyEvent;
 public class FindPeaksDialog {
 
 	private JDialog findPeaksDialog;
-    private PlotPanel plotpanel;
-    private D1Dplot_main d1dmain;
+    XRDPlot1DPanel plotpanel;
+    D1Dplot_data dades;
     private IndexDialog id;
     private int sliderFactDiv=100;
     
@@ -75,11 +75,11 @@ public class FindPeaksDialog {
     /**
      * Create the dialog.
      */
-    public FindPeaksDialog(D1Dplot_main d1dmain , PlotPanel p) {
+    public FindPeaksDialog(XRDPlot1DPanel p, D1Dplot_data d) {
         this.plotpanel=p;
-        this.d1dmain=d1dmain;
+        this.dades=d;
         this.contentPanel = new JPanel();
-        this.findPeaksDialog = new JDialog(d1dmain.getMainFrame(),"Find Peaks",false);
+        this.findPeaksDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Find Peaks",false);
         findPeaksDialog.setIconImage(D1Dplot_global.getIcon());
         findPeaksDialog.setBounds(100, 100, 370, 540);
         findPeaksDialog.getContentPane().setLayout(new BorderLayout());
@@ -254,9 +254,9 @@ public class FindPeaksDialog {
 
     //returns the dat of the selected plottable OR if not possible, the first selected serie (independentment del tipus) intentem primer el dat, sino altres
     private DataSerie getMostFavorableDS() {
-        DataSerie dsactive = plotpanel.getFirstSelectedSerie();
-        if (dsactive.getTipusSerie()!=SerieType.dat) dsactive = plotpanel.getFirstSelectedPlottable().getFirstDataSerieByType(SerieType.dat);
-        if (dsactive==null)dsactive = plotpanel.getFirstSelectedSerie();
+        DataSerie dsactive = dades.getFirstSelectedDataSerie();
+        if (dsactive.getSerieType()!=SerieType.dat) dsactive = dades.getSelectedSeriesByType(SerieType.dat).get(0);
+        if (dsactive==null)dsactive = dades.getFirstSelectedDataSerie();
         return dsactive;
     }
     
@@ -282,7 +282,7 @@ public class FindPeaksDialog {
             }
 
             DataSerie pks = PattOps.findPeaksEvenBetter(ds,llindar,fact,tthmin,tthmax,plotpanel.isPlotwithbkg());
-            pks.serieName=ds.serieName+" (peaks)";
+            pks.setName(ds.getName()+" (peaks)");
             ds.getParent().replaceDataSerie(pks, SerieType.peaks, true);
             if (llindar==null){
                 //plotejo linia recta
@@ -291,28 +291,20 @@ public class FindPeaksDialog {
                 PattOps.addConstantYPointsToDataserie(llindar,50,ds.getMinX(),ds.getMaxX(),llindar_value);
             }
             
-            llindar.setScale(fact);
-            llindar.setTipusSerie(SerieType.bkg); //canvio l'estil
+            llindar.setScaleY(fact);
+            llindar.setSerieType(SerieType.bkg); //canvio l'estil
             plotpanel.setBkgseriePeakSearch(llindar);
             
             
         }catch(Exception ex){
             log.warning("Error during peak search, check parameters");
         }
-        d1dmain.updateData(false,true); //ja conte actualitzarPlot
+        plotpanel.actualitzaPlot();
     }
     
     
     private boolean isOneSerieSelected(){
-        if (plotpanel.getSelectedSeries().isEmpty()){
-            log.warning("Select a serie first");
-            return false;
-        }
-        if (plotpanel.getSelectedSeries().size()>1){
-            log.warning("Select ONE serie only");
-            return false;
-        }
-        return true;
+        return dades.isOneSerieSelected();
     }
 
 	private void do_chckbxOnTop_itemStateChanged(ItemEvent e) {
@@ -355,7 +347,8 @@ public class FindPeaksDialog {
     
     private void do_btnRemoveAll_actionPerformed(ActionEvent e) {
         if (!isOneSerieSelected())return;
-        plotpanel.getFirstSelectedPlottable().removeDataSeries(plotpanel.getFirstSelectedPlottable().getDataSeriesByType(SerieType.peaks));
+        dades.getFirstSelectedDataSerie().getParent().removeDataSeriesByType(SerieType.peaks);
+        dades.updateFullTable();
         plotpanel.actualitzaPlot();
     }
     private void do_btnSetFactminmax_actionPerformed(ActionEvent arg0) {
@@ -387,19 +380,15 @@ public class FindPeaksDialog {
             log.warning("No data file selected");
             return;
         }
-        DataSerie pksDS=null;
-        for (DataSerie ds:plotpanel.getFirstSelectedPlottable().getDataSeries()) {
-            if (ds.getTipusSerie()==SerieType.peaks) {
-                pksDS=ds;
-            }
-        }
-        if(pksDS==null) {
+        try {
+            DataSerie pksDS = dades.getSelectedSeriesByType(SerieType.peaks).get(0);
+            pksDS.sortPoints();//ordenem per 2theta abans de salvar
+            pksFile = DataFileUtils.writePeaksFile(pksFile, pksDS, true);
+            log.info(pksFile.toString()+" written!");   
+        } catch (Exception e1) {
             log.info("Selected Data do not contain peaks");
             return;
         }
-        pksDS.sortSeriePoints();//ordenem per 2theta abans de salvar
-        pksFile = DataFileUtils.writePeaksFile(pksFile, pksDS, true);
-        log.info(pksFile.toString()+" written!");
     }
     
     public void tanca() {
@@ -418,7 +407,7 @@ public class FindPeaksDialog {
     }
 	protected void do_btnIndex_actionPerformed(ActionEvent e) {
 		//open dialog
-	    if (id==null)id = new IndexDialog(this.d1dmain.getMainFrame(), this.plotpanel);
+	    if (id==null)id = new IndexDialog(D1Dplot_global.getD1DmainFrame(), this.plotpanel, this.dades);
 		id.visible(true);
 	}
     protected void do_chckbxUseBkgEstimation_itemStateChanged(ItemEvent e) {

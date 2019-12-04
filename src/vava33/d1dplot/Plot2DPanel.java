@@ -153,10 +153,14 @@ public class Plot2DPanel {
     private JTextField txtSubx;
     private JPanel panel_3;
     private JCheckBox chckbxGridY;
+    
+    XRDPlot1DPanel plot1Dpanel;
+
     /**
      * Create the panel.
      */
-    public Plot2DPanel(JFrame parent) {
+    public Plot2DPanel(JFrame parent, XRDPlot1DPanel p) {
+        plot1Dpanel = p;
     	plot2Ddialog = new JDialog(parent,"2D plot",false);
         plot2Ddialog.setIconImage(D1Dplot_global.getIcon());
 //        plot2Ddialog.addComponentListener(new ComponentAdapter() {
@@ -471,11 +475,11 @@ public class Plot2DPanel {
 	        meanY = meanY + vals[0];
 	    }
 	    meanY = meanY / dss.size();
-	    nXPoints = dss.get(0).getNpoints();
+	    nXPoints = dss.get(0).getNPoints();
 	    
 	    //les x tots els patterns haurien de coincidir
-	    maxT2 = dss.get(0).getPointWithCorrections(dss.get(0).getNpoints()-1,false).getX();
-	    minT2 = dss.get(0).getPointWithCorrections(0,false).getX();
+	    maxT2 = dss.get(0).getCorrectedPoint(dss.get(0).getNPoints()-1,false).getX();
+	    minT2 = dss.get(0).getCorrectedPoint(0,false).getX();
 	    
 	    lblColor.setBackground(nameColor);
 	    lblColor.setText("");
@@ -499,18 +503,19 @@ public class Plot2DPanel {
 
 	private void autoDivLines(){
 
-        PlotPanel plot1D = D1Dplot_global.getD1Dmain().getPanel_plot(); //copiarem moltes coses de plot1D per l'eix
-	    
 	    //Aqui hauriem de posar divisions tal com volem des de MIN a MAX (ignorant finestra), després ja mostrarem la zona d'interès.
         this.div_startValX=this.xrangeMin;
 
         //ara cal veure a quan es correspon en les unitats de cada eix -- a la vista actual 
 	    double xppix = this.getXunitsPerPixel();
 
-	    txtSubx.setText(String.valueOf(plot1D.incXPrimPIXELS/plot1D.incXSecPIXELS));
+	    double incXprim = plot1Dpanel.getIncXPrimPIXELS();
+	    double incXsec = plot1Dpanel.getIncXSecPIXELS();
+	    
+	    txtSubx.setText(String.valueOf(incXprim/incXsec));
 
-	    this.div_incXPrim=plot1D.incXPrimPIXELS*xppix;
-	    this.div_incXSec=plot1D.incXSecPIXELS*xppix;
+	    this.div_incXPrim=incXprim*xppix;
+	    this.div_incXSec=incXsec*xppix;
 
 	    this.txtIncx.setText(FileUtils.dfX_3.format(this.div_incXPrim));
 	    this.txtInix.setText(FileUtils.dfX_3.format(this.div_startValX));
@@ -547,7 +552,7 @@ public class Plot2DPanel {
 
     private double getFrameXFromDataPointX(double xdpoint){
         
-        int pixelImatgeCompleta = toPaint.get(0).getIndexOfDP(toPaint.get(0).getClosestDP_xonly(xdpoint, -1));
+        int pixelImatgeCompleta = toPaint.get(0).getIndexOfDP(toPaint.get(0).getClosestPointX(xdpoint, -1));
         double x = (pixelImatgeCompleta * scalefitX) + originX;
         return x;
     }
@@ -556,7 +561,7 @@ public class Plot2DPanel {
         if (toPaint == null)return;
         if (toPaint.size()==0)return;
 
-        int dimx = toPaint.get(0).getNpoints();
+        int dimx = toPaint.get(0).getNPoints();
         int type = BufferedImage.TYPE_INT_ARGB;
         BufferedImage im = new BufferedImage(dimx, toPaint.size(), type);
 
@@ -632,10 +637,10 @@ public class Plot2DPanel {
         Color col;
         if (this.isColor()) {
             // pintem en color
-            col = intensityColor(toPaint.get(ix).getPointWithCorrections(jy,false).getY(), maxY,minY, minValSlider,valSlider);
+            col = intensityColor(toPaint.get(ix).getCorrectedPoint(jy,false).getY(), maxY,minY, minValSlider,valSlider);
         } else {
             // pintem en BW
-            col = intensityBW(toPaint.get(ix).getPointWithCorrections(jy,false).getY(), maxY,minY,minValSlider,valSlider);
+            col = intensityBW(toPaint.get(ix).getCorrectedPoint(jy,false).getY(), maxY,minY,minValSlider,valSlider);
         }
         return col;
     }
@@ -817,7 +822,7 @@ public class Plot2DPanel {
         }
         if (InPixX < 0)InPixX = 0;
         if (InPixY < 0)InPixY = 0;
-        if (OutPixX >= toPaint.get(0).getNpoints())OutPixX = toPaint.get(0).getNpoints()-1;
+        if (OutPixX >= toPaint.get(0).getNPoints())OutPixX = toPaint.get(0).getNPoints()-1;
         if (OutPixY >= toPaint.size())OutPixY = toPaint.size()-1;
         
         return new Rectangle(InPixX, InPixY, OutPixX-InPixX+1, OutPixY-InPixY+1);
@@ -872,10 +877,10 @@ public class Plot2DPanel {
 	    Point2D.Double pix1 = this.getPixel(new Point2D.Double(panelImatge.getWidth(),0));
 	    
 	    if (pix0.x >= 0) {
-	        this.xrangeMin = toPaint.get(0).getPointWithCorrections((int)pix0.x, false).getX();    
+	        this.xrangeMin = toPaint.get(0).getCorrectedPoint((int)pix0.x, false).getX();    
 	    }
 	    if (pix1.x<=nXPoints) {
-	        this.xrangeMax = toPaint.get(0).getPointWithCorrections((int)pix1.x-1, false).getX();    
+	        this.xrangeMax = toPaint.get(0).getCorrectedPoint((int)pix1.x-1, false).getX();    
 	    }
 	    
 	}
@@ -1085,10 +1090,10 @@ public class Plot2DPanel {
 	    int serie = (int)pix.y;
 	    int punt = (int)pix.x;
 	    
-	    double t2 = toPaint.get(serie).getPointWithCorrections(punt,false).getX();
-	    double inten = toPaint.get(serie).getPointWithCorrections(punt,false).getY();
+	    double t2 = toPaint.get(serie).getCorrectedPoint(punt,false).getX();
+	    double inten = toPaint.get(serie).getCorrectedPoint(punt,false).getY();
 	    
-	    lblPunt.setText(String.format("Pattern: %s   2"+D1Dplot_global.theta+"= %.4f   Intensity=%.2f" ,toPaint.get(serie).serieName,t2,inten));
+	    lblPunt.setText(String.format("Pattern: %s   2"+D1Dplot_global.theta+"= %.4f   Intensity=%.2f" ,toPaint.get(serie).getName(),t2,inten));
 	    
 	}
 
@@ -1425,7 +1430,7 @@ public class Plot2DPanel {
 	                }
 	                //si no era el primer pattern dibuixem el nom
 	                int llocY = pixInicialPatt+(nPixPerPat/2);
-	                String s =  toPaint.get(currentPatt).serieName;
+	                String s =  toPaint.get(currentPatt).getName();
 	                
 	                double[] swh = getWidthHeighString(g1,s);
 	                while (swh[0]>nameMaxWidth){
@@ -1447,7 +1452,7 @@ public class Plot2DPanel {
 	        }
 	        //caldra escriure l'ultim pattern
 	        int llocY = pixInicialPatt+(nPixPerPat/2); 
-	        String s =  toPaint.get(currentPatt).serieName;
+	        String s =  toPaint.get(currentPatt).getName();
 	        
 	        double[] swh = getWidthHeighString(g1,s);
 	        while (swh[0]>nameMaxWidth){
@@ -1587,15 +1592,15 @@ public class Plot2DPanel {
             
             //REMEMBER 25 pixels d'alt
             int AxisLabelsPadding =2;
-            PlotPanel plot1D = D1Dplot_global.getD1Dmain().getPanel_plot(); //copiarem moltes coses de plot1D per l'eix
-            float def_axisL_fsize=plot1D.def_axisL_fsize;
-            int div_PrimPixSize = plot1D.getDiv_PrimPixSize();
-            int div_SecPixSize = plot1D.getDiv_SecPixSize();
+//            PlotPanel plot1D = D1Dplot_global.getD1Dmain().getPanel_plot(); //copiarem moltes coses de plot1D per l'eix
+            float def_axisL_fsize=plot1Dpanel.getDef_axisL_fsize();
+            int div_PrimPixSize = plot1Dpanel.getDiv_PrimPixSize();
+            int div_SecPixSize = plot1Dpanel.getDiv_SecPixSize();
             
             //PINTEM ELS TITOLS DELS EIXOS
             
             // X-axis (abcissa) label.
-            String xlabel = plot1D.getXlabel();
+            String xlabel = plot1Dpanel.getXlabel();
             TextLayout xLabelTextLayout = new TextLayout(xlabel, g2.getFont().deriveFont(g2.getFont().getSize()+def_axisL_fsize), frc);
             double sw = xLabelTextLayout.getBounds().getWidth();
             double sh = xLabelTextLayout.getBounds().getHeight();
@@ -1629,8 +1634,8 @@ public class Plot2DPanel {
                         g2.draw(l);
                         //ara el label sota la linia
                         
-                        String s = plot1D.getGraphPanel().getDef_xaxis_format().format(xval);
-                        TextLayout valLayout = new TextLayout(s, g2.getFont().deriveFont(g2.getFont().getSize()+plot1D.def_axis_fsize), frc);
+                        String s = plot1Dpanel.getDef_xaxis_format().format(xval);
+                        TextLayout valLayout = new TextLayout(s, g2.getFont().deriveFont(g2.getFont().getSize()+plot1Dpanel.getDef_axis_fsize()), frc);
                         sw = valLayout.getBounds().getWidth();
                         sh = valLayout.getBounds().getHeight();
                         double xLabel = xvalPix - sw/2f; //el posem centrat a la linia

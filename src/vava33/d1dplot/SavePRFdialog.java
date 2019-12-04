@@ -20,7 +20,8 @@ import javax.swing.border.EmptyBorder;
 
 import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.Plottable;
+import com.vava33.d1dplot.data.DataSet;
+
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
@@ -42,7 +43,7 @@ import javax.swing.JScrollPane;
 public class SavePRFdialog {
 
 	private JDialog savePRFdialog;
-    private PlotPanel plotpanel;
+    private D1Dplot_data data;
     
 //    private static final String className = "SaveProfDialog";
 //    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
@@ -55,9 +56,9 @@ public class SavePRFdialog {
     /**
      * Create the dialog.
      */
-    public SavePRFdialog(PlotPanel p) {
+    public SavePRFdialog(D1Dplot_data xrddata) {
         this.savePRFdialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Save OBS/CALC/DIFF matching",true);
-        this.plotpanel = p;
+        this.data = xrddata;
         this.contentPanel = new JPanel();
         savePRFdialog.setIconImage(D1Dplot_global.getIcon());
         savePRFdialog.setBounds(100, 100, 814, 240);
@@ -178,13 +179,12 @@ public class SavePRFdialog {
                     }
                 };
         mod.setRowCount(0);
-        for (int i=0;i<plotpanel.getNplottables();i++) {
-            Plottable p = plotpanel.getPlottable(i);
-            int np=plotpanel.indexOfPlottableData(p);
+        for (int np=0;np<data.getNDataSets();np++) {
+            DataSet p = data.getDataSet(np);
             for (DataSerie d: p.getDataSeries()) {
                 if(d.isEmpty())continue;
                 int nd = p.indexOfDS(d);
-                Object[] row = {np,nd,d.serieName};
+                Object[] row = {np,nd,d.getName()};
                 mod.addRow(row);
             }
         }
@@ -209,14 +209,14 @@ public class SavePRFdialog {
         if (r1<0)return dsOBS;
         int np1 = (Integer) tableDS1.getValueAt(r1, 0);
         int nds1 = (Integer) tableDS1.getValueAt(r1, 1);
-        return plotpanel.getPlottable(np1).getDataSerie(nds1);
+        return data.getDataSet(np1).getDataSerie(nds1);
     }
     DataSerie getCALC() {
         int r1 = tableDS2.getSelectedRow();
         if (r1<0)return dsCALC;
         int np1 = (Integer) tableDS2.getValueAt(r1, 0);
         int nds1 = (Integer) tableDS2.getValueAt(r1, 1);
-        return plotpanel.getPlottable(np1).getDataSerie(nds1);
+        return data.getDataSet(np1).getDataSerie(nds1);
     }
     List<DataSerie> getHKLs() {
         List<DataSerie> hkls = new ArrayList<DataSerie>();
@@ -225,7 +225,7 @@ public class SavePRFdialog {
         for (int i=0;i<r1.length;i++) {
             int np1 = (Integer) tableDS1.getValueAt(r1[i], 0);
             int nds1 = (Integer) tableDS1.getValueAt(r1[i], 1);
-            hkls.add(plotpanel.getPlottable(np1).getDataSerie(nds1));
+            hkls.add(data.getDataSet(np1).getDataSerie(nds1));
         }
         return hkls;
     }

@@ -22,6 +22,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.DefaultComboBoxModel;
 
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.CellSymm_global;
 import com.vava33.cellsymm.HKLrefl;
@@ -31,7 +32,6 @@ import com.vava33.cellsymm.CellSymm_global.CrystalFamily;
 import com.vava33.d1dplot.auxi.DoubleJSlider;
 import com.vava33.d1dplot.data.DataPoint_hkl;
 import com.vava33.d1dplot.data.DataSerie;
-import com.vava33.d1dplot.data.SerieType;
 import com.vava33.d1dplot.data.Xunits;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
@@ -48,7 +48,8 @@ import javax.swing.JCheckBox;
 public class IndexManual {
 
     private JDialog debug_latgen_diag;
-    private PlotPanel plotpanel;
+    private XRDPlot1DPanel plotpanel;
+    private D1Dplot_data dades;
     DataSerie dsLatGen;
     Cell cel;
 
@@ -77,10 +78,11 @@ public class IndexManual {
     private JButton btnAdd;
     private JButton btnClose;
     
-    public IndexManual(IndexDialog id) {
+    public IndexManual(IndexDialog id, XRDPlot1DPanel p, D1Dplot_data d) {
         this.debug_latgen_diag = new JDialog(D1Dplot_global.getD1DmainFrame(),"Manual Indexing",false);
         this.indexDialog = id;
-        this.plotpanel = id.getPlotPanel();
+        this.plotpanel = p;
+        this.dades =d;
         this.debug_latgen_diag.setIconImage(D1Dplot_global.getIcon());
         debug_latgen_diag.getContentPane().setLayout(new MigLayout("", "[grow][]", "[][][][][][][][grow][][]"));
         
@@ -279,8 +281,8 @@ public class IndexManual {
         txtGa.setText(FileUtils.dfX_3.format(sliderGa.getScaledValue()));
         
         //creem una dataserie per mostrar les reflexions
-        dsLatGen = new DataSerie(plotpanel.getSelectedSeries().get(0), SerieType.hkl,false);
-        dsLatGen.serieName="LATGen hkl";
+        dsLatGen = new DataSerie(dades.getFirstSelectedDataSerie(), SerieType.hkl,false);
+        dsLatGen.setName("LATGen hkl");
         applyCrystalFamilyRestrictions();
         
         updateDS();
@@ -401,14 +403,14 @@ public class IndexManual {
         Iterator<HKLrefl> itrh = refs.iterator();
         while (itrh.hasNext()) {
             HKLrefl hkl = itrh.next();
-            dsLatGen.addPoint(new DataPoint_hkl(hkl));    
+            dsLatGen.addPoint(new DataPoint_hkl(hkl,dsLatGen));    
         }
         
         //ara ho posem a les unitats de la primera serie
-        dsLatGen.convertDStoXunits(this.plotpanel.getFirstPlottedSerie().getxUnits());
+        dsLatGen.convertDStoXunits(dades.getFirstPlottedDataSerie().getxUnits());
         //en cas que haguem posat una wave a dsLatGen
-        if ((dsLatGen.getWavelength()>0)&&(this.plotpanel.getFirstPlottedSerie().getWavelength()<=0)){
-            this.plotpanel.getFirstPlottedSerie().setWavelength(dsLatGen.getWavelength());
+        if ((dsLatGen.getWavelength()>0)&&(dades.getFirstPlottedDataSerie().getWavelength()<=0)){
+            dades.getFirstPlottedDataSerie().setWavelength(dsLatGen.getWavelength());
         }
         
         this.plotpanel.setIndexSolution(dsLatGen);

@@ -365,7 +365,7 @@ public class DicvolDialog {
     }
 
     private void inicia(){
-        if (this.getNpeaks()>ds.getNpoints())this.setNpeaks(ds.getNpoints());
+        if (this.getNpeaks()>ds.getNPoints())this.setNpeaks(ds.getNPoints());
         txtNpeaks.setText(String.valueOf(this.getNpeaks()));
         txtAmax.setText(FileUtils.dfX_2.format(this.getAmax()));
         txtBmax.setText(FileUtils.dfX_2.format(this.getBmax()));
@@ -498,8 +498,8 @@ public class DicvolDialog {
         
         try{
             this.setNpeaks(Integer.parseInt(txtNpeaks.getText()));
-            if (this.getNpeaks()>this.ds.getNpoints()){
-                this.setNpeaks(this.ds.getNpoints());
+            if (this.getNpeaks()>this.ds.getNPoints()){
+                this.setNpeaks(this.ds.getNPoints());
             }
         }catch(Exception ex){
             log.warning("Error reading Npeaks");

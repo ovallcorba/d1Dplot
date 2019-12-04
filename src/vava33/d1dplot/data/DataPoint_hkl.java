@@ -4,41 +4,39 @@ package com.vava33.d1dplot.data;
  * D1Dplot
  * 
  * HKL point data type
- *  
+ * Extends BasicPoint from com.vava33.BasicPlotPanel
+ * which implements plottable_point
+ * 
  * @author Oriol Vallcorba
  * Licence: GPLv3
  * 
  */
 
+import com.vava33.BasicPlotPanel.BasicPoint;
+import com.vava33.BasicPlotPanel.core.Plottable;
 import com.vava33.cellsymm.HKLrefl;
 
-public class DataPoint_hkl extends DataPoint implements Plottable_point{
+
+//TODO. posar hkl com a label?
+public class DataPoint_hkl extends BasicPoint {
 
     private HKLrefl hkl;
 
     //uses hkl dsp as xval
-    public DataPoint_hkl(HKLrefl hkl) {
-        this(hkl.getDsp(),hkl.getYcalc(),0,hkl);
+    public DataPoint_hkl(HKLrefl hkl, Plottable parent) {
+        this(hkl.getDsp(),hkl.getYcalc(),0,hkl,parent);
     }
     
-    public DataPoint_hkl(HKLrefl hkl,double xval) {
-        this(xval,hkl.getYcalc(),0,hkl);
+    public DataPoint_hkl(HKLrefl hkl,double xval, Plottable parent) {
+        this(xval,hkl.getYcalc(),0,hkl,parent);
     }
     
-    public DataPoint_hkl(double px, double py, double pysd, HKLrefl hkl) {
-        super(px,py,pysd);
+    public DataPoint_hkl(double px, double py, double pysd, HKLrefl hkl, Plottable parent) {
+        super(px,py,0,pysd,hkl.toString(),parent);
         this.hkl=hkl;
     }
     
     @Override
-    public Plottable_point getCorrectedDataPoint(double incX, double incY, double factorY,boolean addYbkg) {
-        if (addYbkg) {
-            return new DataPoint_hkl(this.getX()+incX,(this.getY()+this.getYbkg())*factorY+incY,this.getSdy()*factorY,hkl);
-        }else {
-            return new DataPoint_hkl(this.getX()+incX,this.getY()*factorY+incY,this.getSdy()*factorY,hkl);    
-        }
-    }
-
     public String toString(){
         return hkl.toString();
     }

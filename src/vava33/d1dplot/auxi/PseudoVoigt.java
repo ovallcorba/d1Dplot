@@ -87,10 +87,10 @@ public class PseudoVoigt {
             @Override
             public double value(double[] pars) {
                 double res = 0;
-                for (int i=0; i<obsdata.getNpoints();i++) {
+                for (int i=0; i<obsdata.getNPoints();i++) {
                     PseudoVoigt pv = new PseudoVoigt(pars[0],pars[1],pars[2],pars[3],pars[4],pars[5]);
-                    double ycal = pv.eval(obsdata.getPointWithCorrections(i, false).getX(),true);
-                    res = res + FastMath.abs(ycal-obsdata.getPointWithCorrections(i,false).getY());
+                    double ycal = pv.eval(obsdata.getCorrectedPoint(i, false).getX(),true);
+                    res = res + FastMath.abs(ycal-obsdata.getCorrectedPoint(i,false).getY());
                 }
                 return res;
             }
@@ -128,16 +128,16 @@ public class PseudoVoigt {
             @Override
             public double value(double[] pars) {
                 double res = 0;
-                for (int i=0; i<obsdata.getNpoints();i++) {
+                for (int i=0; i<obsdata.getNPoints();i++) {
                     
                     //calculem la contribució al punt de totes les PVs
                     double ycal = 0;
                     for (int j=0;j<means.length;j++) {
                         PseudoVoigt pv = new PseudoVoigt(pars[j+4],pars[0],pars[1],pars[j+4+means.length],pars[2],pars[3]);
-                        ycal = ycal + pv.eval(obsdata.getPointWithCorrections(i, false).getX(),true);   //REALMENT PODRIA FER EVAL SENSE FONS I FER EL FONS GLOBAL AL FINAL --> SERIA MOLT MILLOR
+                        ycal = ycal + pv.eval(obsdata.getCorrectedPoint(i, false).getX(),true);   //REALMENT PODRIA FER EVAL SENSE FONS I FER EL FONS GLOBAL AL FINAL --> SERIA MOLT MILLOR
                     }
                     
-                    res = res + FastMath.abs(ycal-obsdata.getPointWithCorrections(i,false).getY());
+                    res = res + FastMath.abs(ycal-obsdata.getCorrectedPoint(i,false).getY());
                 }
                 return res;
             }

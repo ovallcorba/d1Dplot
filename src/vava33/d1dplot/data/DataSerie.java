@@ -5,220 +5,96 @@ package com.vava33.d1dplot.data;
  * 
  * Data Serie to plot
  *  
+ * Extends BasicSerie from com.vava33.BasicPlotPanel
+ * that implements Plottable interface
+ * 
+ * Contains specifics such as wavelengh, xUnits, parent,...
+ * 
  * @author Oriol Vallcorba
  * Licence: GPLv3
  * 
  */
 
-import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.math3.util.FastMath;
 
+import com.vava33.BasicPlotPanel.BasicPoint;
+import com.vava33.BasicPlotPanel.BasicSerie;
+import com.vava33.BasicPlotPanel.core.Plottable_point;
+import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.jutils.VavaLogger;
 
-public class DataSerie {
-    
-    public static float def_markerSize=0;
-    public static float def_lineWidth=1;
-    public static int def_hklticksize=12;
-    public static int def_hklYOff=-16; //ho està a les opcions
-    
+
+public class DataSerie extends BasicSerie{
+
     private static final String className = "DataSerie";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     //data
-    public String serieName;
-    private List<Plottable_point> seriePoints;
-    private Plottable parent; //ATENCIO, pot no tenirne, es a dir, ser NUL
-    private SerieType tipusSerie;
-    private Xunits xUnits;
+    private DataSet parent; //ATENCIO, pot no tenirne, es a dir, ser NUL
     private double wavelength;
-    private float scale = 1.0f;
-    private double zerrOff = 0.0f;
-    private double YOff = 0.0f;    
-    
-    //visual options - les faig publiques per evitar getters/setters
-    public float markerSize;
-    public float lineWidth;
-    public boolean showErrBars = false;
-    public Color color;
-    public boolean plotThis;
+    private Xunits xUnits;
     
     //empty dataserie...
-    public DataSerie(SerieType tipusSerie, Xunits xunits, Plottable parent){
-        this.setTipusSerie(tipusSerie);//AIXO JA HO POSA TOT, color marker, etc...
-        this.seriePoints=new ArrayList<Plottable_point>();
-        this.plotThis=true;
-        this.scale=1.0f;    
-        if (tipusSerie==SerieType.hkl)this.scale=def_hklticksize;
-        this.zerrOff=0;
-        this.YOff=0;
-        if (tipusSerie==SerieType.hkl)this.YOff=def_hklYOff;
+    public DataSerie(SerieType tipusSerie, Xunits xunits, DataSet parent){
+        super("",tipusSerie);
         this.parent=parent;
         this.wavelength=-1;
         if (parent!=null) this.wavelength=this.parent.getOriginalWavelength();    
         this.xUnits=xunits;
-        this.serieName="";
-
-
     }
 
     //copia tot menys les dades (empty dataserie)
     public DataSerie(DataSerie inds, List<Plottable_point> punts, Xunits xunits){
-        this(inds.getTipusSerie(),xunits,inds.parent);
-        this.seriePoints=punts;
-        this.scale=inds.getScale();
-        this.zerrOff=inds.getZerrOff();
-        this.YOff=inds.getYOff();
-        this.color=inds.color;
-        this.markerSize=inds.markerSize;
-        this.lineWidth=inds.lineWidth;
-        this.serieName=inds.serieName;
+        super(inds,punts);
+        this.xUnits=xunits;
+        this.parent=inds.parent;
         this.wavelength=inds.wavelength;
     }
     
     //copia tot menys les dades que s'afegeixen apart
     public DataSerie(DataSerie inds, SerieType tipusSerie, boolean copyIntensities){
-        this(inds, new ArrayList<Plottable_point>(), inds.getxUnits());
-        this.setTipusSerie(tipusSerie);//AIXO JA HO POSA TOT, color marker, etc...
-        if(copyIntensities)this.copySeriePoints(inds);
-    }
-
-    //COPIEM (duplica)
-    public void copySeriePoints(DataSerie inDS) {
-//    	this.seriePoints=inDS.seriePoints;
-        for (Plottable_point pp:inDS.seriePoints) {
-            this.seriePoints.add(pp.getCorrectedDataPoint(0, 0, 1, false));
-        }
-    }
-    
-    public void setSeriePoints(DataSerie inDS) {
-        this.seriePoints=inDS.seriePoints;
-    }
-
-    
-    /**
-     * get datapoint with scale and offsets (x and y) applied
-     */
-    public Plottable_point getPointWithCorrections(int arrayPosition, boolean addYBkg){
-        return this.seriePoints.get(arrayPosition).getCorrectedDataPoint(this.zerrOff, this.YOff, this.scale, addYBkg);
-    }
-    
-    //manual corrections!
-    public Plottable_point getPointWithCorrections(int arrayPosition, double zOff, double yOff, double sca, boolean addYBkg){
-        return this.seriePoints.get(arrayPosition).getCorrectedDataPoint(zOff, yOff, sca, addYBkg);
-    }
-    
-    public int getIndexOfDP(Plottable_point dp){
-        return this.seriePoints.indexOf(dp);
-    }
-    
-    public void addYToDataPoint(int index, double y) {
-        this.seriePoints.get(index).addY(y);
-    }
-    public void setYToDataPoint(int index, double y, double sdy) {
-        this.seriePoints.get(index).setY(y);
-        this.seriePoints.get(index).setSdy(sdy);
-    }
-    
-    public void resetYtoZeroAllPoints() {
-        for (int i=0;i<this.getNpoints();i++){
-            this.setYToDataPoint(i, 0, 0);
-        }
-
+        super(inds,tipusSerie,copyIntensities);
+        this.xUnits=inds.xUnits;
+        this.parent=inds.parent;
+        this.wavelength=inds.wavelength;
     }
     
     public DataSerie getSubDataSerie(double t2i, double t2f){
-        DataSerie newds = new DataSerie(this.getTipusSerie(),this.xUnits,this.parent);
-        for (int i=0;i<this.getNpoints();i++){
-            if (this.getPointWithCorrections(i,false).getX()<t2i)continue;
-            if (this.getPointWithCorrections(i,false).getX()>t2f)continue;
-            newds.addPoint(this.getPointWithCorrections(i,false));
+        DataSerie newds = new DataSerie(this.getSerieType(),this.xUnits,this.parent);
+        for (int i=0;i<this.getNPoints();i++){
+            if (this.getCorrectedPoint(i,false).getX()<t2i)continue;
+            if (this.getCorrectedPoint(i,false).getX()>t2f)continue;
+            newds.addPoint(this.getCorrectedPoint(i,false));
         }
         return newds;
     }
     
-    public void clearPoints() {
-        this.seriePoints.clear();
-    }
     
-    public void sortSeriePoints() {
-        Collections.sort(seriePoints);
-    }
-    
-    public void addPoint(Plottable_point dp){
-        this.seriePoints.add(dp);
-    }
-
-    public void removePoint(Plottable_point dp){
-        this.seriePoints.remove(dp);
-    }
-    public void removePoint(int index){
-        this.seriePoints.remove(index);
-    }
-        
-    public int getNpoints(){
-        return seriePoints.size();            
-    }
-    
-    public boolean isEmpty() {
-        return seriePoints.isEmpty();
-    }
-    
-    protected List<Plottable_point> getCorrectedSeriePoints(){
-        List<Plottable_point> correctedSeriePoints = new ArrayList<Plottable_point>();
-        for (int i=0;i<seriePoints.size();i++) {
-            correctedSeriePoints.add(this.getPointWithCorrections(i,false));
+    protected List<Plottable_point> getCorrectedpoints(){
+        List<Plottable_point> correctedpoints = new ArrayList<Plottable_point>();
+        for (int i=0;i<this.getNPoints();i++) {
+            correctedpoints.add(this.getCorrectedPoint(i,false));
         }
-        return correctedSeriePoints;
+        return correctedpoints;
     }
     
     //un duplicat
-    private List<Plottable_point> getUNCorrectedSeriePoints(){
-        List<Plottable_point> uncorrectedSeriePoints = new ArrayList<Plottable_point>();
-        for (int i=0;i<seriePoints.size();i++) {
-            uncorrectedSeriePoints.add(seriePoints.get(i));
+    private List<Plottable_point> getUNCorrectedpoints(){
+        List<Plottable_point> uncorrectedpoints = new ArrayList<Plottable_point>();
+        for (int i=0;i<this.getNPoints();i++) {
+            uncorrectedpoints.add(this.getRawPoint(i));
         }
-        return uncorrectedSeriePoints;
-    }
-    
-    public double[] getPuntsMaxXMinXMaxYMinY(){
-        if (seriePoints!=null){
-            double minX = Double.MAX_VALUE;
-            double minY = Double.MAX_VALUE;
-            double maxX = Double.MIN_VALUE;
-            double maxY = Double.MIN_VALUE;
-            for (int i=0;i<seriePoints.size();i++){
-                Plottable_point punt = this.getPointWithCorrections(i,false);
-                if (punt.getX() < minX){
-                    minX = punt.getX();
-                }
-                if (punt.getX() > maxX){
-                    maxX = punt.getX();
-                }
-                if (punt.getY() < minY){
-                    minY = punt.getY();
-                }
-                if (punt.getY() > maxY){
-                    maxY = punt.getY();
-                }
-            }
-//            if (FastMath.abs(minY-maxY)<1)maxY=minY+100;
-//            if (FastMath.abs(minX-maxX)<1)maxX=minX+1;
-            return new double[]{maxX,minX,maxY,minY};
-        }else{
-            return null;
-        }
+        return uncorrectedpoints;
     }
  
-    protected void convertSeriePointsWavelength(double newWL){
-//        List<Plottable_point> newSeriePoints = new ArrayList<Plottable_point>();
-        for (Plottable_point dp:seriePoints) {
+    protected void convertpointsWavelength(double newWL){
+//        List<Plottable_point> newpoints = new ArrayList<Plottable_point>();
+        for (Plottable_point dp:this.getPoints()) {
             double t2 = this.getDataPointX_as(Xunits.tth,dp); //en principi obliguem a tenir-ho en 2theta
             double asn = (newWL/this.getWavelength())*FastMath.sin(Math.toRadians(t2/2.));
             if (asn>=-1 && asn<=1){
@@ -258,25 +134,25 @@ public class DataSerie {
     }
     
     public float[] getListXvaluesAsDsp() {
-        float[] pksDSP = new float[this.getNpoints()];
-        for(int i=0;i<this.getNpoints();i++) {
-            pksDSP[i]=(float) this.getDataPointX_as(Xunits.dsp,this.getPointWithCorrections(i,false));    
+        float[] pksDSP = new float[this.getNPoints()];
+        for(int i=0;i<this.getNPoints();i++) {
+            pksDSP[i]=(float) this.getDataPointX_as(Xunits.dsp,this.getCorrectedPoint(i,false));    
         }
         return pksDSP;
     }
     
     public double[] getListXvaluesAsInvdsp2() {
-        double[] pksQ = new double[this.getNpoints()];
-        for(int i=0;i<this.getNpoints();i++) {
-            pksQ[i]= this.getDataPointX_as(Xunits.dspInv,this.getPointWithCorrections(i,false));    
+        double[] pksQ = new double[this.getNPoints()];
+        for(int i=0;i<this.getNPoints();i++) {
+            pksQ[i]= this.getDataPointX_as(Xunits.dspInv,this.getCorrectedPoint(i,false));    
         }
         return pksQ;
     }
     
     public float getMinXvalueAsDsp() { //busco per si de cas no estan ordenats a la llista
         float mindsp = Float.MAX_VALUE;
-        for(int i=0;i<this.getNpoints();i++) {
-            float dsp =(float) this.getDataPointX_as(Xunits.dsp,this.getPointWithCorrections(i,false));
+        for(int i=0;i<this.getNPoints();i++) {
+            float dsp =(float) this.getDataPointX_as(Xunits.dsp,this.getCorrectedPoint(i,false));
             if (dsp<mindsp)mindsp=dsp;
         }
         return mindsp;
@@ -291,7 +167,7 @@ public class DataSerie {
         double g = 0;
         
         //mirem les actuals i fem els calculs pertinents
-        switch (this.getxUnits()) {
+        switch (this.xUnits) {
         case G:
             g=dp.getX(); //a partir de G no podem calcular res més
             log.info("not possible to convert G units");
@@ -340,14 +216,14 @@ public class DataSerie {
         }
     }
     
-    protected void convertSeriePointsXunits(Xunits destXunits){
+    protected void convertpointsXunits(Xunits destXunits){
         
-        if (this.getxUnits()==destXunits) {
+        if (this.xUnits==destXunits) {
             log.info("conversion to the same units?");
             return;
         }
         
-        for (Plottable_point dp:seriePoints) {        
+        for (Plottable_point dp:this.getPoints()) {        
             double t2 = this.getDataPointX_as(Xunits.tth,dp); //directly in degrees
             double dsp = this.getDataPointX_as(Xunits.dsp,dp);
             double q = this.getDataPointX_as(Xunits.Q,dp);
@@ -378,248 +254,52 @@ public class DataSerie {
             return false;
         }
         //backup old points
-        List<Plottable_point> bakPoints = this.getUNCorrectedSeriePoints();
-        this.convertSeriePointsXunits(destXunits);
-        if (containNansOrInf(this.seriePoints)) {
-            log.infof("Error converting %s to X-units=%s",this.serieName,destXunits.name());
+        List<Plottable_point> bakPoints = this.getUNCorrectedpoints();
+        this.convertpointsXunits(destXunits);
+        if (containNansOrInf(this.getPoints())) {
+            log.infof("Error converting %s to X-units=%s",this.getName(),destXunits.name());
             //reverting
-            this.seriePoints=bakPoints;
+            this.setPoints(bakPoints);
             return false;
         }
         
         this.xUnits=destXunits;
         //escala i yoff es mantenen
         //zero cal convertir-lo
-        DataPoint zerdp = new DataPoint(this.zerrOff,0,0);
-        this.zerrOff=this.getDataPointX_as(destXunits, zerdp);
+        Plottable_point zerdp = new BasicPoint(this.getXOffset(),0,null);
+        this.setXOffset(this.getDataPointX_as(destXunits, zerdp));
         return true;
     }
     
-    public static boolean containNansOrInf(List<Plottable_point> data) {
-        for (Plottable_point p:data) {
-            //if (!Double.isFinite(p.getX()))return true; //isFinite not found in java6
-            if (Double.isInfinite(p.getX()))return true;
-            if (Double.isNaN(p.getX()))return true;
-        }
-        //return false;
-        return false;
-    }
+
     
     public void convertDStoWavelength(double newWL) {
         //nomes ho puc fer amb les dades 2theta, es l'unic dependent de wavelength
-        if (this.getxUnits()!=Xunits.tth) {
+        if (this.xUnits!=Xunits.tth) {
             log.info("Change X units to 2-theta before changing wavelength");
             return;
         }
         //backup old points
-        List<Plottable_point> bakPoints = this.getUNCorrectedSeriePoints();
-        convertSeriePointsWavelength(newWL);    
+        List<Plottable_point> bakPoints = this.getUNCorrectedpoints();
+        convertpointsWavelength(newWL);    
         //si es buida o té nans ho diem
-        if (containNansOrInf(this.seriePoints)) {
-            log.infof("Error converting %s to wavelength %.5fA",this.serieName,newWL);
+        if (containNansOrInf(this.getPoints())) {
+            log.infof("Error converting %s to wavelength %.5fA",this.getName(),newWL);
             //reverting
-            this.seriePoints=bakPoints;
+            this.setPoints(bakPoints);
             return;
         }
         this.wavelength=newWL;
         //escala, yoff, zero... no ho canvio
     }
     
-    protected double[] getListXvaluesCorrected() {
-        double[] xvals = new double[this.getNpoints()];
-        for (int i=0;i<seriePoints.size();i++) {
-            xvals[i]=this.getPointWithCorrections(i,false).getX();
-            
-        }
-        return xvals;
-    }
 
-    protected void clearDataPoints(){
-        seriePoints.clear();
-    }
-
-    
-    public double[] calcYmeanYDesvYmaxYmin(boolean takeIntoAccountYBkg){
-        int puntIni = 0;
-        int puntFin = this.getNpoints()-1;
-        return calcYmeanYDesvYmaxYmin(puntIni,puntFin,takeIntoAccountYBkg);
-    }
-    
-    public Plottable_point getMinYDataPoint(int puntIni, int puntFin, boolean takeIntoAccountYBkg){
-        double ymin = Double.MAX_VALUE;
-        Plottable_point dpMin = null;
-        for (int i=puntIni;i<=puntFin;i++){
-            Plottable_point dp = this.getPointWithCorrections(i,takeIntoAccountYBkg); //podria ser true...
-            if (dp.getY()<ymin){
-                ymin=dp.getY();
-                dpMin = dp;
-            }
-        }
-        return dpMin;
-    }
-    
-    //punt Fin està inclos
-    public double[] calcYmeanYDesvYmaxYmin(int puntIni, int puntFin, boolean takeIntoAccountYBkg){
-        double[] ymean_ydesv_ymax_ymin = new double[4];
-        ymean_ydesv_ymax_ymin[2] = Double.MIN_VALUE;
-        ymean_ydesv_ymax_ymin[3] = Double.MAX_VALUE;
-        int npoints = FastMath.abs(puntFin - puntIni + 1);
-        double sumY = 0;
-        for (int i=puntIni;i<=puntFin;i++){
-            Plottable_point dp = this.getPointWithCorrections(i,takeIntoAccountYBkg);
-            sumY = sumY + dp.getY();
-            if (dp.getY()<ymean_ydesv_ymax_ymin[3])ymean_ydesv_ymax_ymin[3]=dp.getY();
-            if (dp.getY()>ymean_ydesv_ymax_ymin[2])ymean_ydesv_ymax_ymin[2]=dp.getY();
-        }
-        ymean_ydesv_ymax_ymin[0] = sumY/npoints;
-        //ara desviacio
-        sumY=0;
-        for (int i=puntIni;i<=puntFin;i++){
-            Plottable_point dp = this.getPointWithCorrections(i,takeIntoAccountYBkg);
-            sumY = sumY + (dp.getY()-ymean_ydesv_ymax_ymin[0])*(dp.getY()-ymean_ydesv_ymax_ymin[0]);
-        }
-        ymean_ydesv_ymax_ymin[1] = FastMath.sqrt(sumY/(npoints-1));
-        return ymean_ydesv_ymax_ymin;
-    }
-
-
-    //returns the closest DP to the one entered (usually by clicking)
-    public Plottable_point getClosestDP(Plottable_point click, double tolX, double tolY, boolean takeIntoAccountYBkg){
-        if (tolX<0)tolX=1.0;
-        if (tolY<0)tolY=5000;
-        Plottable_point closest = null;
-        double minDiffX = Double.MAX_VALUE/2.5;
-        double minDiffY = Double.MAX_VALUE/2.5;
-        for (int i=0; i<this.getNpoints();i++){
-            Plottable_point dp = this.getPointWithCorrections(i,takeIntoAccountYBkg);
-            double diffX = FastMath.abs(dp.getX()-click.getX());
-            double diffY = FastMath.abs(dp.getY()-click.getY());
-            if ((diffX<tolX)&&(diffY<tolY)){
-                if ((diffX+diffY)<(minDiffX+minDiffY)){
-                    minDiffX=diffX;
-                    minDiffY=diffY;
-                    closest = dp;
-                }
-            }
-        }
-        return closest;
-    }
-    
-    //returns the closest DP to the one entered (usually by clicking)
-    public Plottable_point getClosestDP_xonly(double xvalue, double tolX){
-        if (tolX<0)tolX=1.0;
-        Plottable_point closest = null;
-        double minDiffX = Double.MAX_VALUE/2.5;
-        for (int i=0; i<this.getNpoints();i++){
-            Plottable_point dp = this.getPointWithCorrections(i,false);
-            double diffX = FastMath.abs(dp.getX()-xvalue);
-            if (diffX<tolX){
-                if (diffX<minDiffX){
-                    minDiffX=diffX;
-                    closest = dp;
-                }
-            }
-        }
-        return closest;
-    }
-    
-    public Plottable_point[] getSurroundingDPs(double xvalue){
-        
-        for (int i=0;i<this.getNpoints()-1;i++){
-            if ((this.getPointWithCorrections(i,false).getX()<=xvalue) && (this.getPointWithCorrections(i+1,false).getX()>=xvalue)){
-                Plottable_point[] dps = {this.getPointWithCorrections(i,false), this.getPointWithCorrections(i+1,false)};
-                return dps;
-            }
-        }
-        return null;
-    }
-    
-    //return Y
-    public double interpolateY(double xval, Plottable_point dp1, Plottable_point dp2){
-        double yleft = dp1.getY();
-        double yright = dp2.getY();
-        double xleft = dp1.getX();
-        double xright = dp2.getX();
-        
-        double pen = (yright-yleft)/(xright-xleft);
-        double ord = pen*(xleft)*-1+yleft;
-        return pen*xval + ord;
-    }
-    //return SDY
-    public double interpolateSDY(double xval, Plottable_point dp1, Plottable_point dp2){
-        double yleft = dp1.getSdy();
-        double yright = dp2.getSdy();
-        double xleft = dp1.getX();
-        double xright = dp2.getX();
-        
-        double pen = (yright-yleft)/(xright-xleft);
-        double ord = pen*(xleft)*-1+yleft;
-        return pen*xval + ord;
-    }
-    
-    //SETTERS/GETTERS PER ELIMINAR?? en deixo alguns malgrat son publics
-    public Xunits getxUnits() {
-        return xUnits;
-    }
-    public SerieType getTipusSerie() {
-        return tipusSerie;
-    }
-
-    public void setxUnits(Xunits xUnits) {
-        this.xUnits = xUnits;
-    }
-
-    public void setTipusSerie(SerieType tipusSerie) {
-        this.tipusSerie = tipusSerie;
-        this.color=SerieType.getDefColor(tipusSerie);
-        this.markerSize=SerieType.getDefMarkerSize(tipusSerie);
-        this.lineWidth=SerieType.getDefLineWidth(tipusSerie);
-        if (tipusSerie==SerieType.hkl)this.setScale(DataSerie.def_hklticksize);
-    }
-
-    public float getScale() {
-        return scale;
-    }
-
-    public void setScale(float scale) {
-        this.scale = scale;
-    }
-
-    public double getZerrOff() {
-        return zerrOff;
-    }
-
-    public void setZerrOff(double zerrOff) {
-        this.zerrOff = zerrOff;
-    }
-
-    public double getYOff() {
-        return YOff;
-    }
-
-    public void setYOff(double yOff) {
-        YOff = yOff;
-    }
-
-    public double calcStep(){
-        return (this.getMaxX() - this.getMinX())/(this.getNpoints()-1);
-    }
-
-    public Plottable getParent() {
+    public DataSet getParent() {
         return parent;
     }
     
-    protected void setParent(Plottable p) {
+    public void setParent(DataSet p) {
         this.parent=p;
-    }
-
-    //TODO: MIN i MAX podrien no estar ordenats!!
-    public double getMinX() {
-        return this.getPointWithCorrections(0,false).getX();
-    }
-
-    public double getMaxX() {
-        return this.getPointWithCorrections(seriePoints.size()-1,false).getX();
     }
 
     public double getWavelength() {
@@ -656,59 +336,12 @@ public class DataSerie {
         this.wavelength=wavelA;
     }
 
-    public List<Plottable_point> getClosestPointsToAGivenX(double centralX, double tol){
-        if (tol<0) tol = 0.025;
-        List<Plottable_point> found = new ArrayList<Plottable_point>();
-        for (int i=0;i<this.getNpoints();i++){
-            if (FastMath.abs(centralX-this.getPointWithCorrections(i,false).getX())<tol){
-                found.add(this.getPointWithCorrections(i,false));
-            }
-        }
-        return found;
+    public Xunits getxUnits() {
+        return xUnits;
     }
-    
-    //+-halftol
-    public int[] getMaxMinIndicesDataPointsRange(double centralX, double halfrange) {
-        double minval = centralX-halfrange;
-        Plottable_point p = this.getClosestDP_xonly(minval, -1);
-        int min = 0;
-        if (p!=null) min = this.getIndexOfDP(p);
-        double maxval = centralX+halfrange;
-        p = this.getClosestDP_xonly(maxval, -1);
-        int max = this.getNpoints()-1;
-        if (p!=null) max = this.getIndexOfDP(p);
-        return new int[] {min,max};
+
+    public void setxUnits(Xunits xUnits) {
+        this.xUnits = xUnits;
     }
-    
-    public double[] getXasDoubleArray() {
-        double[] d = new double[this.getNpoints()];
-        for (int i=0;i<this.getNpoints();i++) {
-            d[i]=this.getPointWithCorrections(i, false).getX();
-        }
-        return d;
-    }
-    
-    public double[] getYasDoubleArray() {
-        double[] d = new double[this.getNpoints()];
-        for (int i=0;i<this.getNpoints();i++) {
-            d[i]=this.getPointWithCorrections(i, false).getY();
-        }
-        return d;
-    }
-    
-    public void normalizeIntensitiesToValue(double value) {
-        //calculem el factor de normalitzacio de les intensitats a value
-        double maxInten = -1;
-        for (Plottable_point dp:seriePoints) {
-            double inten=dp.getY();
-            if (inten>maxInten)maxInten=inten;
-        }
-        double factor = value/maxInten;
-        //i corregim intensitats
-        for (Plottable_point dp:seriePoints) {
-            dp.setY(dp.getY()*factor);
-        }
-    }
-    
-    
+
 }
