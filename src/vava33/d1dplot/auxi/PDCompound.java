@@ -1,6 +1,5 @@
 package com.vava33.d1dplot.auxi;
 
-
 /**
  * D1Dplot
  * 
@@ -126,8 +125,8 @@ public class PDCompound implements Comparable<PDCompound>{
         return this.cella;
     }
     
-    public int getNrRefUpToDspacing(float dspacing){
-        float tolerance = 0.05f;
+    public int getNrRefUpToDspacing(double dspacing){
+        double tolerance = 0.05;
         Iterator<HKLrefl> itpks = this.getPeaks().iterator();
         int nref = 0;
         while (itpks.hasNext()){
@@ -275,9 +274,14 @@ public class PDCompound implements Comparable<PDCompound>{
     }
     
     //returns the closest peak of the compound to a given dspacing
-    public int closestPeak(float dsp){
+    public int closestPeak(double dsp){
+        int index=-1;
+        try {
+            index = Collections.binarySearch(this.getDspacings(),dsp,Collections.reverseOrder());    
+        }catch(Exception ex) {
+            ex.printStackTrace();
+        }
         
-        int index = Collections.binarySearch(this.getDspacings(),dsp,Collections.reverseOrder());
 
         index = Math.abs(index) - 1; //ara apunta al seguent valor, mes petit
         if (index == 0){

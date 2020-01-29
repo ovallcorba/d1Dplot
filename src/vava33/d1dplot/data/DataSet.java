@@ -16,13 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.vava33.BasicPlotPanel.core.SerieType;
-import com.vava33.d1dplot.D1Dplot_global;
-import com.vava33.jutils.VavaLogger;
 
 public class DataSet {
-    
-    private static final String className = "DataSet";
-    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     
     private File file;
     private double original_wavelength;
@@ -77,6 +72,10 @@ public class DataSet {
         ds.setParent(this);
     }
     
+    public void replaceDataSerie(int index, DataSerie newDS) {
+        this.series.set(index, newDS);
+    }
+    
     public void removeDataSerie(DataSerie ds) {
         this.series.remove(ds);
     }
@@ -87,25 +86,6 @@ public class DataSet {
     
     public int getNSeries() {
         return series.size();
-    }
-    
-    /**
-     * replaces first occurence of the stype, otherwise adds the dataserie
-     */
-    public void replaceDataSerie(DataSerie newDS, SerieType stypeToReplace, boolean addIfNotFound) {
-        int index = -1;
-        try {
-            index = this.series.indexOf(this.getDataSeriesByType(stypeToReplace).get(0));
-        }catch(Exception ex) {
-            log.info("DataSerie not found, adding as new");
-        }
-        newDS.setSerieType(stypeToReplace);
-        newDS.setParent(this);
-        if (index>=0) {
-            series.set(index, newDS);
-        }else {
-            series.add(newDS);
-        }
     }
     
     public List<DataSerie> getDataSeries() {

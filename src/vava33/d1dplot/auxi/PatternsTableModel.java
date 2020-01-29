@@ -20,7 +20,6 @@ import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.DataSet;
 import com.vava33.d1dplot.data.Xunits;
-import com.vava33.jutils.FileUtils;
 
 public class PatternsTableModel extends DefaultTableModel {
 
@@ -79,7 +78,7 @@ public class PatternsTableModel extends DefaultTableModel {
     @Override
     public void setValueAt(Object aValue, int row, int column) {
         super.setValueAt(aValue, row, column);
-        System.out.println("setValue fired");
+//        System.out.println("setValue fired");
         DataSerie ds = dsList.get(row);
         switch (columns.values()[column]){
         case Color:

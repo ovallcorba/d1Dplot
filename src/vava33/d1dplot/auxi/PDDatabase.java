@@ -404,7 +404,7 @@ public final class PDDatabase {
                 String dt = D1Dplot_global.getStringTimeStamp("[yyyy-MM-dd 'at' HH:mm]");
                 
                 output.println("# ====================================================================");
-                output.println("#         D2Dplot compound database "+dt);
+                output.println("#         D1Dplot compound database "+dt);
                 output.println("# ====================================================================");
                 output.println();
                 
@@ -487,8 +487,8 @@ public final class PDDatabase {
     
     public static class searchDBWorker extends SwingWorker<Integer,Integer> {
 
-        private List<Float> dspList;
-        private List<Float> intList;
+        private List<Double> dspList;
+        private List<Double> intList;
         private boolean stop;
         private float mindsp;
         private DataSerie dataserie;
@@ -496,8 +496,8 @@ public final class PDDatabase {
         public searchDBWorker(DataSerie ds, float mindsp) {
             this.dataserie=ds;
             this.mindsp=mindsp;
-            dspList = new ArrayList<Float>();
-            intList = new ArrayList<Float>();
+            dspList = new ArrayList<Double>();
+            intList = new ArrayList<Double>();
             DBsearchresults.clear();
             this.stop = false;
         }
@@ -519,22 +519,28 @@ public final class PDDatabase {
         	
             //convert dataserie to dsp:
 //            xunits initialUnits = dataserie.getxUnits(); //save initial to come back afterwards
-            dataserie.convertDStoXunits(Xunits.dsp);
-            DataSerie dspDS = dataserie;
+//            dataserie.convertDStoXunits(Xunits.dsp);
+//            DataSerie dspDS = dataserie;
 //            dspDS.copySeriePoints(dataserie);
 //            dspDS.copySeriePeaks(dataserie);
             
-            for (int i=0; i<dspDS.getNPoints(); i++) {
-            	Plottable_point pk = dspDS.getCorrectedPoint(i,false);
-            	float dsp = (float) pk.getX();
-            	float inten = (float) pk.getY();
+//            for (int i=0; i<dspDS.getNPoints(); i++) {
+        	for (int i=0; i<dataserie.getNPoints(); i++) {
+//            	Plottable_point pk = dspDS.getCorrectedPoint(i,false);
+                Plottable_point pk = dataserie.getCorrectedPoint(i,false);
+//            	dataserie.getDataPointX_as(Xunits.dsp, pk);
+            	
+//            	float dsp = (float) pk.getX();
+//            	float inten = (float) pk.getY();
+            	double dsp = dataserie.getDataPointX_as(Xunits.dsp, pk);
+            	double inten = pk.getY();
                 if (dsp > mindsp){
                     dspList.add(dsp);
                     intList.add(inten);
                 }
             }
             
-            float maxIslist = Collections.max(intList);
+        	double maxIslist = Collections.max(intList);
             PDSearchResult.setMinDSPin(Collections.min(dspList));
             PDSearchResult.setnDSPin(dspList.size());
             
@@ -543,7 +549,7 @@ public final class PDDatabase {
             while (itrComp.hasNext()){
                 if (stop) break;
                 PDCompound c = itrComp.next();
-                Iterator<Float> itrDSP = this.dspList.iterator();
+                Iterator<Double> itrDSP = this.dspList.iterator();
                 float diffPositions = 0;
                 float diffIntensities = 0;
                 int npk = 0;
@@ -553,13 +559,13 @@ public final class PDDatabase {
                 if (maxI_factorPerNormalitzar <= 0){maxI_factorPerNormalitzar=1.0f;}
                 
                 while (itrDSP.hasNext()){
-                    float dsp = itrDSP.next();  //pic entrat a buscar
+                    double dsp = itrDSP.next();  //pic entrat a buscar
                     int index = c.closestPeak(dsp);
                     float diffpk = (float) FastMath.abs(dsp-c.getPeaks().get(index).getDsp());
 //                    diffPositions = diffPositions + diffpk; //es podria fer més estricte
 //                    diffPositions = diffPositions + (1+diffpk)*(1+diffpk); //una especie de quadrat...
                     diffPositions = diffPositions + (diffpk*2.5f); 
-                    float intensity = this.intList.get(npk);
+                    double intensity = this.intList.get(npk);
                     //normalitzem la intensitat utilitzant el maxim dels N primers pics.
                     intensity = (intensity/maxIslist) * maxI_factorPerNormalitzar;
                     if (c.getPeaks().get(index).getYcalc()>=0){ //no tenim en compte les -1 (NaN)

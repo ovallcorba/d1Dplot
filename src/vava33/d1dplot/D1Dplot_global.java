@@ -31,8 +31,8 @@ import com.vava33.jutils.VavaLogger;
 
 public final class D1Dplot_global {
 
-    public static final int version = 1909; //nomes canviare la versio global quan faci un per distribuir
-    public static final int build_date = 191108; //aquesta si que la canviare sempre
+    public static final int version = 2001; //nomes canviare la versio global quan faci un per distribuir
+    public static final int build_date = 200116; //aquesta si que la canviare sempre
     public static final String welcomeMSG = "d1Dplot v"+version+" ("+build_date+") by O.Vallcorba\n\n"
     		+ " This is a DEVELOPMENT version and contains errors. Please USE WITH CAUTION.\n"
     		+ " Report of errors or comments about the program are appreciated.\n";
@@ -53,14 +53,21 @@ public final class D1Dplot_global {
     public static final String angstrom= "\u212B";
     public static final String beta= "\u03B2";
     public static final SimpleDateFormat fHora = new SimpleDateFormat("yyyy-MM-dd");
-    public static String[] lightColors = {"black","blue","red","green","magenta","cyan","pink","yellow"}; //8 colors
-    public static String[] DarkColors = {"yellow","white","cyan","green","magenta","blue","red","pink"}; //8 colors
+//    public static String[] lightColors = {"black","blue","red","green","magenta","cyan","pink","yellow"}; //8 colors
+//    public static String[] DarkColors = {"yellow","white","cyan","green","magenta","blue","red","pink"}; //8 colors
+
+    public static String[] lightColors = {"black","blue","red","greenDarker1","magentaDarker1","cyanDarker1","pinkDarker1","yellowDarker1","gray",
+            "magentaDarker3","blueDarker2","redDarker2","greenDarker3","violet","cyanDarker3","pinkDarker3","yellowDarker3","grayDarker2"}; //18 colors 
+    public static String[] DarkColors = {"yellow","white","cyan","green","magenta","blue","red","pink","grayBrighter1",
+            "violet","yellowDarker1","cyanDarker1","greenDarker1","magentaDarker1","blueDarker1","redDarker1","pinkDarker1","gray"}; //18 colors
     
     public static VavaLogger log;
     
     private static D1Dplot_main d1DMainFrame;
     
-    private static final boolean overrideLogLevelConfigFile = false;
+    public static final boolean release = false; //si true aleshores s'activen els hidethingsDebug per treure el que està en desenvolupament
+    
+    private static final boolean overrideLogLevelConfigFile = true;
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     
@@ -169,8 +176,8 @@ public final class D1Dplot_global {
         D1Dplot_main.setLandF(readedOpt.getValAsString("lookAndFeel", D1Dplot_main.getLandF()));
         Database.setMinDspacingToSearch(readedOpt.getValAsFloat("minDspacingToSearch", Database.getMinDspacingToSearch()));
         DataSerie.def_hklticksize=readedOpt.getValAsInteger("hklTickSize", DataSerie.def_hklticksize);
-        DataSerie.def_lineWidth=readedOpt.getValAsFloat("linewidth", DataSerie.def_lineWidth);
-        DataSerie.def_markerSize=readedOpt.getValAsFloat("markersize", DataSerie.def_markerSize);
+        DataSerie.def_lineWidth=readedOpt.getValAsFloat("def_linewidth", DataSerie.def_lineWidth);
+        DataSerie.def_markerSize=readedOpt.getValAsFloat("def_markersize", DataSerie.def_markerSize);
         PDDatabase.setLocalDB(readedOpt.getValAsString("defCompoundDB", PDDatabase.getLocalDB()));
         DBfile = PDDatabase.getLocalDB();
         	    

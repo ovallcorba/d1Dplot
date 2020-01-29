@@ -337,25 +337,31 @@ public final class DataFileUtils {
     }
     
     public static File writePeaksFile(File d1File, DataSerie pksDS, boolean overwrite) {
-        SupportedWritePeaksFormats[] possibilities = SupportedWritePeaksFormats
-                .values();
-        SupportedWritePeaksFormats s = (SupportedWritePeaksFormats) JOptionPane
-                .showInputDialog(null, "Output format:", "Save Peaks",
-                        JOptionPane.PLAIN_MESSAGE, null, possibilities,
-                        possibilities[0]);
-        if (s == null) {
-            return null;
-        }
         boolean written = false;
         File fout = null;
-        switch (s) {
-            case DIC:
-                d1File = FileUtils.canviExtensio(d1File, "dic");
-                written = writePeaksDIC(pksDS,d1File,overwrite);
-                break;
-            case TXT:
-                written = writePeaksTXT(pksDS,d1File,overwrite);
-                break;
+        if (D1Dplot_global.release) { //a la release no posem res del dicvol
+            written = writePeaksTXT(pksDS,d1File,overwrite);
+        }else {
+            SupportedWritePeaksFormats[] possibilities = SupportedWritePeaksFormats
+                    .values();
+            SupportedWritePeaksFormats s = (SupportedWritePeaksFormats) JOptionPane
+                    .showInputDialog(null, "Output format:", "Save Peaks",
+                            JOptionPane.PLAIN_MESSAGE, null, possibilities,
+                            possibilities[0]);
+            if (s == null) {
+                return null;
+            }
+            
+            
+            switch (s) {
+                case DIC:
+                    d1File = FileUtils.canviExtensio(d1File, "dic");
+                    written = writePeaksDIC(pksDS,d1File,overwrite);
+                    break;
+                case TXT:
+                    written = writePeaksTXT(pksDS,d1File,overwrite);
+                    break;
+            }
         }
         if (written) fout = d1File;
         return fout;
@@ -1381,7 +1387,7 @@ public final class DataFileUtils {
                     String sca = FileUtils.dfX_4.format(d.getScaleY());
                     String zof = FileUtils.dfX_5.format(d.getXOffset());
                     String wav = FileUtils.dfX_5.format(d.getWavelength());
-                    String xun = d.getxUnits().getName();
+                    String xun = d.getxUnits().name();
                     String yof = FileUtils.dfX_3.format(d.getYOffset());
                     String mar = FileUtils.dfX_2.format(d.getMarkerSize());
                     String lin = FileUtils.dfX_2.format(d.getLineWidth());
@@ -1443,6 +1449,7 @@ public final class DataFileUtils {
             line = sf.nextLine();
             while (!line.startsWith("----")) {
                 sb.append(line);
+                sb.append(FileUtils.lineSeparator);
                 line=sf.nextLine();
             }
             opt.readOptionsFromString(sb.toString());
@@ -1510,6 +1517,7 @@ public final class DataFileUtils {
                     ds.setScaleY(Float.parseFloat(vals[1]));
                     ds.setXOffset(Double.parseDouble(vals[2]));
                     ds.setWavelength(Double.parseDouble(vals[3]));
+                    ds.setxUnits(Xunits.getEnum(vals[4]));
                     ds.setYOffset(Double.parseDouble(vals[5]));
                     ds.setMarkerSize(Float.parseFloat(vals[6]));
                     ds.setLineWidth(Float.parseFloat(vals[7]));
@@ -1572,7 +1580,7 @@ public final class DataFileUtils {
           for (DataSerie ds:dsHKL) {
               out.println(String.format("HKL %s",ds.getName()));
               for (int i=0;i<ds.getNPoints();i++) {
-                  out.println(String.format(" %10.7e  %s", ds.getCorrectedPoint(i, 0, 0, 0, 1.0,false).getX(),ds.getCorrectedPoint(i, 0, 0, 0, 1.0,false).getInfo()));
+                  out.println(String.format(" %10.7e  %s", ds.getCorrectedPoint(i, 0, 0, 0, 1.0,false).getX(),ds.getCorrectedPoint(i, 0, 0, 0, 1.0,false).getLabel()));
               }
           }
       } catch (Exception ex) {
@@ -2318,7 +2326,7 @@ public final class DataFileUtils {
                     }
                 }
             }catch(Exception ex){
-                log.warning("Error parsing element after wave*= keyword");
+                log.warning("Error parsing element after name*= keyword");
             }
         }
         return name;

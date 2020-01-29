@@ -15,7 +15,7 @@ public class PDSearchResult implements Comparable<PDSearchResult>{
     private float residual_positions; //es el residual basic per defecte
     private float residual_intensities;
     private float total_residual; //el que serà la suma de les opcions triades (i es mostrarà en pantalla)
-    private static float minDSPin;  //minimum dspacing entered in the search peaks
+    private static double minDSPin;  //minimum dspacing entered in the search peaks
     private static int nDSPin; //number of peaks entered in the search
     
     public PDSearchResult(PDCompound comp, float res, float resInten){
@@ -55,11 +55,11 @@ public class PDSearchResult implements Comparable<PDSearchResult>{
         return 0;
     }
 
-    public static float getMinDSPin() {
+    public static double getMinDSPin() {
         return minDSPin;
     }
 
-    public static void setMinDSPin(float minDSPin) {
+    public static void setMinDSPin(double minDSPin) {
         PDSearchResult.minDSPin = minDSPin;
     }
 

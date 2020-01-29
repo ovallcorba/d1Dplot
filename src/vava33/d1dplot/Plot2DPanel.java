@@ -216,7 +216,7 @@ public class Plot2DPanel {
         panel_llegenda_full.setBackground(Color.white);
         panel_llegenda_full.setOpaque(true);
         panel_3.add(panel_llegenda_full, "cell 1 0 1 2,grow");
-        panel_llegenda_full.setLayout(new MigLayout("", "[20:20px:20px][]", "[][grow][][grow][]"));
+        panel_llegenda_full.setLayout(new MigLayout("", "[20px:20px:20px][]", "[][grow][][grow][]"));
         panel_llegenda = new llegenda2D();
         panel_llegenda_full.add(panel_llegenda, "cell 0 0 1 5,grow");
 
@@ -308,6 +308,7 @@ public class Plot2DPanel {
         });
         
         chckbxAlwaysFitY = new JCheckBox("Auto fit Y");
+        chckbxAlwaysFitY.setSelected(true);
         panel_4.add(chckbxAlwaysFitY, "cell 0 2 2 1");
         chckbxAlwaysFitY.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
@@ -445,6 +446,14 @@ public class Plot2DPanel {
     }
     
     private void inicia(){
+        //max i min de l'slider, agafem de la primera serie
+//        for (DataSerie ds: toPaint) {
+//            double[] maxmin = ds.calcYmeanYDesvYmaxYmin(true);
+//        }
+//        double[] maxmin = toPaint.get(0).calcYmeanYDesvYmaxYmin(true);
+//        slider_contrast.setMaximum((int) maxmin[2]);
+//        slider_contrast.setMinimum((int) maxmin[3]);
+//        slider_contrast.setValue((int) maxmin[0]);
         slider_contrast.setMaximum(10000);
         slider_contrast.setMinimum(0);
         slider_contrast.setValue(4000);
@@ -485,13 +494,21 @@ public class Plot2DPanel {
 	    lblColor.setText("");
 	    lblColor.setOpaque(true);
 
+	    slider_contrast.setMaximum((int) maxY);
+	    slider_contrast.setMinimum((int) minY);
+	    slider_contrast.setValue((int) meanY);
+        txtMincontrast.setText(Integer.toString(slider_contrast.getMinimum()));
+        txtMaxcontrast.setText(Integer.toString(slider_contrast.getMaximum()));
+        
 	    this.pintaImatge();
-	    this.pintaLlegenda();
-	    this.actualitzarVista();
+//	    this.pintaLlegenda();
+//	    this.actualitzarVista(); //ja ho fa pintaImatge
 	}
 
 	public void actualitzarVista(){
 	    this.getPanelImatge().repaint();
+//	    this.panel_llegenda.repaint();
+//	    this.panel_axis.repaint();
 	}
 
 	private void resetView() {
@@ -602,14 +619,21 @@ public class Plot2DPanel {
 
         int maxVal = slider_contrast.getValue();
         int minVal = slider_contrast.getMinimum();
-        int dimY = maxVal - minVal;
+        int dimY = maxVal - minVal +1;
         //        int dimX = 1;
         int type = BufferedImage.TYPE_INT_ARGB;
-        llegendaImg = new BufferedImage(1, dimY, type);
+        
+        //hem d'escalar dimY a 8 bits -> 32768
+//        float scale = 1;
+//        if (dimY>32767) {
+//            scale = 1.f/(dimY/32767.f);
+//        }
+        
+        llegendaImg = new BufferedImage(1, (int) (dimY), type);
         float height = (float)panel_llegenda.getHeight();
-        scalefitYllegenda = height /(float)dimY;
-
-        int quarter = (int) (dimY/4.);
+        scalefitYllegenda = height /(float)(dimY);
+//        log.writeNameNumPairs("config", true, "height,dimY,scalefitYllegenda", height,dimY,scalefitYllegenda);
+        int quarter = (int) ((dimY)/4.);
         lbl_legMax.setText(Integer.toString(maxVal)+" ");
         lbl_leg3Q.setText(Integer.toString(maxVal-quarter)+" ");
         lbl_leg2Q.setText("<html>\n<br>\n"+Integer.toString(maxVal-2*quarter)+" \n<br>\n<br>\n</html>");
@@ -1100,7 +1124,7 @@ public class Plot2DPanel {
 	private void do_slider_contrast_stateChanged(ChangeEvent arg0) {
 	        lblContrastValue.setText(Integer.toString(slider_contrast.getValue()));
 	        this.pintaImatge(); //ja conte actualitzar vista
-	        this.pintaLlegenda();
+//	        this.pintaLlegenda();
 	   }
 
 	private void do_btnNewButton_actionPerformed(ActionEvent e) {
@@ -1111,7 +1135,7 @@ public class Plot2DPanel {
 
 	private void do_btnFitToWindow_actionPerformed(ActionEvent arg0) {
 	    this.fitImage();
-	    this.pintaLlegenda();
+//	    this.pintaLlegenda();
 	}
 
 	private void do_txtMaxcontrast_actionPerformed(ActionEvent e) {
@@ -1201,7 +1225,7 @@ public class Plot2DPanel {
 
 	private void do_chckbxColor_itemStateChanged(ItemEvent arg0) {
         this.pintaImatge();
-        this.pintaLlegenda();
+//        this.pintaLlegenda();
     }
     
     private void do_chckbxInvertOrder_itemStateChanged(ItemEvent arg0) {
@@ -1310,8 +1334,8 @@ public class Plot2DPanel {
     }
 	
     private boolean checkIfDiv(){
-        if (this.div_incXPrim == 0) return false;
-        if (this.div_incXSec == 0) return false;
+        if (this.div_incXPrim <= 0) return false;
+        if (this.div_incXSec <= 0) return false;
         return true;
     }
 
@@ -1383,6 +1407,7 @@ public class Plot2DPanel {
 	                writeTitles(g2);
 	            }
 	            
+                pintaLlegenda();
 	            panel_axis.repaint();
 	            
                 if(gridY){

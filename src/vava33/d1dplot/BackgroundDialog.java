@@ -45,6 +45,8 @@ import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
 
 import java.awt.Font;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 //todo crear checkserieselected
 
@@ -97,6 +99,12 @@ public class BackgroundDialog {
      */
     public BackgroundDialog(XRDPlot1DPanel p,D1Dplot_data m) {
     	this.bkgDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Background Estimation",false);
+    	bkgDialog.addWindowListener(new WindowAdapter() {
+    	    @Override
+    	    public void windowClosing(WindowEvent e) {
+    	        do_bkgDialog_windowClosing(e);
+    	    }
+    	});
         this.contentPanel = new JPanel();
         bkgDialog.setIconImage(D1Dplot_global.getIcon());
         this.plotpanel=p;
@@ -394,7 +402,7 @@ public class BackgroundDialog {
 	        if (fonsCalc!=null){
 	            if (fonsCalc.getNPoints()>=0){
 	                fonsCalc.setName(dsactive.getName()+" (Background)");
-	                dsactive.getParent().replaceDataSerie(fonsCalc, SerieType.bkg, true);
+	                dades.replaceDataSerie(dsactive.getParent(), fonsCalc, SerieType.bkg);
 	            }
 	        }
 	        if (puntsFons!=null){
@@ -455,7 +463,7 @@ public class BackgroundDialog {
     private DataSerie getDStoApplyBKG() {
         DataSerie dsactive = dades.getFirstSelectedDataSerie();
         if (dsactive.getSerieType()!=SerieType.dat) dsactive = dades.getSelectedSeriesByType(SerieType.dat).get(0);
-        if (dsactive==null)dsactive = dades.getFirstSelectedDataSerie();
+        if (dsactive==null)dsactive = dades.getFirstSelectedDataSerie().getParent().getMainSerie();
         return dsactive;
     }
     
@@ -608,5 +616,9 @@ public class BackgroundDialog {
     public void visible(boolean vis) {
     	bkgDialog.setVisible(vis);
     	if (vis)inicia();
+    }
+    
+    protected void do_bkgDialog_windowClosing(WindowEvent e) {
+        this.tanca();
     }
 }

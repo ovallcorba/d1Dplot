@@ -280,6 +280,8 @@ public class FitPeakDialog {
 //        List<Plottable_point> calc = new ArrayList<Plottable_point>();
 //        DataSerie dscalc = new DataSerie(dades.getMainSerieOfSelectedPlottable(),calc,dades.getMainSerieOfSelectedPlottable().getxUnits());
         DataSerie dscalc = new DataSerie(mainSerie,SerieType.cal,false);
+        dscalc.setColor(Color.red);
+        dscalc.setName(mainSerie.getName()+" (pV fit)");
         while (xval<xminmax[1]) {
             DataPoint dp = new DataPoint(xval,0,0,dscalc);
             for(PseudoVoigt pv:pvs) {
@@ -310,7 +312,7 @@ public class FitPeakDialog {
          */
         DataSerie peaks = null;
         try {
-            peaks = dades.getSelectedSeriesByType(SerieType.peaks).get(0);
+            peaks = dades.getFirstSelectedDataSet().getFirstDataSerieByType(SerieType.peaks);
         }catch(Exception ex) {
             log.info("Please, select the peaks first (peak search) and create a peaks serie");
             return;
@@ -373,9 +375,9 @@ public class FitPeakDialog {
             this.setFieldFromPV(pv);
             this.addToTable(pv);
             //ara la resta
-            log.writeNameNumPairs("info", true, "xpos,ymax,opt", xpos.length,ymax.length,opt_xpos.length);
+            log.writeNameNumPairs("debug", true, "xpos,ymax,opt", xpos.length,ymax.length,opt_xpos.length);
             for (int i=1;i<xpos.length;i++) {
-                log.info(Integer.toString(i));
+                log.debug(Integer.toString(i));
                 PseudoVoigt npv = new PseudoVoigt(pv);
                 npv.updateFunctions(opt_xpos[i], opt_xpos[i+xpos.length]);
                 this.addToTable(npv);

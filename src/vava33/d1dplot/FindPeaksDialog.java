@@ -44,6 +44,8 @@ import com.vava33.d1dplot.auxi.DoubleJSlider;
 import com.vava33.d1dplot.auxi.PattOps;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class FindPeaksDialog {
 
@@ -80,6 +82,12 @@ public class FindPeaksDialog {
         this.dades=d;
         this.contentPanel = new JPanel();
         this.findPeaksDialog = new JDialog(D1Dplot_global.getD1DmainFrame(),"Find Peaks",false);
+        findPeaksDialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                do_findPeaksDialog_windowClosing(e);
+            }
+        });
         findPeaksDialog.setIconImage(D1Dplot_global.getIcon());
         findPeaksDialog.setBounds(100, 100, 370, 540);
         findPeaksDialog.getContentPane().setLayout(new BorderLayout());
@@ -247,16 +255,20 @@ public class FindPeaksDialog {
             }
         }
         
-        
+        if (D1Dplot_global.release)this.hideThingsDebug();
         
         this.autoPeakSearch();
+    }
+    
+    private void hideThingsDebug() {
+        btnIndex.setVisible(false);
     }
 
     //returns the dat of the selected plottable OR if not possible, the first selected serie (independentment del tipus) intentem primer el dat, sino altres
     private DataSerie getMostFavorableDS() {
         DataSerie dsactive = dades.getFirstSelectedDataSerie();
         if (dsactive.getSerieType()!=SerieType.dat) dsactive = dades.getSelectedSeriesByType(SerieType.dat).get(0);
-        if (dsactive==null)dsactive = dades.getFirstSelectedDataSerie();
+        if (dsactive==null)dsactive = dades.getFirstSelectedDataSerie().getParent().getMainSerie();
         return dsactive;
     }
     
@@ -283,7 +295,9 @@ public class FindPeaksDialog {
 
             DataSerie pks = PattOps.findPeaksEvenBetter(ds,llindar,fact,tthmin,tthmax,plotpanel.isPlotwithbkg());
             pks.setName(ds.getName()+" (peaks)");
-            ds.getParent().replaceDataSerie(pks, SerieType.peaks, true);
+            
+            dades.replaceDataSerie(ds.getParent(), pks, SerieType.peaks);
+            
             if (llindar==null){
                 //plotejo linia recta
                 double llindar_value = ds.calcYmeanYDesvYmaxYmin(plotpanel.isPlotwithbkg())[1];
@@ -381,7 +395,7 @@ public class FindPeaksDialog {
             return;
         }
         try {
-            DataSerie pksDS = dades.getSelectedSeriesByType(SerieType.peaks).get(0);
+            DataSerie pksDS = dades.getFirstSelectedDataSet().getFirstDataSerieByType(SerieType.peaks);
             pksDS.sortPoints();//ordenem per 2theta abans de salvar
             pksFile = DataFileUtils.writePeaksFile(pksFile, pksDS, true);
             log.info(pksFile.toString()+" written!");   
@@ -422,5 +436,8 @@ public class FindPeaksDialog {
         if (e.getKeyCode()==KeyEvent.VK_ENTER) {
             autoPeakSearch();
         }
+    }
+    protected void do_findPeaksDialog_windowClosing(WindowEvent e) {
+        this.tanca();
     }
 }

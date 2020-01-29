@@ -29,8 +29,8 @@ import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.jutils.VavaLogger;
 
 
-public class DataSerie extends BasicSerie{
-
+public class DataSerie extends BasicSerie<Plottable_point>{
+ 
     private static final String className = "DataSerie";
     private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
     

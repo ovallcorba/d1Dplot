@@ -400,6 +400,11 @@ public class Database  {
                         panel_1.setLayout(new MigLayout("fill", "[][][grow][]", "[][][grow][]"));
                         {
                             chckbxNameFilter = new JCheckBox("Apply name filter:");
+                            chckbxNameFilter.addItemListener(new ItemListener() {
+                                public void itemStateChanged(ItemEvent e) {
+                                    do_chckbxNameFilter_itemStateChanged(e);
+                                }
+                            });
                             panel_1.add(chckbxNameFilter, "cell 0 0 2 1,alignx left");
                         }
                         txtNamefilter = new JTextField();
@@ -591,6 +596,7 @@ public class Database  {
     protected void do_chckbxCalibrate_itemStateChanged(ItemEvent arg0) {
         this.showPDDataPeaks = chckbxPDdata.isSelected();
         this.getPlotpanel().setShowDBCompound(this.isShowDataPeaks());
+        this.plotpanel.actualitzaPlot();
     }
 
     protected void do_lbllist_mouseEntered(MouseEvent e) {
@@ -704,14 +710,13 @@ public class Database  {
                     return;
                 }
                 ds.setWavelength(wave);
+                first.setWavelength(wave);
+                dades.updateFullTable();
             }
             ds.convertDStoXunits(first.getxUnits());
         }
         
         this.getPlotpanel().dbCompound=ds;
-        
-        
-        
         this.getPlotpanel().actualitzaPlot();
     }
     
@@ -769,6 +774,15 @@ public class Database  {
     }
     
     public void searchPeaks(){
+        if (!dades.isOneSerieSelected()) {
+            log.info("Please select only one pattern with a peaks serie to search by them");
+            return;
+        }
+        DataSerie pks = dades.getFirstSelectedDataSet().getFirstDataSerieByType(SerieType.peaks);
+        if (pks==null) {
+            log.info("Please select only one pattern with a peaks serie to search by them");
+            return;
+        }
         
         pm = new ProgressMonitor(DBdialog,
                 "Searching for peak matching...",
@@ -778,7 +792,7 @@ public class Database  {
         pBarDB.setString("Searching DB");
         pBarDB.setStringPainted(true);
         
-        searchDBwk = new PDDatabase.searchDBWorker(dades.getSelectedPlottables().get(0),minDspacingToSearch);
+        searchDBwk = new PDDatabase.searchDBWorker(pks,minDspacingToSearch);
         searchDBwk.addPropertyChangeListener(new PropertyChangeListener() {
 
             @Override
@@ -814,7 +828,7 @@ public class Database  {
     //la faig nova passant PuntsCercles al swingworker
     protected void do_btnSearchByPeaks_actionPerformed(ActionEvent e) {
     	if (!dades.isOneSerieSelected())return; //ja envia missatge
-    	DataSerie pks = dades.getSelectedSeriesByType(SerieType.peaks).get(0);
+    	DataSerie pks = dades.getFirstSelectedDataSet().getFirstDataSerieByType(SerieType.peaks);
     	if (pks.isEmpty()) {
             log.info("Please select the desired data and perform a peaksearch first");
             return;    	    
@@ -1227,6 +1241,15 @@ public class Database  {
 	}
 	
 	private void do_chckbxIntensity_itemStateChanged(ItemEvent e) {
-		this.plotpanel.setShowDBCompoundIntensity(chckbxIntensity.isSelected()); //ja fa actualitzaplot dins
+		this.plotpanel.setShowDBCompoundIntensity(chckbxIntensity.isSelected()); 
+		this.plotpanel.actualitzaPlot();
 	}
+	
+    protected void do_chckbxNameFilter_itemStateChanged(ItemEvent e) {
+        if (!chckbxNameFilter.isSelected()) {
+            this.txtNamefilter.setText("");
+            this.updateListAllCompounds();
+            this.getPlotpanel().actualitzaPlot();
+        }
+    }
 }

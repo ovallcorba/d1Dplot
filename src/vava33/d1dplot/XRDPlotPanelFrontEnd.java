@@ -27,14 +27,19 @@ import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.Options;
+import com.vava33.jutils.VavaLogger;
 
 public class XRDPlotPanelFrontEnd extends BasicPlotPanelFrontEnd<XRDPlot1DPanel> {
 
     private static final long serialVersionUID = 1L;
     private D1Dplot_data dades;
     
-    public XRDPlotPanelFrontEnd(Options opt, XRDPlot1DPanel plot1Dpanel) {
-        super(opt,plot1Dpanel);
+    public static String getClassName() {
+        return "XRDPlotPanelFrontEnd";
+    }
+    
+    public XRDPlotPanelFrontEnd(Options opt, XRDPlot1DPanel plot1Dpanel,VavaLogger logger) {
+        super(opt,plot1Dpanel,logger);
         this.dades=plot1Dpanel.getDataToPlot();
     }
     
@@ -104,8 +109,8 @@ public class XRDPlotPanelFrontEnd extends BasicPlotPanelFrontEnd<XRDPlot1DPanel>
                     lblDsp.setText("");
                 }
 
-                //totes les hkl (ja les desactivarem si no volem veure'ls)
-                if (hkllabels){
+                //totes les hkl (ja les desactivarem si no volem veure'ls) -- EDIT no ho poso com a opcio, sempre es ploteja
+//                if (graphPanel.isHkllabels()){
                     List<Plottable_point> dhkl = new ArrayList<Plottable_point>();
                     for (DataSerie p: dades.getAllSeriesByType(SerieType.hkl)) {
                         if (!p.isPlotThis())continue;
@@ -122,7 +127,7 @@ public class XRDPlotPanelFrontEnd extends BasicPlotPanelFrontEnd<XRDPlot1DPanel>
                         boolean maxReached = false;
                         while (itrhkl.hasNext()){
                             Plottable_point hkl = itrhkl.next();
-                            shkl.append(hkl.getInfo()).append("; ");
+                            shkl.append(hkl.getLabel()).append("; ");
                             nhkls++;
                             if (nhkls>=maxREFS) {
                                 maxReached=true;
@@ -135,9 +140,9 @@ public class XRDPlotPanelFrontEnd extends BasicPlotPanelFrontEnd<XRDPlot1DPanel>
                     }else {
                         lblHkl.setText("");
                     }
-                }else{
-                    lblHkl.setText("");
-                }
+//                }else{
+//                    lblHkl.setText("");
+//                }
             }
         }
     }

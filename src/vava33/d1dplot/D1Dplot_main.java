@@ -28,10 +28,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -144,6 +147,8 @@ public class D1Dplot_main {
     private JMenuItem mntmFitPeaks;
     private JPanel panel_1;
     private JMenuItem mntmDajust;
+    private JMenu mnNewMenu;
+    private JMenuItem mntmInvertOrder;
 
     /**
      * Launch the application.
@@ -202,14 +207,19 @@ public class D1Dplot_main {
     public D1Dplot_main() {
         //1 dades
         XRDdata = new D1Dplot_data();
-        XRDPlot1DPanel pp = new XRDPlot1DPanel(XRDdata);
-        //2 plot1Dpanel and (3-frontend)
-        plotPanel = new XRDPlotPanelFrontEnd(D1Dplot_global.getReadedOpt(),pp);
+        //2 plot1Dpanel
+        XRDPlot1DPanel pp = new XRDPlot1DPanel(XRDdata,D1Dplot_global.getVavaLogger(XRDPlot1DPanel.getClassName()));
+        //and 3rd frontend
+        plotPanel = new XRDPlotPanelFrontEnd(D1Dplot_global.getReadedOpt(),pp,D1Dplot_global.getVavaLogger(XRDPlotPanelFrontEnd.getClassName()));
         initGUI();
         inicia();
-        hideThingsDebug();
+        if (D1Dplot_global.release)hideThingsDebug();
     }
-
+    
+    private void hideThingsDebug() {
+        mntmDajust.setVisible(false);
+    }
+    
     public void showMainFrame(){
         mainFrame.setVisible(true);
         this.plotPanel.showHideButtonsPanel();//amagara el menu lateral
@@ -424,14 +434,14 @@ public class D1Dplot_main {
             }
         });
         mnPlot.add(mntmSequentialyOffset);
-
-        mntmDB = new JMenuItem("Compound Database");
-        mntmDB.addActionListener(new ActionListener() {
+        
+        mntmInvertOrder = new JMenuItem("Invert pattern order");
+        mntmInvertOrder.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                do_mntmDB_actionPerformed(e);
+                do_mntmInvertOrder_actionPerformed(e);
             }
         });
-        mnPlot.add(mntmDB);
+        mnPlot.add(mntmInvertOrder);
         mntm2Dplot.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 do_mntm2Dplot_actionPerformed(e);
@@ -505,13 +515,24 @@ public class D1Dplot_main {
         });
         mnOps.add(mntmFitPeaks);
         
-        mntmDajust = new JMenuItem("Dajust");
-        mntmDajust.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                do_mntmDajust_actionPerformed(e);
-            }
-        });
-        mnOps.add(mntmDajust);
+        mnNewMenu = new JMenu("Tools");
+        menuBar.add(mnNewMenu);
+        
+                mntmDB = new JMenuItem("Compound Database");
+                mnNewMenu.add(mntmDB);
+                
+                mntmDajust = new JMenuItem("Dajust");
+                mnNewMenu.add(mntmDajust);
+                mntmDajust.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        do_mntmDajust_actionPerformed(e);
+                    }
+                });
+                mntmDB.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        do_mntmDB_actionPerformed(e);
+                    }
+                });
 
         mnHelp = new JMenu("Help");
         menuBar.add(mnHelp);
@@ -543,9 +564,6 @@ public class D1Dplot_main {
 
     //=========================================================
 
-    private void hideThingsDebug() {
-        mntmDajust.setVisible(false);
-    }
     
     private void inicia(){
 
@@ -773,6 +791,7 @@ public class D1Dplot_main {
             datFile = DataFileUtils.writePatternFile(datFile, dss.get(0), true, plotPanel.getGraphPanel().isPlotwithbkg());
             D1Dplot_global.setWorkdir(datFile);
             log.info(datFile.toString()+" written!");
+            return;
         }
 
         //191108 - Preguntar batch save individual files or multipleDatFile
@@ -908,6 +927,7 @@ public class D1Dplot_main {
         try {
             PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(fsvg,true)));
             svgGenerator.stream(out, useCSS);
+            log.info(fsvg.getName()+" written!");
 
         } catch (Exception e) {
             log.warning("Error saving SVG");
@@ -1057,7 +1077,7 @@ public class D1Dplot_main {
             FileUtils.InfoDialog(mainFrame,"Select more than one pattern", "2D plot selected patterns");
             return;
         }
-
+        
 
         //CAL COMPROVAR QUE TOTS ELS PATTERNS COINCIDEIXEN; SINO REBINNING I ZONA COINCIDENT
         //Primer comprovar punts, sino rebinning de les series que faci falta, la primera serie mana
@@ -1177,7 +1197,11 @@ public class D1Dplot_main {
 
     private void do_mntmRebinning_actionPerformed(ActionEvent arg0) {
         if (!XRDdata.arePlottables())return;
-        if (!XRDdata.areSelectedPlottables())return;
+        if (!XRDdata.areSelectedPlottables()) {
+            log.info("Please, select the patterns you want to do a rebinning");
+            FileUtils.InfoDialog(mainFrame,"Select the patterns you want to perform the rebinning", "Rebinning");
+            return;
+        }
 
         DataSerie firstDS = XRDdata.getFirstSelectedDataSerie();
         String st2i = FileUtils.dfX_4.format(firstDS.getCorrectedPoint(0, plotPanel.getGraphPanel().isPlotwithbkg()).getX());
@@ -1228,7 +1252,6 @@ public class D1Dplot_main {
             XRDdata.addDataSet(dsp, true, false); //actualitzarem al final
         }
         plotPanel.getGraphPanel().actualitzaPlot();
-
     }
 
 
@@ -1257,7 +1280,42 @@ public class D1Dplot_main {
     }
     
     private void do_mntmCheckForUpdates_actionPerformed(ActionEvent e) {
-        log.info("software updates not available");
+//        log.info("software updates not available");
+                String bona="";
+                String url="https://www.cells.es/en/beamlines/bl04-mspd/preparing-your-experiment";
+                
+        		try {
+        			URL mspd = new URL(url);
+        			BufferedReader in = new BufferedReader(new InputStreamReader(mspd.openStream()));
+        	        String inputLine;
+        	        while ((inputLine = in.readLine()) != null) {
+        	            if (FileUtils.containsIgnoreCase(inputLine, "d1Dplot software for windows v")) {
+        	            	bona = inputLine;
+        	            	break;
+        	            }
+        	        }
+        	        in.close();
+        			
+        		} catch (Exception e1) {
+        			if(D1Dplot_global.isDebug())e1.printStackTrace();
+        			log.warning("Error checking for new versions");
+        		}
+        
+        		//d2Dplot software for linux v1811" href="https://www.cells.es/en/beamlines/bl04-mspd/d2dplot1811win_181122-tar.gz
+        		if (bona.length()>0) {
+        			String data = bona.split(".zip")[0];
+        			data = data.split("win_")[1];
+        			int webVersion = Integer.parseInt(data);
+        			if (webVersion != D1Dplot_global.build_date) {
+        				boolean yes = FileUtils.YesNoDialog(this.getMainFrame(), "New d1Dplot version is available ("+webVersion+"). Please download at\n"+url,"New version available!");
+        				if (yes) {
+        					FileUtils.openURL(url);
+        				}
+        			}
+        			if (webVersion == D1Dplot_global.build_date) {
+        				FileUtils.InfoDialog(this.getMainFrame(), "You have the last version of d1Dplot ("+D1Dplot_global.build_date+").", "d1Dplot is up to date");
+        			}
+        		}
     }
 
     private void do_mntmDB_actionPerformed(ActionEvent e) {
@@ -1356,5 +1414,7 @@ public class D1Dplot_main {
         if (fitGraph)plotPanel.getGraphPanel().fitGraph();
     }
     
-    
+    protected void do_mntmInvertOrder_actionPerformed(ActionEvent e) {
+        XRDdata.invertOrderTable();
+    }
 }

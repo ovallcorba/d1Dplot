@@ -16,17 +16,22 @@ import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 
 import com.vava33.BasicPlotPanel.core.Plot1DPanel;
-import com.vava33.BasicPlotPanel.core.Plottable;
 import com.vava33.BasicPlotPanel.core.Plottable_point;
 import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.d1dplot.data.DataSet;
 import com.vava33.d1dplot.data.Xunits;
+import com.vava33.jutils.VavaLogger;
 
 public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
 
     private static final long serialVersionUID = 1L;
+
+    public static String getClassName() {
+        return "XRDPlot1DPanel";
+    }
+    
     private boolean showPeakThreshold = false;
     private boolean showEstimPointsBackground = false;
     private boolean selectingBkgPoints = false;
@@ -36,6 +41,7 @@ public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
     private boolean showDBCompound = false;
     private boolean showIndexSolution = false;
 
+    
     //series "propies" i arraylist de les seleccionades -- AUXILIARY DATASERIES
     protected DataSerie bkgseriePeakSearch; //threshold del background
     protected DataSerie bkgEstimP; //threshold del background
@@ -44,8 +50,8 @@ public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
     protected Color colorDBcomp = Color.blue;
 
      
-    public XRDPlot1DPanel(D1Dplot_data data) {
-        super(data);
+    public XRDPlot1DPanel(D1Dplot_data data,VavaLogger logger) {
+        super(data,logger);
         bkgseriePeakSearch=new DataSerie(SerieType.bkg,Xunits.none,null); // millorable
         bkgEstimP=new DataSerie(SerieType.bkgEstimP,Xunits.none,null);// millorable
     }
@@ -83,7 +89,8 @@ public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
         DataSet dset = this.getDataToPlot().getFirstSelectedDataSerie().getParent();
         DataSerie ds = dset.getFirstDataSerieByType(SerieType.peaks);
         if (ds!=null) {
-            Plottable_point toDelete = ds.getClosestPointXY(new DataPoint(dp.x,dp.y,0,null),-1,-1,this.isPlotwithbkg());
+//            Plottable_point toDelete = ds.getClosestPointXY(new DataPoint(dp.x,dp.y,0,null),dset.getMainSerie().calcStep()*10,-1,this.isPlotwithbkg());
+            Plottable_point toDelete = ds.getClosestPointX(dp.x,dset.getMainSerie().calcStep()*10);
             if (toDelete!=null){
                 ds.removePoint(toDelete);
             }
@@ -97,7 +104,7 @@ public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
         if ((ds!=null)&&(!this.isCustomXtitle())) {
             this.setXlabel(ds.getxUnits().getName());
         }
-        System.out.println("paint called");
+//        System.out.println("paint called");
     }
     
     @Override
@@ -125,7 +132,7 @@ public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
         }
         
         if (showDBCompound){
-            if (dbCompound != null)drawREF(g2,dbCompound,colorDBcomp);
+            if (dbCompound != null)drawREF(g2,dbCompound,colorDBcomp,this.isHkllabels());
         }
 
         if (showIndexSolution){
@@ -178,7 +185,7 @@ public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
         this.deletingBkgPoints = deletingBkgPoints;
     }
 
-    public Plottable getBkgseriePeakSearch() {
+    public DataSerie getBkgseriePeakSearch() {
         return bkgseriePeakSearch;
     }
 
@@ -202,7 +209,4 @@ public class XRDPlot1DPanel extends Plot1DPanel<D1Dplot_data> {
     public void setDeletingPeaks(boolean deletingPeaks) {
         this.deletingPeaks = deletingPeaks;
     }
-
-
-
 }

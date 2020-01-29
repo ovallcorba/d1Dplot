@@ -36,13 +36,14 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.TableModel;
 
+import org.apache.commons.math3.util.FastMath;
+
 import com.vava33.BasicPlotPanel.core.DataToPlot;
-import com.vava33.BasicPlotPanel.core.Plot1DGlobal;
+//import com.vava33.BasicPlotPanel.core.Plot1DGlobal;
 import com.vava33.BasicPlotPanel.core.Plot1DPanel;
 import com.vava33.BasicPlotPanel.core.SerieType;
-import com.vava33.BasicPlotPanel.table.BatchEditDialog;
-import com.vava33.BasicPlotPanel.table.ColorEditor;
-import com.vava33.BasicPlotPanel.table.ColorRenderer;
+import com.vava33.d1dplot.auxi.ColorEditor;
+import com.vava33.d1dplot.auxi.ColorRenderer;
 import com.vava33.d1dplot.auxi.DataFileUtils;
 import com.vava33.d1dplot.auxi.PattOps;
 import com.vava33.d1dplot.auxi.PatternsTableCellRenderer;
@@ -78,8 +79,10 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
  
     public void addDataSet(DataSet dset, boolean paintIt, boolean updatePlot) {
         for (DataSerie ser:dset.getDataSeries()) {
-            if (paintIt)this.paintIt(nColoredSeries,ser);
-            if (SerieType.isPaintedType(ser.getSerieType()))nColoredSeries++;
+            if (DataSerie.isPaintedType(ser.getSerieType())){
+                if (paintIt)this.paintIt(nColoredSeries,ser);
+                nColoredSeries++;
+            }
         }
         this.datasets.add(dset);
         for (DataSerie ds:dset.getDataSeries()) {
@@ -93,8 +96,10 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     }
     
     public void addDataSerie(DataSerie ds, DataSet dst, boolean paintIt, boolean updateTable, boolean updatePlot) {
-        if (paintIt)this.paintIt(nColoredSeries,ds);
-        if (SerieType.isPaintedType(ds.getSerieType()))nColoredSeries++;
+        if (DataSerie.isPaintedType(ds.getSerieType())){
+            if (paintIt)this.paintIt(nColoredSeries,ds);
+            nColoredSeries++;
+        }
         dst.addDataSerie(ds);
         ds.setParent(dst);
         if(updateTable)this.updateFullTable();
@@ -104,7 +109,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     public void removeDataSet(DataSet dset, boolean updateTable, boolean updatePlot) {
         this.datasets.remove(dset);
         for (DataSerie ds:dset.getDataSeries()) {
-            if (SerieType.isPaintedType(ds.getSerieType()))nColoredSeries--;
+            if (DataSerie.isPaintedType(ds.getSerieType()))nColoredSeries--;
         }
         if(updateTable)this.updateFullTable();
         if(updatePlot)plotpanel.actualitzaPlot();
@@ -113,14 +118,19 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     public void removeDataSerie(DataSerie ds, boolean updateTable, boolean updatePlot) {
         DataSet dset = ds.getParent();
         dset.removeDataSerie(ds);
-        if (SerieType.isPaintedType(ds.getSerieType()))nColoredSeries--;
+        if (DataSerie.isPaintedType(ds.getSerieType()))nColoredSeries--;
         if (dset.getNSeries()==0)this.removeDataSet(dset, false, false);
         if(updateTable)this.updateFullTable();
         if(updatePlot)plotpanel.actualitzaPlot();
     }
     
     public void removeSelectedSeries() {
+        int ilastRemovedRow = -1;
+        PatternsTableModel model = (PatternsTableModel) pltTable.getModel();
+        ArrayList<DataSerie> toRemove = new ArrayList<DataSerie>();
         for (int i=0; i<selectedSeries.size();i++) {
+            ilastRemovedRow = model.getRowOfDS(selectedSeries.get(i));
+            toRemove.add(selectedSeries.get(i));
             this.removeDataSerie(selectedSeries.get(i), false, false);
         }
         
@@ -134,6 +144,18 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
 //        for (DataSerie ds:selectedSeries) {
 //            this.removeDataSerie(ds, false);
 //        }
+        
+        //ara seleccionem la última que quedi
+//        selectedSeries.removeAll(toRemove);
+        this.updateFullTable();
+        if(ilastRemovedRow>=0) {
+            if (this.arePlottables()) {
+                int ind = FastMath.min(ilastRemovedRow, model.getRowCount()-1);
+                DataSerie toSelect = model.getDSAtRow(ind);
+                selectedSeries.add(toSelect);
+//                selectedSeries.add(model.getDSAtRow(FastMath.min(ilastRemovedRow, model.getRowCount()-1)));
+            }
+        }
         this.updateFullTable();
         plotpanel.actualitzaPlot();
     }
@@ -167,6 +189,8 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     
     public void reloadSelectedDataSets() {
         Set<DataSet> selectedSets=new HashSet<DataSet>();
+//        PatternsTableModel model = (PatternsTableModel)pltTable.getModel();
+        int[] selrows = pltTable.getSelectedRows();
         for (DataSerie ds:selectedSeries) {
             selectedSets.add(ds.getParent());
         }
@@ -174,7 +198,34 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
             this.replaceDataSet(datasets.indexOf(ds),DataFileUtils.readPatternFile(ds.getFile()),true);
         }
         this.updateFullTable();
+        for (int i=0;i<selrows.length;i++) {
+            try {
+                pltTable.addRowSelectionInterval(selrows[i], selrows[i]);
+            }catch(IllegalArgumentException ex) {
+                //row not existing
+            }
+        }
         plotpanel.actualitzaPlot();
+    }
+    
+    /**
+     * replaces first occurence of the stype in a dataset, otherwise adds the dataserie
+     */
+    public void replaceDataSerie(DataSet dset, DataSerie newDS, SerieType stypeToReplace) {
+        int index = -1;
+        try {
+            index = dset.indexOfDS(dset.getDataSeriesByType(stypeToReplace).get(0));
+        }catch(Exception ex) {
+            log.info("DataSerie not found, adding as new");
+        }
+        newDS.setSerieType(stypeToReplace);
+        newDS.setParent(dset);
+        if (index>=0) {
+            dset.replaceDataSerie(index, newDS);
+            this.updateFullTable();
+        }else {
+            this.addDataSerie(newDS, dset, true, true, true);
+        }
     }
     
 //    public int indexOfDataSet(DataSet ds) {
@@ -252,7 +303,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
             }
             pltTable.getColumn(PatternsTableModel.columns.Type.toString()).setCellEditor(new DefaultCellEditor(comboStypeTable));           
         }catch(IllegalArgumentException ex) {
-            System.out.println("Type column is not shown");
+            log.debug("Type column is not shown");
         }
 
        
@@ -375,7 +426,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
                 return i;
         return -1;
     }
-
+    
     
     private void applicarModificacioTaula(int columna, int filaIni, int filaFin){
         plotpanel.actualitzaPlot();
@@ -400,17 +451,17 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
 //            selectedSeries.add(this.datasets.get(indexP).getDataSerie(indexDS));    
         }
         
-        log.info("SELECTED_SERIES:");
-        for (DataSerie ds:selectedSeries) {
-           log.info(ds.getName());
-        }
+//        log.debug("SELECTED_SERIES:");
+//        for (DataSerie ds:selectedSeries) {
+//           log.debug(ds.getName());
+//        }
         
     }
 
     //TODO
     private void editMultipleSeriesTable(ActionEvent e) {
         if (selectedSeries.size()>0) {
-            BatchEditDialog<DataSerie> be = new BatchEditDialog<DataSerie>(selectedSeries);
+            BatchEditDialog be = new BatchEditDialog(selectedSeries);
             be.setModal(true);
             be.setVisible(true);         
             
@@ -419,7 +470,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
             plotpanel.actualitzaPlot();
             
         }else {
-            System.out.println("Select the series(s) that you want to edit");
+            log.info("Select the series(s) that you want to edit");
         }
     }
     
@@ -445,7 +496,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
                     Color.BLACK);
             s = "changing color column";
             if(newColor == null){
-                System.out.println("Select a valid color");
+                log.info("Select a valid color");
                 return;
             }
             ask=false;
@@ -536,7 +587,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
                     pltTable.setValueAt(Double.parseDouble(s), selRow, selCol);
                     break;
                 default:
-                    System.out.println("Column not editable");
+                    log.info("Column not editable");
                     break;
                 }
             }
@@ -784,17 +835,17 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
             DataSerie ds = selectedSeries.get(i);
             DataSet dset = ds.getParent();
             int actualPos = dset.indexOfDS(ds);
-            log.infof("** SelectedSerie %d:%s",i,ds.getName());
+//            log.infof("** SelectedSerie %d:%s",i,ds.getName());
             if (actualPos==0) {//cannot move serie UP, we have to move DataSet
                 int dsetPos = datasets.indexOf(dset);
-                log.infof(" Is first serie of DataSet %d",dsetPos);
+//                log.infof(" Is first serie of DataSet %d",dsetPos);
                 if (dsetPos>0) {
                     swapDataSets(dsetPos,dsetPos-1);
-                    log.infof(" moving dataset from %d to %d",dsetPos,dsetPos-1);
+//                    log.infof(" moving dataset from %d to %d",dsetPos,dsetPos-1);
                 }
             }else {
                 //move dataSerie UP
-                log.infof(" moving serie from %d to %d",actualPos,actualPos-1);
+//                log.infof(" moving serie from %d to %d",actualPos,actualPos-1);
                 swapDataSeries(dset,actualPos, actualPos-1);    
             }
         }
@@ -825,17 +876,17 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
             DataSerie ds = selectedSeries.get(i);
             DataSet dset = ds.getParent();
             int actualPos = dset.indexOfDS(ds);
-            log.infof("** SelectedSerie %d:%s",i,ds.getName());
+//            log.infof("** SelectedSerie %d:%s",i,ds.getName());
             if (actualPos==dset.getNSeries()-1) {//cannot move serie DOWN, we have to move DataSet
                 int dsetPos = datasets.indexOf(dset);
-                log.infof(" Is last serie of DataSet %d",dsetPos);
+//                log.infof(" Is last serie of DataSet %d",dsetPos);
                 if (dsetPos<datasets.size()-1) {
                     swapDataSets(dsetPos,dsetPos+1);
-                    log.infof(" moving dataset from %d to %d",dsetPos,dsetPos+1);
+//                    log.infof(" moving dataset from %d to %d",dsetPos,dsetPos+1);
                 }
             }else {
                 //move dataSerie DOWN inside dataset
-                log.infof(" moving serie from %d to %d",actualPos,actualPos+1);
+//                log.infof(" moving serie from %d to %d",actualPos,actualPos+1);
                 swapDataSeries(dset,actualPos, actualPos+1);    
             }
         }
@@ -870,6 +921,12 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
             return false;
         }
         return true;
+    }
+    
+    public void invertOrderTable() {
+        Collections.reverse(this.datasets);
+        this.updateFullTable();
+        plotpanel.actualitzaPlot();
     }
     
 /**************************************************************************************
@@ -963,10 +1020,10 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     private void paintIt(int nserie, DataSerie ds) {
         if (plotpanel.isLightTheme()){
             int ncol = (nserie)%D1Dplot_global.lightColors.length;
-            ds.setColor(FileUtils.parseColorName(Plot1DGlobal.lightColors[ncol]));    
+            ds.setColor(FileUtils.parseColorName(D1Dplot_global.lightColors[ncol]));    
         }else {
             int ncol = (nserie)%D1Dplot_global.DarkColors.length;
-            ds.setColor(FileUtils.parseColorName(Plot1DGlobal.DarkColors[ncol]));
+            ds.setColor(FileUtils.parseColorName(D1Dplot_global.DarkColors[ncol]));
         } 
     }
     
