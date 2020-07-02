@@ -75,7 +75,9 @@ public class FitPeakDialog {
         this.dades=d;
         this.contentPanel = new JPanel();
         fitPkDialog.setIconImage(D1Dplot_global.getIcon());
-        fitPkDialog.setBounds(100, 100, 814, 227);
+//        fitPkDialog.setBounds(100, 100, 814, 227);
+        fitPkDialog.setSize(814,227);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), fitPkDialog, true);
         fitPkDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         fitPkDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);

@@ -110,7 +110,9 @@ public class DicvolDialog {
         dicDialog = new JDialog(parent,"Save DICVOL file",true);
         this.contentPanel = new JPanel();
         dicDialog.setIconImage(D1Dplot_global.getIcon());
-        dicDialog.setBounds(100, 100, 700, 419);
+//        dicDialog.setBounds(100, 100, 700, 419);
+        dicDialog.setSize(700,419);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), dicDialog, true);
         dicDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         dicDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);

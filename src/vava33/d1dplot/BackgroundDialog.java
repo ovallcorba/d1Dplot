@@ -110,7 +110,10 @@ public class BackgroundDialog {
         this.plotpanel=p;
         this.dades=m;
 //        this.main = m;
-        bkgDialog.setBounds(100, 100, 481, 646);
+//        bkgDialog.setBounds(100, 100, 481, 646);
+        bkgDialog.setSize(480,650);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), bkgDialog, true);
+        
         bkgDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         bkgDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);

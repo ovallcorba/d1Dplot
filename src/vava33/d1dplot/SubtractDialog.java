@@ -73,7 +73,9 @@ public class SubtractDialog {
         this.dades=d;
         this.contentPanel = new JPanel();
         subtractDialog.setIconImage(D1Dplot_global.getIcon());
-        subtractDialog.setBounds(100, 100, 814, 240);
+//        subtractDialog.setBounds(100, 100, 814, 240);
+        subtractDialog.setSize(814,240);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), subtractDialog, true);
         subtractDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         subtractDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);

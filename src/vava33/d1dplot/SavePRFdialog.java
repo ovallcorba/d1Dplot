@@ -61,7 +61,9 @@ public class SavePRFdialog {
         this.data = xrddata;
         this.contentPanel = new JPanel();
         savePRFdialog.setIconImage(D1Dplot_global.getIcon());
-        savePRFdialog.setBounds(100, 100, 814, 240);
+//        savePRFdialog.setBounds(100, 100, 814, 240);
+        savePRFdialog.setSize(814,240);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), savePRFdialog, true);
         savePRFdialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         savePRFdialog.getContentPane().add(contentPanel, BorderLayout.CENTER);

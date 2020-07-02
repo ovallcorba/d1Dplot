@@ -196,7 +196,11 @@ public class IndexDialog {
         this.indexDialog = new JDialog(parent,"Indexing ** IN DEVELOPMENT **",false);
         log.info("Indexing module is IN DEVELOPMENT. It does NOT work properly and contain ERRORS that can CRASH THE PROGRAM");
         this.indexDialog.setIconImage(D1Dplot_global.getIcon());
-        this.indexDialog.setBounds(100, 100, 925, 665); //TODO CANVIAR A LA MIDA BONA
+//        this.indexDialog.setBounds(100, 100, 925, 665); //TODO CANVIAR A LA MIDA BONA
+        
+        indexDialog.setSize(925,665);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), indexDialog, true);
+        
         this.indexDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         this.indexDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);

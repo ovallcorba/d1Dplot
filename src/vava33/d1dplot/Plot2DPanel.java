@@ -170,7 +170,9 @@ public class Plot2DPanel {
 //            }
 //        });
         plot2Ddialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        plot2Ddialog.setBounds(100, 100, 960, 567);
+//        plot2Ddialog.setBounds(100, 100, 960, 567);
+        plot2Ddialog.setSize(960,567);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), plot2Ddialog, true);
 
         plot2Ddialog.getContentPane().setLayout(new MigLayout("", "[grow][]", "[][grow][]"));
 

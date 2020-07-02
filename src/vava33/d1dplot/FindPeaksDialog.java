@@ -89,7 +89,9 @@ public class FindPeaksDialog {
             }
         });
         findPeaksDialog.setIconImage(D1Dplot_global.getIcon());
-        findPeaksDialog.setBounds(100, 100, 370, 540);
+//        findPeaksDialog.setBounds(100, 100, 370, 540);
+        findPeaksDialog.setSize(370,540);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), findPeaksDialog, true);
         findPeaksDialog.getContentPane().setLayout(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         findPeaksDialog.getContentPane().add(contentPanel, BorderLayout.CENTER);
