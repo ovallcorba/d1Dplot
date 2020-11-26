@@ -12,9 +12,7 @@ package com.vava33.d1dplot;
 
 import java.awt.BorderLayout;
 import java.awt.Desktop;
-import java.awt.Dimension;
 import java.awt.Image;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -37,6 +35,7 @@ import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 
 import com.vava33.jutils.FileUtils;
+import com.vava33.jutils.VavaLogger;
 
 public class AboutDialog {
 	
@@ -48,6 +47,9 @@ public class AboutDialog {
     private JScrollPane scrollPane;
     private JLabel lblLogoalba;
 
+    private static final String className = "About";
+    private static VavaLogger log = D1Dplot_global.getVavaLogger(className);
+    
     /**
      * Create the dialog.
      */
@@ -56,12 +58,10 @@ public class AboutDialog {
     	this.contentPanel = new JPanel();
     	aboutDialog.setIconImage(D1Dplot_global.getIcon());
     	aboutDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-        int width = 620;
-        int height = 700;
-        int x = (screen.width - width) / 2;
-        int y = (screen.height - height) / 2;
-        aboutDialog.setBounds(x, y, width, height);
+
+        aboutDialog.setSize(620,700);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), aboutDialog, true);
+        
         aboutDialog.getContentPane().setLayout(new BorderLayout());
         this.contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         aboutDialog.getContentPane().add(this.contentPanel, BorderLayout.CENTER);
@@ -132,7 +132,7 @@ public class AboutDialog {
                         try {
                             Desktop.getDesktop().browse(e.getURL().toURI());
                         } catch (Exception e1) {
-                            if(D1Dplot_global.isDebug())e1.printStackTrace();
+                            log.warning("Error opening default browser");
                         }
                     }
                 }
@@ -148,10 +148,10 @@ public class AboutDialog {
             try {
                 textPane.setPage(aboutURL);
             } catch (IOException e) {
-                System.err.println("Attempted to read a bad URL: " + aboutURL);
+                log.warning("Error reading ABOUT information");
             }
         } else {
-            System.err.println("Couldn't find file: " + aboutURL);
+            log.warning("Couldn't find file: " + aboutURL);
         }
         
         scrollPane.getViewport().setOpaque(false);
@@ -176,7 +176,7 @@ public class AboutDialog {
                 return;
             }
         } catch (Exception e) {
-            if(D1Dplot_global.isDebug())e.printStackTrace();
+            //error
         }
         FileUtils.InfoDialog(aboutDialog, "Sorry, unable to open user's guide with default pdf viewer. \n"
                 + "Please open it manually from the program folder", "D1Dplot User's Guide");
