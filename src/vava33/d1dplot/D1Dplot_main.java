@@ -18,12 +18,10 @@ package com.vava33.d1dplot;
  *  
  */
 
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Image;
 import java.awt.Insets;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
@@ -36,6 +34,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -59,11 +58,40 @@ import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
+
+import org.apache.commons.math3.analysis.MultivariateFunction;
+import org.apache.commons.math3.fitting.leastsquares.EvaluationRmsChecker;
+import org.apache.commons.math3.fitting.leastsquares.GaussNewtonOptimizer;
+import org.apache.commons.math3.fitting.leastsquares.LeastSquaresBuilder;
+import org.apache.commons.math3.fitting.leastsquares.LeastSquaresFactory;
+import org.apache.commons.math3.fitting.leastsquares.LeastSquaresOptimizer;
+import org.apache.commons.math3.fitting.leastsquares.LeastSquaresProblem;
+import org.apache.commons.math3.fitting.leastsquares.LevenbergMarquardtOptimizer;
+import org.apache.commons.math3.fitting.leastsquares.MultivariateJacobianFunction;
+import org.apache.commons.math3.geometry.euclidean.twod.Vector2D;
+import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.ArrayRealVector;
+import org.apache.commons.math3.linear.RealMatrix;
+import org.apache.commons.math3.linear.RealVector;
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.PointValuePair;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.NelderMeadSimplex;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
+import org.apache.commons.math3.optim.ConvergenceChecker;
+import org.apache.commons.math3.util.FastMath;
+import org.apache.commons.math3.util.Pair;
+
 import net.miginfocom.swing.MigLayout;
 
 import com.vava33.BasicPlotPanel.core.Plottable_point;
 import com.vava33.BasicPlotPanel.core.SerieType;
+import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.CellSymm_global;
+import com.vava33.cellsymm.HKLrefl;
+import com.vava33.cellsymm.SpaceGroup;
 import com.vava33.d1dplot.auxi.ArgumentLauncher;
 import com.vava33.d1dplot.auxi.DataFileUtils;
 import com.vava33.d1dplot.auxi.PattOps;
@@ -149,6 +177,7 @@ public class D1Dplot_main {
     private JMenuItem mntmDajust;
     private JMenu mnNewMenu;
     private JMenuItem mntmInvertOrder;
+    private JMenuItem mntmCalibwave;
 
     /**
      * Launch the application.
@@ -192,6 +221,9 @@ public class D1Dplot_main {
                     if (ArgumentLauncher.isLaunchGraphics()){
                         frame.showMainFrame();
                     }else{
+                        log.info("Exiting...");
+                        frame.mainFrame.dispose();
+//                        return;
                         System.exit(0);
                     }
                 } catch (Exception e) {
@@ -207,17 +239,38 @@ public class D1Dplot_main {
     public D1Dplot_main() {
         //1 dades
         XRDdata = new D1Dplot_data();
-        //2 plot1Dpanel
+        //2 plot1Dpanel TODO CAL COMENTAR AQUESTA LINIA PER PODER OBRIR WINDOWBUILDER
         XRDPlot1DPanel pp = new XRDPlot1DPanel(XRDdata,D1Dplot_global.getVavaLogger(XRDPlot1DPanel.getClassName()));
         //and 3rd frontend
         plotPanel = new XRDPlotPanelFrontEnd(D1Dplot_global.getReadedOpt(),pp,D1Dplot_global.getVavaLogger(XRDPlotPanelFrontEnd.getClassName()));
         initGUI();
+        fitOnScreen();
         inicia();
         if (D1Dplot_global.release)hideThingsDebug();
     }
     
+    private void fitOnScreen(){   
+    	//COMPROVEM QUE HI CAP A LA PANTALLA EN LA MIDA SELECIONADA i SINO LA REDUIM PER FER-HO CABRE
+    	
+        int[] screenWH = D1Dplot_global.getDisplayMonitorDimensions(D1Dplot_global.getDisplayMonitor());
+    	
+    	mainFrame.setSize(D1Dplot_main.getDef_Width(), D1Dplot_main.getDef_Height());
+//    	Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+    	
+    	while(mainFrame.getWidth()>screenWH[0]){
+    		mainFrame.setSize(mainFrame.getWidth()-100, mainFrame.getHeight());
+    	}
+    	while(mainFrame.getHeight()>screenWH[1]){
+    		mainFrame.setSize(mainFrame.getWidth(), mainFrame.getHeight()-100);
+    	}
+    	
+    	//ARA LA POSEM AL MONITOR QUE TOCA I LA CENTREM (ho fa la mateixa subrutina)
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), mainFrame,true);
+
+    }
     private void hideThingsDebug() {
         mntmDajust.setVisible(false);
+        mntmCalibwave.setVisible(false);
     }
     
     public void showMainFrame(){
@@ -241,7 +294,7 @@ public class D1Dplot_main {
         });
         mainFrame.setTitle("D1Dplot");
         mainFrame.setIconImage(D1Dplot_global.getIcon());
-        mainFrame.setBounds(100, 100, 1024, 768);
+//        mainFrame.setBounds(100, 100, 1024, 768);
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainFrame.getContentPane().setLayout(new MigLayout("", "[grow]", "[grow]"));
 
@@ -345,7 +398,7 @@ public class D1Dplot_main {
         menuBar.add(mnFile);
 
         mntmOpen = new JMenuItem("Open Data File");
-        mntmOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_MASK));
+        mntmOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK));
         mntmOpen.setMnemonic('o');
         mntmOpen.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -523,6 +576,14 @@ public class D1Dplot_main {
                 
                 mntmDajust = new JMenuItem("Dajust");
                 mnNewMenu.add(mntmDajust);
+                
+                mntmCalibwave = new JMenuItem("CalibWave");
+                mntmCalibwave.addActionListener(new ActionListener() {
+                	public void actionPerformed(ActionEvent arg0) {
+                		do_mntmCalibwave_actionPerformed(arg0);
+                	}
+                });
+                mnNewMenu.add(mntmCalibwave);
                 mntmDajust.addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e) {
                         do_mntmDajust_actionPerformed(e);
@@ -568,16 +629,6 @@ public class D1Dplot_main {
     private void inicia(){
 
         if (D1Dplot_global.isLoggingTA())VavaLogger.setTArea(tAOut);
-
-        //HO FEM CABRE
-        mainFrame.setSize(D1Dplot_main.getDef_Width(), D1Dplot_main.getDef_Height()); //ho centra el metode main
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        while(mainFrame.getWidth()>screenSize.width){
-            mainFrame.setSize(mainFrame.getWidth()-100, mainFrame.getHeight());
-        }
-        while(mainFrame.getHeight()>screenSize.height){
-            mainFrame.setSize(mainFrame.getWidth(), mainFrame.getHeight()-100);
-        }
 
         //split and divider loc
         tabbedPanel_bottom.setMinimumSize(new Dimension(0, 5));
@@ -665,7 +716,9 @@ public class D1Dplot_main {
         }
         D1Dplot_global.setWorkdir(datFile[0]);
         for (int i=0; i<datFile.length;i++){
-            readDataFile(datFile[i]);    
+        	if (datFile[i].exists()) {
+        		readDataFile(datFile[i]);	
+        	}
         }
         //per panell log
         if(firstTime) {
@@ -1417,4 +1470,115 @@ public class D1Dplot_main {
     protected void do_mntmInvertOrder_actionPerformed(ActionEvent e) {
         XRDdata.invertOrderTable();
     }
+    
+	protected void do_mntmCalibwave_actionPerformed(ActionEvent arg0) {
+//		final double siPar=5.4307; //5.4311946;
+		final double siPar=5.4311946; //5.4311946;
+		Cell siCell = new Cell(siPar,siPar,siPar,90,90,90,true,CellSymm_global.getSpaceGroupByNum(227));
+		
+		//TODO aqui si hi ha wave es pot mirar de determinar quina és la qmax possible
+		double Qmax = 7; //equival a dsp=0.9
+//		DataSerie ds = XRDdata.getFirstSelectedDataSerie();
+//		Plottable_point pp = ds.getDataPointX_as(Xunits.dspInv, ds.getRawPoint(ds.getNPoints()-1));
+//		pp.get
+		final List<HKLrefl> refls = siCell.generateHKLsAsymetricUnitCrystalFamily(Qmax, true, true, true, false, true);
+    	refls.remove(3);
+		final DataSerie peaks = XRDdata.getFirstSelectedDataSet().getFirstDataSerieByType(SerieType.peaks);
+		final double guessWave = peaks.getWavelength(); //mirar com fer-ho
+		if (peaks==null) return; //TODO: missatge primer fer pics
+        
+    	final int npeaks = 6;
+
+        //TEST WITH LS
+        MultivariateJacobianFunction minimize2theta = new MultivariateJacobianFunction() {
+            public Pair<RealVector, RealMatrix> value(final RealVector point) {
+            	
+            	double wave = point.getEntry(0);
+            	double zero = point.getEntry(1);
+            	
+                RealVector value = new ArrayRealVector(npeaks);
+                RealMatrix jacobian = new Array2DRowRealMatrix(npeaks, 2);
+
+                for (int i = 0; i < npeaks; i++) {
+            		double tthCAL = refls.get(i).calct2(wave, true) + zero; //si aqui poso + després el zero l'hauré d'aplicar RESTANT a les dades 
+                    value.setEntry(i, tthCAL);
+                    // derivative with respect to p0 = wave
+                    double dsp = refls.get(i).getDsp();
+                    double arg = (wave*wave)/(4*dsp*dsp);
+                    double deriv = (1/(dsp*FastMath.sqrt(1-arg)))*(1/(2*dsp));
+                    jacobian.setEntry(i, 0, deriv);
+                    // derivative with respect to p1 = zero
+                    jacobian.setEntry(i, 1, 1);
+                }
+                return new Pair<RealVector, RealMatrix>(value, jacobian);
+            }
+        };
+        
+        RealVector pics = new ArrayRealVector(npeaks);
+        for (int i=0;i<npeaks;i++) {
+        	pics.setEntry(i, peaks.getDataPointX_as(Xunits.tth, peaks.getRawPoint(i)));
+        }
+
+        
+        LeastSquaresProblem problem = new LeastSquaresBuilder().
+        		start(new double[] { guessWave, 0.00001 }).
+        		model(minimize2theta).
+        		target(pics).
+        		lazyEvaluation(false).
+        		maxEvaluations(50000).
+        		maxIterations(50000).
+//        		checker(checker).
+        		build();
+        
+        
+        LeastSquaresOptimizer optimizer = new LevenbergMarquardtOptimizer().withInitialStepBoundFactor(0.1); //IMPORTANT el 0.1, sino no convergeix als valors correctes...
+        
+        LeastSquaresOptimizer.Optimum optimum = optimizer.optimize(problem);
+
+        log.info("========== Calibration results ================");
+        log.info("   Wavelength (A) =" + FileUtils.dfX_6.format(optimum.getPoint().getEntry(0)));
+        log.info("   Zero (º) =" + FileUtils.dfX_6.format(optimum.getPoint().getEntry(1)));
+        log.info("===============================================");
+        log.info("RMS: "           + optimum.getRMS()); //Get the normalized cost. It is the square-root of the sum of squared of the residuals, divided by the number of measurements.
+        log.info("evaluations: "   + optimum.getEvaluations());
+        log.info("iterations: "    + optimum.getIterations());
+        log.info("cov: "    + optimum.getSigma(0));
+//        log.info("cov: "    + optimum.getCovariances(0));
+        log.info("residuals: " + optimum.getResiduals());
+        log.info("cost: " + optimum.getCost());
+        log.info("point: " + optimum.getPoint());
+
+        log.info("Nr. observations: " + problem.getObservationSize());
+        log.info("Nr. parameters: " + problem.getParameterSize());
+        
+        int dof = problem.getObservationSize() - problem.getParameterSize();
+//        double chisq = FastMath.sqrt(optimum.getResiduals().getEntry(0)*optimum.getResiduals().getEntry(0)+(optimum.getResiduals().getEntry(1)*optimum.getResiduals().getEntry(1)))/dof;
+        double chisq = 0;
+        for (double res:optimum.getResiduals().toArray()) {
+        	chisq = chisq + (res*res);
+        }
+//        double chisq = (optimum.getResiduals().getEntry(0)*optimum.getResiduals().getEntry(0)+(optimum.getResiduals().getEntry(1)*optimum.getResiduals().getEntry(1)))/dof;
+        log.info("chi square: " + chisq);
+        log.info("sqrt(chisq/dof): "+ FastMath.sqrt(chisq/dof));
+        log.info("sqrt(chisq/dof): "+ FastMath.sqrt(chisq/6)); //AQUEST CORRESPON AMB EL RMS DE APACHE
+        log.info("sqrt(chisq)/dof: "+ FastMath.sqrt(chisq)/dof);
+        log.info("ff way error wave: "+ optimum.getSigma(0).getEntry(0)*FastMath.sqrt(chisq/dof));
+        log.info("error by math3: "+ optimum.getRMS()*optimum.getSigma(0).getEntry(0));
+        
+        log.info("tth obs: "+pics);
+		final List<HKLrefl> cal = siCell.generateHKLsAsymetricUnitCrystalFamily(Qmax, true, true, true, false, true);
+		cal.remove(3);
+    	RealVector picsCAL = new ArrayRealVector(npeaks);
+        for (int i=0;i<npeaks;i++) {
+        	picsCAL.setEntry(i, cal.get(i).calct2(optimum.getPoint().getEntry(0), true)+optimum.getPoint().getEntry(1));
+        }
+        log.info("tth cal: "+picsCAL);
+     // DONE: puc restar els valors obs-cal i mirar si els residuals coincideixen per tal de mirar si estic aplicant bé el signe -->> OK!!        
+        RealVector resMANUAL = new ArrayRealVector(npeaks);
+        for (int i=0;i<npeaks;i++) {
+        	resMANUAL.setEntry(i,pics.getEntry(i)-picsCAL.getEntry(i));
+        }
+        log.info("res: "+resMANUAL); 
+	}
 }
+

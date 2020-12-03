@@ -10,6 +10,11 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 import javax.swing.table.DefaultTableModel;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
@@ -22,9 +27,12 @@ import org.apache.commons.math3.util.FastMath;
 
 import com.vava33.BasicPlotPanel.core.Plottable_point;
 import com.vava33.BasicPlotPanel.core.SerieType;
+import com.vava33.cellsymm.HKLrefl;
+import com.vava33.cellsymm.SpaceGroup;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;
+import com.vava33.d1dplot.data.Xunits;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.VavaLogger;
 
@@ -510,5 +518,33 @@ public final class PattOps {
         return (0.939437278)*FastMath.exp((-2.7726*(x-mean)*(x-mean))/(fwhm*fwhm));
     }
     
+    
+    
+    
+    public static double minimize2Theta(DataSerie obspeaks, double lambda, double zero, List<HKLrefl> refls) {
+
+        //public Cell(double a, double b, double c, double alfa, double beta, double gamma, boolean inDegrees, SpaceGroup sg) {
+    	//1. extraiem pics del pattern --> AIXO MILLOR A UNA ALTRA RUTINA, IGUAL QUE EL CALCUL DE LES d's (per si es vol utilitzar una altra substancia o generar a partir del modul latt)
+    	//2. mirem quin es el d-space teòric més proper (per si de cas obviem primer pic, etc...)
+    	//3. calculem la 2Tcalc del dspacing teoric més proper i la long d'ona actual
+    	//4. restem 2Tobs del pic amb la 2Tcalc, per cada pic i en fem el residual.
+    	
+    	double originalWave = obspeaks.getWavelength();
+    	obspeaks.setWavelength(lambda);//per si de cas es necesssari al getDataPointX_as
+        double residual = 0;
+    	int npeaks = 6;
+    	for (int i = 0; i<npeaks; i++) {
+    		if (refls.size()<i)break;
+    		double tthCAL = refls.get(i).calct2(lambda, true);
+//    		double tthOBS = obspeaks.getDataPointX_as(Xunits.tth, obspeaks.getCorrectedPoint(i, false));
+    		double tthOBS = obspeaks.getDataPointX_as(Xunits.tth, obspeaks.getRawPoint(i))+zero; //el zero l'hauria de sumar al calc?
+    		log.writeNameNumPairs("fine", true, "tthCAL,tthOBS", tthCAL,tthOBS);
+            residual = residual + FastMath.abs(tthCAL - tthOBS);
+    	}
+    		
+    	obspeaks.setWavelength(originalWave);
+        return residual;
+
+    }
     
 }
