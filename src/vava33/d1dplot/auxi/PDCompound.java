@@ -57,18 +57,18 @@ public class PDCompound implements Comparable<PDCompound>{
     public String toString(){
         String altnames = this.getAltNames();
         if (!altnames.isEmpty()){
-            return String.format("%s [%s] (aka: %s)", this.getCompName().get(0), this.getFormula(), this.getAltNames());    
+            return String.format("%s [%s] (aka: %s)", this.getCompNames().get(0), this.getFormula(), this.getAltNames());    
         }else{
-            return String.format("%s [%s]", this.getCompName().get(0), this.getFormula());
+            return String.format("%s [%s]", this.getCompNames().get(0), this.getFormula());
         }
     }
     
     public String toStringNameFormula(){
-        return String.format("%s [%s]", this.getCompName().get(0), this.getFormula());
+        return String.format("%s [%s]", this.getCompNames().get(0), this.getFormula());
     }
     
     public String printInfoLine(){
-        return String.format("%s: %s (s.g. %s)", this.getCompName().get(0), this.cella.toStringCellParamOnly(),this.cella.getSg().getName());
+        return String.format("%s: %s (s.g. %s)", this.getCompNames().get(0), this.cella.toStringCellParamOnly(),this.cella.getSg().getName());
     }
     
     public String printInfo2Line(){
@@ -76,19 +76,19 @@ public class PDCompound implements Comparable<PDCompound>{
         if (!altnames.isEmpty()){
             return String.format("-- %s (aka: %s)\n"
                     + "cell: %s (s.g. %s)", 
-                    this.getCompName().get(0), this.getAltNames(),
+                    this.getCompNames().get(0), this.getAltNames(),
                     this.cella.toStringCellParamOnly(),this.cella.getSg().getName());
         }else{
             return String.format("-- %s\n"
                     + "   cell: s (s.g. %s)", 
-                    this.getCompName().get(0),
+                    this.getCompNames().get(0),
                     this.cella.toStringCellParamOnly(),this.cella.getSg().getName());
         }
     }
     
     public String printInfoMultipleLines(){
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format(" %s [%s]\n", this.getCompName().get(0),this.getFormula()));
+        sb.append(String.format(" %s [%s]\n", this.getCompNames().get(0),this.getFormula()));
         String altnames = this.getAltNames();
         if (!altnames.isEmpty())sb.append(String.format(" Other names: %s\n", altnames));
         sb.append(String.format(" Cell: %s (s.g. %s)\n",  this.cella.toStringCellParamOnly(),this.cella.getSg().getName()));
@@ -153,20 +153,24 @@ public class PDCompound implements Comparable<PDCompound>{
         return maxI;
     }
 
-    public List<String> getCompName() {
+    public String getCompName() {
+        return compName.get(0);
+    }
+    
+    public List<String> getCompNames() {
         return compName;
     }
 
     public void addCompoundName(String name){
-        this.getCompName().add(name);
+        this.getCompNames().add(name);
     }
 
     public String getAltNames(){
         StringBuilder sb = new StringBuilder();
-        if (this.getCompName().size()>1){
+        if (this.getCompNames().size()>1){
             int index = 1;
-            while (index < getCompName().size()){
-                sb.append(this.getCompName().get(index));
+            while (index < getCompNames().size()){
+                sb.append(this.getCompNames().get(index));
                 sb.append(" ");
                 index = index + 1;
             }
@@ -212,7 +216,7 @@ public class PDCompound implements Comparable<PDCompound>{
         for (HKLrefl pdr:this.getPeaks()) {
             ds.addPoint(new DataPoint_hkl(pdr.getDsp(),pdr.getYcalc(),0,pdr,ds));
         }
-        ds.setName(this.getCompName().get(0));
+        ds.setName(this.getCompNames().get(0));
         return ds;
     }
     

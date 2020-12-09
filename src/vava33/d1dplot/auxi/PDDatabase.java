@@ -249,7 +249,19 @@ public final class PDDatabase {
                                 }
                                
                                 if (line2.startsWith("#SPACE_GROUP:")){
-                                    comp.getCella().setSg(CellSymm_global.getSpaceGroupByName((line2.split(":"))[1].trim(),false));
+                                	if (comp.getCella().getSg().getsgNum()==2) { //si es P-1 pot ser que sigui encara el default, per tant mirem nom
+                                		comp.getCella().setSg(CellSymm_global.getSpaceGroupByName((line2.split(":"))[1].trim(),false));	
+                                	}
+                                }
+                                
+                                if (line2.startsWith("#SPACE_GROUP NR:")){
+                                	int sgnum=2;
+                                	try{
+                                		sgnum=Integer.parseInt((line2.split(":"))[1].trim());
+                                	}catch(NumberFormatException ex) {
+                                		log.info("Error reading SG number for "+comp.getCompName());
+                                	}
+                                    comp.getCella().setSg(CellSymm_global.getSpaceGroupByNum(sgnum));
                                 }
                                 
                                 if (line2.startsWith("#FORMULA:")){
@@ -420,7 +432,7 @@ public final class PDDatabase {
                     icomp = icomp + 1;
                     
                     PDCompound c = itC.next();
-                    output.println(String.format("#COMP: %s",c.getCompName().get(0)));
+                    output.println(String.format("#COMP: %s",c.getCompName()));
                     
                     String altnames = c.getAltNames();
                     if (!altnames.isEmpty())output.println(String.format("#NAMEALT: %s",altnames));

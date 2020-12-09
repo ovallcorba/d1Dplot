@@ -9,7 +9,6 @@ package com.vava33.d1dplot;
  */
 
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -158,12 +157,15 @@ public class Database  {
         
         DBdialog.setIconImage(D1Dplot_global.getIcon());
         DBdialog.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-        int width = 660;
-        int height = 730;
-        int x = (screen.width - width) / 2;
-        int y = (screen.height - height) / 2;
-        DBdialog.setBounds(x, y, width, height);
+//        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+//        int width = 660;
+//        int height = 730;
+//        int x = (screen.width - width) / 2;
+//        int y = (screen.height - height) / 2;
+//        DBdialog.setBounds(x, y, width, height);
+        DBdialog.setSize(660,730);
+        D1Dplot_global.showOnScreen(D1Dplot_global.getDisplayMonitor(), DBdialog, true);
+        
         DBdialog.getContentPane().setLayout(new MigLayout("fill, insets 5", "[grow]", "[grow][37px]"));
         DBdialog.getContentPane().add(this.contentPanel, "cell 0 0,grow");
         contentPanel.setLayout(new MigLayout("fill, insets 0", "[grow]", "[598px,grow]"));
@@ -721,7 +723,7 @@ public class Database  {
     }
     
     public void updateInfo(PDCompound c){
-        txtName.setText(c.getCompName().get(0));
+        txtName.setText(c.getCompNames().get(0));
         txtNamealt.setText(c.getAltNames());
         txtFormula.setText(c.getFormula());
         txtCellParameters.setText(c.getCellParameters());
@@ -855,7 +857,7 @@ public class Database  {
                     if (comp == null) return false;
                     
                     StringBuilder compinfo = new StringBuilder();
-                    compinfo.append(comp.getCompName()).append(" ");
+                    compinfo.append(comp.getCompNames()).append(" ");
                     compinfo.append(comp.getFormula()).append(" ");
                     compinfo.append(comp.getAltNames()).append(" ");
                     compinfo.append(comp.getCellParameters()).append(" ");
@@ -1046,7 +1048,7 @@ public class Database  {
         }
         
         //now we put the info into COMP
-        comp.getCompName().clear();
+        comp.getCompNames().clear();
         comp.addCompoundName(txtName.getText().trim());
         comp.addCompoundName(txtNamealt.getText().trim());
         comp.setFormula(txtFormula.getText().trim());

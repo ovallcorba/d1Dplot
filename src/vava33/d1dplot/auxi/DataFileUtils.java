@@ -2295,7 +2295,7 @@ public final class DataFileUtils {
                 for (int i=0;i<vals.length;i++){
                     if (FileUtils.containsIgnoreCase(vals[i], "wave")){
                         
-                        String[] vals2 = vals[i+1].split("\\s+");
+                        String[] vals2 = vals[i+1].trim().split("\\s+");
                         if (FileUtils.containsIgnoreCase(vals2[0], "A")){
                             wl = Double.parseDouble(vals2[0].substring(0, vals2[0].length()-1));
                         }else{

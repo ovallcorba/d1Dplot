@@ -78,6 +78,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
  */    
  
     public void addDataSet(DataSet dset, boolean paintIt, boolean updatePlot) {
+    	if (dset==null)return;
         for (DataSerie ser:dset.getDataSeries()) {
             if (DataSerie.isPaintedType(ser.getSerieType())){
                 if (paintIt)this.paintIt(nColoredSeries,ser);
@@ -96,6 +97,8 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     }
     
     public void addDataSerie(DataSerie ds, DataSet dst, boolean paintIt, boolean updateTable, boolean updatePlot) {
+    	if (ds==null)return;
+    	if (dst==null)return;
         if (DataSerie.isPaintedType(ds.getSerieType())){
             if (paintIt)this.paintIt(nColoredSeries,ds);
             nColoredSeries++;
@@ -107,6 +110,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     }
     
     public void removeDataSet(DataSet dset, boolean updateTable, boolean updatePlot) {
+    	if (dset==null)return;
         this.datasets.remove(dset);
         for (DataSerie ds:dset.getDataSeries()) {
             if (DataSerie.isPaintedType(ds.getSerieType()))nColoredSeries--;
@@ -116,6 +120,7 @@ public class D1Dplot_data implements DataToPlot<DataSerie> {
     }
     
     public void removeDataSerie(DataSerie ds, boolean updateTable, boolean updatePlot) {
+    	if (ds==null)return;
         DataSet dset = ds.getParent();
         dset.removeDataSerie(ds);
         if (DataSerie.isPaintedType(ds.getSerieType()))nColoredSeries--;
