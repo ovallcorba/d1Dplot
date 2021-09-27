@@ -9,10 +9,6 @@ package com.vava33.d1dplot.auxi;
  * Licence: GPLv3
  * 
  */
-
-import java.awt.geom.Point2D;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.table.DefaultTableModel;
@@ -28,7 +24,6 @@ import org.apache.commons.math3.util.FastMath;
 import com.vava33.BasicPlotPanel.core.Plottable_point;
 import com.vava33.BasicPlotPanel.core.SerieType;
 import com.vava33.cellsymm.HKLrefl;
-import com.vava33.cellsymm.SpaceGroup;
 import com.vava33.d1dplot.D1Dplot_global;
 import com.vava33.d1dplot.data.DataPoint;
 import com.vava33.d1dplot.data.DataSerie;

@@ -26,11 +26,10 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.Locale;
 import javax.swing.JFrame;
-
 import com.vava33.cellsymm.Cell;
 import com.vava33.cellsymm.CellSymm_global;
+import com.vava33.cellsymm.PDDatabase;
 import com.vava33.d1dplot.auxi.Calibrant;
-import com.vava33.d1dplot.auxi.PDDatabase;
 import com.vava33.d1dplot.data.DataSerie;
 import com.vava33.jutils.FileUtils;
 import com.vava33.jutils.Options;
@@ -38,8 +37,8 @@ import com.vava33.jutils.VavaLogger;
 
 public final class D1Dplot_global {
 
-    public static final int version = 2011; //nomes canviare la versio global quan faci un per distribuir
-    public static final int build_date = 201126; //aquesta si que la canviare sempre
+    public static final int version = 2101; //nomes canviare la versio global quan faci un per distribuir
+    public static final int build_date = 210927; //aquesta si que la canviare sempre
     public static final String welcomeMSG = "d1Dplot v"+version+" ("+build_date+") by O.Vallcorba\n\n"
     		+ " This is a DEVELOPMENT version and contains errors. Please USE WITH CAUTION.\n"
     		+ " Report of errors or comments about the program are appreciated.\n";
@@ -59,6 +58,7 @@ public final class D1Dplot_global {
     public static final String theta = "\u03B8";
     public static final String angstrom= "\u212B";
     public static final String beta= "\u03B2";
+    public static final String lambda= "\u03BB";
     public static final SimpleDateFormat fHora = new SimpleDateFormat("yyyy-MM-dd");
 //    public static String[] lightColors = {"black","blue","red","green","magenta","cyan","pink","yellow"}; //8 colors
 //    public static String[] DarkColors = {"yellow","white","cyan","green","magenta","blue","red","pink"}; //8 colors
@@ -72,17 +72,17 @@ public final class D1Dplot_global {
     
     private static D1Dplot_main d1DMainFrame;
     
-    public static final boolean release = false; //si true aleshores s'activen els hidethingsDebug per treure el que està en desenvolupament
+    public static final boolean release = true; //si true aleshores s'activen els hidethingsDebug per treure el que està en desenvolupament
     
-    private static final boolean overrideLogLevelConfigFile = true; //relase == false
+    private static final boolean overrideLogLevelConfigFile = false; //relase == false
 
     //PARAMETRES QUE ES PODEN CANVIAR A LES OPCIONS =======================================
     
     //global 
-    private static boolean loggingConsole = true; //console  //relase == false
+    private static boolean loggingConsole = false; //console  //relase == false
     private static boolean loggingFile = false; //file
     private static boolean loggingTA = true; //textArea -- NO ESCRIT AL FITXER DE CONFIGURACIO JA QUE VOLEM SEMPRE ACTIVAT
-    private static String loglevel = "config"; //info, config, etc... //relase == info
+    private static String loglevel = "info"; //info, config, etc... //relase == info
     private static String workdir = System.getProperty("user.dir");
     private static boolean keepMainWinSize = false;
     private static int displayMonitor = -1; //-1 default monitor
@@ -195,7 +195,7 @@ public final class D1Dplot_global {
         //AFEGIM user calibrants si n'hi ha
         //FORMAT: calibrant: NAME; a b c alfa beta gamma; SGnum
         String usercalibrants = readedOpt.getValAsString("calibrant", "");
-	    CalibrationDialog.calibrants = new ArrayList<Calibrant>();
+	    WaveCalDialog.calibrants = new ArrayList<Calibrant>();
 	    if (usercalibrants.length()>0) {
             try {
                 String[] values = usercalibrants.trim().split(";");
@@ -203,7 +203,7 @@ public final class D1Dplot_global {
                 	double[] cellp = FileUtils.xFloatStringArrayToDoubleArray(values[1].trim().split("\\s+"));
                 	Cell cel = new Cell(cellp[0],cellp[1],cellp[2],cellp[3],cellp[4],cellp[5],true,CellSymm_global.getSpaceGroupByNum(Integer.parseInt(values[2]))); 
                     Calibrant c = new Calibrant(values[0],cel);
-                    CalibrationDialog.calibrants.add(c);
+                    WaveCalDialog.calibrants.add(c);
                 }
             } catch (final Exception ex) {
                 if (isDebug())
@@ -243,11 +243,14 @@ public final class D1Dplot_global {
 	            output.println("defCompoundDB = "+DBfile);
 	            output.println(String.format(Locale.ROOT,"%s = %.4f", "minDspacingToSearch",Database.getMinDspacingToSearch()));
 	            //calibrants
-	            for (Calibrant c: CalibrationDialog.calibrants) {
-	                if (c.getName().equalsIgnoreCase("LaB6 NIST-660B"))
-	                    continue;//only the user's
-	                if (c.getName().equalsIgnoreCase("Silicon NIST-640D"))
-	                    continue;
+	            if (WaveCalDialog.calibrants!=null) {
+		            for (Calibrant c: WaveCalDialog.calibrants) {
+		                if (c.getName().equalsIgnoreCase("LaB6 NIST-660B"))
+		                    continue;//only the user's
+		                if (c.getName().equalsIgnoreCase("Silicon NIST-640D"))
+		                    continue;
+		                output.println(c.printEntryOpt());
+		            }
 	            }
 	            output.println("# Plotting");
 	            if (opt!=null) {

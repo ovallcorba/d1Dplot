@@ -62,7 +62,7 @@ public final class DataFileUtils {
     }
     
     public static enum SupportedReadExtensions {DAT,XYE,XY,ASC,GSA,XRDML,FF,D1P,PRF,GR,REF,RAW,TXT;}
-    public static enum SupportedWriteExtensions {DAT,ASC,GSA,XRDML,GR,FF,REF;}
+    public static enum SupportedWriteExtensions {DAT,XYE,ASC,GSA,XRDML,GR,FF,REF;}
     
     public static SupportedReadExtensions getReadExtEnum(String n) {
         for (SupportedReadExtensions x: SupportedReadExtensions.values()) {
@@ -222,6 +222,10 @@ public final class DataFileUtils {
             p.setFile(d1file);
         }
         
+        if (p.getOriginalWavelength()<=0) {
+            log.info("Wavelength not found in file header");
+        }
+        
         return p;
     }
     
@@ -251,6 +255,9 @@ public final class DataFileUtils {
         
         switch (format) {
             case DAT:
+                written = writeDAT_ALBA(serie,d1File,overwrite,addYbkg);
+                break;
+            case XYE:
                 written = writeDAT_ALBA(serie,d1File,overwrite,addYbkg);
                 break;
             case ASC:
@@ -382,7 +389,7 @@ public final class DataFileUtils {
         //normalitzem intensitats a 100
         dc.getDataSerie(0).normalizeIntensitiesToValue(100);
         
-        //mirem si hi ha un nom als comentaris #name=XXX
+        //mirem si hi ha un nom als comentaris #name=XXXX
         List<String> com = dc.getCommentLines();
         String name="";
         for (String s:com) {
@@ -1542,7 +1549,7 @@ public final class DataFileUtils {
     
     
 //  #TITOL
-//  name=XXX
+//  name=XXXX
 //  cell=
 //  sg=
 //  wave=
@@ -2286,7 +2293,7 @@ public final class DataFileUtils {
                     }
                 }
             }catch(Exception ex){
-                log.warning("Error parsing element after wavelength keyword");
+                log.debug("Error parsing element after wavelength keyword");
             }
             
             //provem amb signe igual
@@ -2306,7 +2313,7 @@ public final class DataFileUtils {
                     }
                 }
             }catch(Exception ex){
-                log.warning("Error parsing element after wave*= keyword");
+                log.debug("Error parsing element after wave*= keyword");
             }
         }
         
@@ -2326,7 +2333,7 @@ public final class DataFileUtils {
                     }
                 }
             }catch(Exception ex){
-                log.warning("Error parsing element after name*= keyword");
+                log.debug("Error parsing element after name*= keyword");
             }
         }
         return name;

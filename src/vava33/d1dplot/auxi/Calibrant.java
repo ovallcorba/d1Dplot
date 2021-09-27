@@ -10,11 +10,7 @@ package com.vava33.d1dplot.auxi;
  * 
  */
 
-import java.util.List;
-
 import com.vava33.cellsymm.Cell;
-import com.vava33.cellsymm.HKLrefl;
-import com.vava33.d1dplot.CalibrationDialog;
 
 public class Calibrant {
 
@@ -48,4 +44,13 @@ public class Calibrant {
 		this.cell = cell;
 	}
 
+	//FORMAT: calibrant: NAME; a b c alfa beta gamma; SGnum
+	public String printEntryOpt() {
+		return String.format("%s; %s; %d", name, cell.toStringCellParamOnly(), cell.getSg().getsgNum());
+	}
+	
+	@Override
+	public String toString() {
+		return this.name;
+	}
 }

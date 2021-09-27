@@ -359,6 +359,7 @@ public final class ArgumentLauncher {
             }
             
             File outf = FileUtils.canviNomFitxer(patts.get(0).getFile(), outfname);
+            outf = new File(patts.get(0).getFile().getParent()+FileUtils.fileSeparator+outf.getName());
             DataSerie[] dss = new DataSerie[patts.size()];
             for (int i=0; i<patts.size();i++){
                 dss[i]=patts.get(i).getDataSerie(0);
@@ -408,7 +409,8 @@ public final class ArgumentLauncher {
                 ConsoleWritter.statf("== Subtracting background to %s",f.getAbsolutePath());
                 String outfname = FileUtils.getFNameNoExt(p.getFile().getName())+suffix;
                 File outf = FileUtils.canviNomFitxer(p.getFile(), outfname);
-                
+                outf = new File(p.getFile().getParent()+FileUtils.fileSeparator+outf.getName());
+
                 DataSerie ds1 = p.getDataSerie(0);
                 DataSerie ds2 = fons.getDataSerie(0); //EL FONS!
                 
@@ -460,7 +462,8 @@ public final class ArgumentLauncher {
                 ConsoleWritter.statf("== Rebinning %s",f.getAbsolutePath());
                 String outfname = FileUtils.getFNameNoExt(p.getFile().getName())+suffix;
                 File outf = FileUtils.canviNomFitxer(p.getFile(), outfname);
-                
+                outf = new File(p.getFile().getParent()+FileUtils.fileSeparator+outf.getName());
+
                 List<Plottable_point> puntsdummy = new ArrayList<Plottable_point>();
                 double t2 = t2i;
                 while (t2<=t2f){
