@@ -50,7 +50,8 @@ public final class ArgumentLauncher {
     	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 77));
     	ConsoleWritter.afegirSaltLinia();
         ConsoleWritter.afegirText(false, false, "              ");
-    	ConsoleWritter.afegirText(true, false, D1Dplot_global.welcomeMSG);
+    	ConsoleWritter.afegirText(false, false, D1Dplot_global.welcomeMSG);
+    	ConsoleWritter.afegirText(true, false, D1Dplot_global.pubMSG);
     	ConsoleWritter.afegirText(true,false,FileUtils.getCharLine('=', 77));
 
         if (args.length==0)return; //no hi ha res

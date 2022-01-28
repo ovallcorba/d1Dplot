@@ -37,13 +37,15 @@ import com.vava33.jutils.VavaLogger;
 
 public final class D1Dplot_global {
 
-    public static final int version = 2101; //nomes canviare la versio global quan faci un per distribuir
-    public static final int build_date = 210927; //aquesta si que la canviare sempre
+    public static final int version = 2201; //nomes canviare la versio global quan faci un per distribuir
+    public static final int build_date = 220122; //aquesta si que la canviare sempre
     public static final String welcomeMSG = "d1Dplot v"+version+" ("+build_date+") by O.Vallcorba\n\n"
     		+ " This is a DEVELOPMENT version and contains errors. Please USE WITH CAUTION.\n"
-    		+ " Report of errors or comments about the program are appreciated.\n";
+    		+ " Report of errors or comments about the program are appreciated.\n\n";
     
-    public static final String pubMSG = " If you find the program useful for your research please cite it. Thank you!\n";
+    public static final String pubMSG = " If you find the program useful, please cite it:\n"
+    		+ " XRD data visualization, processing and analysis with d1Dplot and d2Dplot software packages.\n"
+    		+ " Proceedings 2020, 62(1), 9. DOI:10.3390/IOCC_2020-07311. Thank you!!\n";
     
     private static final String className = "d1Dplot_global";
 //    public static final String fileSeparator = System.getProperty("file.separator");
