@@ -2,7 +2,7 @@
 
 d1Dplot is a plotting program for 1D X-ray diffraction (XRD) data (i.e. powder diffraction patterns). Its main purposes are to be user friendly, to provide specific tools for XRD data processing/analysis and the possibility to generate nice plots and figures for publications or reports.
 
-Detailed information can be found in the [users guide](d1Dplot_userguide.pdf) or in the publication ["XRD data visualization, processing and analysis with d1Dplot and d2Dplot software packages" *Multidisciplinary Digital Publishing Institute Proceedings* 62 (1), 9](https://www.mdpi.com/2504-3900/62/1/9)
+Detailed information can be found in the users guide ([pdf](d1Dplot_userguide.pdf) | [markdown](./docs/d1Dplot_userguide.md)) or in the publication ["XRD data visualization, processing and analysis with d1Dplot and d2Dplot software packages" *Multidisciplinary Digital Publishing Institute Proceedings* 62 (1), 9](https://www.mdpi.com/2504-3900/62/1/9)
 
 d1Dplot was a personal closed source project started on 2015 and actively maintained until 2020. From August 2022 the program is open source and licensed under the GPL-3.0 license. Sorry if the code is not compliant with standards, is a little bit messy and contains comments in catalan.
 
@@ -31,7 +31,7 @@ Binaries for windows and linux can be downloaded in the releases section (https:
 
 ## Authors
 
-  - **Oriol Vallcorba**
+  - **Oriol Vallcorba** (ovallcorba@cells.es)
 
 ## Disclaimer
 
@@ -46,3 +46,5 @@ Thanks are due the Spanish "Ministerio de Ciencia e Innovación", to the "Genera
 This project is licensed under the [GPL-3.0 license](LICENSE.txt)
 
 Citation of the author/program/affiliation, e.g. O. Vallcorba & J. Rius. XRD data visualization, processing and analysis with d1Dplot and d2Dplot software packages. (doi:10.3390/IOCC_2020-07311), would be greatly appreciated when this program helped to your work.
+
+Copyright © Oriol Vallcorba 2017
